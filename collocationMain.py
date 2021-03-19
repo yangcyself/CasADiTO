@@ -121,7 +121,7 @@ u_plot = []
 X0 = np.array([0,1,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
-XDes = ca.MX([2,1,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
+XDes = np.array([2,1,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
 
@@ -153,7 +153,7 @@ for cons, N, name in Scheme:
             w.append(Xkj)
             lbw.append([-np.inf]*14)
             ubw.append([np.inf]*14)
-            w0.append(list(np.random.random(14)))
+            w0.append(XDes)
 
         # Loop over collocation points
         Xk_end = D[0]*Xk # Xk_end is the next break point D[0]*collocation[0] + D[0]*collocation[1] ... 
@@ -172,8 +172,8 @@ for cons, N, name in Scheme:
 
             g.append(h*dynFsol["dx"] - xp) #??YCY?? Why need h here?
             #    g.append(fj - xp) #ycytmp
-            lbg.append([0, 0])
-            ubg.append([0, 0])
+            lbg.append([0]*14)
+            ubg.append([0]*14)
 
             # Add contribution to the end state
             Xk_end = Xk_end + D[j]*Xc[j-1];
@@ -203,13 +203,13 @@ for cons, N, name in Scheme:
         w.append(Xk)
         lbw.append([-np.inf]*14)
         ubw.append([np.inf]*14)
-        w0.append([0, 0])
+        w0.append(XDes)
         x_plot.append(Xk)
 
         # Add equality constraint
         g.append(Xk_end-Xk)
-        lbg.append([0, 0])
-        ubg.append([0, 0])
+        lbg.append([0]*14)
+        ubg.append([0]*14)
 
 J += ca.dot((Xk - XDes),(Xk - XDes))
 
