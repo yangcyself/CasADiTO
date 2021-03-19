@@ -104,6 +104,10 @@ pFuncs = {
 "phfLeg2" : Function("phfLeg2", [x], [phfLeg2])
 }
 
+JacFuncs = {
+    "Jbtoe": Function( "Jbtoe",  [x], [simplify(jacobian(phbLeg2, q))] ),
+    "Jftoe": Function( "Jftoe",  [x], [simplify(jacobian(phfLeg2, q))] )
+}
 
 # Kinetic energy
 KEtor = 0.5*params["torM"] * dot(dpMtor, dpMtor) + 0.5*params["torI"]*dth**2

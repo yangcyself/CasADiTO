@@ -55,11 +55,11 @@ DynFuncs = {
 Fs = {k:Runge_kutta_builder(f, 0.01) for k,f in DynFuncs.items()}
 
 Scheme = [ # list: (contact constaints, length)
-    ((1,1), 10, "start"),
-    ((1,0), 10, "lift"),
-    ((0,0), 10, "fly"),
-    # ([model.phbLeg2], 10, "land"),
-    ((1,1), 10, "finish")
+    ((1,1), 3, "start"),
+    ((1,0), 3, "lift"),
+    ((0,0), 3, "fly"),
+    # ([model.phbLeg2], 3, "land"),
+    ((1,1), 3, "finish")
 ]
 
 
@@ -115,8 +115,8 @@ for cons, N, name in Scheme:
         # add higher than ground constraint
         g += [pfunc(Xk)[1] for i,pfunc in enumerate(model.pFuncs.values())
                         if not(i+k)%6]
-        lbg += [0] * len(model.pFuncs)
-        ubg += [inf] * len(model.pFuncs)
+        lbg += [0 for i in range(len(model.pFuncs)) if not (i+k)%6]
+        ubg += [inf for i in range(len(model.pFuncs)) if not (i+k)%6]
 
         # Integrate till the end of the interval
         Fk = F(x0=Xk, p=Uk)
