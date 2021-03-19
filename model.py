@@ -2,11 +2,6 @@
 from casadi import *
 
 
-
-
-T = 10. # Time horizon
-N = 20 # number of control intervals
-
 # Declare model variables
 px = MX.sym('px')
 py = MX.sym('py')
@@ -84,6 +79,32 @@ dpMbLeg2 = jtimes(pMbLeg2, q, dq)
 dpMfLeg1 = jtimes(pMfLeg1, q, dq)
 dpMfLeg2 = jtimes(pMfLeg2, q, dq)
 
+pComFuncs = {
+"pMtor" : Function("pMtor", [x], [pMtor]),
+"pMbLeg1" : Function("pMbLeg1", [x], [pMbLeg1]),
+"pMbLeg2" : Function("pMbLeg2", [x], [pMbLeg2]),
+"pMfLeg1" : Function("pMfLeg1", [x], [pMfLeg1]),
+"pMfLeg2" : Function("pMfLeg2", [x], [pMfLeg2])
+}
+
+dpComFuncs = {
+"dpMtor" : Function("dpMtor", [x], [dpMtor]),
+"dpMbLeg1" : Function("dpMbLeg1", [x], [dpMbLeg1]),
+"dpMbLeg2" : Function("dpMbLeg2", [x], [dpMbLeg2]),
+"dpMfLeg1" : Function("dpMfLeg1", [x], [dpMfLeg1]),
+"dpMfLeg2" : Function("dpMfLeg2", [x], [dpMfLeg2])
+}
+
+pFuncs = {
+"prTor" : Function("prTor", [x], [prTor]),
+"phTor" : Function("phTor", [x], [phTor]),
+"phbLeg1" : Function("phbLeg1", [x], [phbLeg1]),
+"phbLeg2" : Function("phbLeg2", [x], [phbLeg2]),
+"phfLeg1" : Function("phfLeg1", [x], [phfLeg1]),
+"phfLeg2" : Function("phfLeg2", [x], [phfLeg2])
+}
+
+
 # Kinetic energy
 KEtor = 0.5*params["torM"] * dot(dpMtor, dpMtor) + 0.5*params["torI"]*dth**2
 KEbLeg1 = 0.5*params["legM"] * dot(dpMbLeg1, dpMbLeg1) + 0.5*params["legI"]*(dth+dbq1)**2
@@ -160,17 +181,30 @@ dx = vertcat(dq, Fsol[:7])
 # DynF = Function('Dynf', [x], [dx])
 
 # TODO: can try avoid constraint float
+# The cache to reuse jacobians of each constraints
+buildJacobian_Cache = {}
+
+def updateJacobianCache(cons, name):
+    if(name is None):
+        return jacobian(cons,q) 
+    if(name in buildJacobian_Cache.keys()):
+        return buildJacobian_Cache[name]
+    else:
+        res = jacobian(cons,q) 
+        buildJacobian_Cache[name] = res
+        return res
 
 
-def buildDynF(constraints):
+def buildDynF(constraints,name="",consNames = None):
+    consNames = [None]*len(constraints) if consNames is None else consNames
 
     Flist_format = [MX.sym("F%d"%i, c.size()[0]) for i,c in enumerate(constraints)]
     ddq_format = MX.sym("ddq",7)
     Sol_format = vertcat(ddq_format, *Flist_format)
-    print(["ddq", *[s.name() for s in Flist_format]])
-    solParse = Function("solParse",[Sol_format], [ddq_format, *Flist_format], ["sol"], ["ddq", *[s.name() for s in Flist_format]])
-
-    consJs = [jacobian(c,q) for c in constraints]
+    tmp = MX([0])# add tmp as an output to ensure that the function always returns a tuple
+    solParse = Function("solParse",[Sol_format], [tmp, ddq_format, *Flist_format], ["sol"], ["0","ddq", *[s.name() for s in Flist_format]])
+    print("name out:",solParse.name_out())
+    consJs = [updateJacobianCache(c,n) for c,n in zip(constraints, consNames)]
 
     consA = vertcat(* consJs ) # constraint matrix
     consb = vertcat(* [- jtimes(j,q,dq)@dq for j in consJs]) # consA ddq = consb
@@ -184,7 +218,10 @@ def buildDynF(constraints):
     ddq = Fsol[:7]
     dx = vertcat(dq,ddq)
 
-    solS = solParse(Fsol)
-    return Function("DynF", [x,u], [dx, *solS], ["x","u"], ["dx", *solParse.name_out()])
-    
-DynF = buildDynF([phTor])
+    solS = solParse(Fsol)[1:]
+    return Function("DynF_%s"%name, [x,u], [dx, *solS], ["x","u"], ["dx", *(solParse.name_out()[1:])])
+
+def buildValF(v,name = ""):
+    return Function("%s_val"%name, [x], [v],[x], [name+"v"])
+
+DynF = buildDynF([phTor, phbLeg2])
