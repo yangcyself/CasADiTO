@@ -12,7 +12,8 @@ x_val = np.array([0,0,0,-0.3,-2.5, -0.3, -2.5,
 robotLines = []
 
 for i in range(3000):
-    x_val += model.DynF(x_val) * 0.001
+    sol = model.DynF(x = x_val,u = np.zeros(4))
+    x_val += sol["dx"] * 0.001
     
     if(not i %10):
         robotLines.append(vis.visFunc(x_val[:7]))

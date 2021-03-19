@@ -66,6 +66,16 @@ pMfLeg2 = vertcat(
     py + params["torL"] * sin(th) + params["legL"] * sin(th+fq1) + params["legL"]/2 * sin(th+fq1+fq2),
 )#front leg center of position
 
+prTor = vertcat(px,py) #rear of the torso
+phTor = vertcat(px+params["torL"] * cos(th),py+params["torL"] * sin(th)) #head of the torso
+phbLeg1 = vertcat(px + params["legL"] * cos(th+bq1),
+    py + params["legL"] * sin(th+bq1)) #rear of the back leg thigh
+phbLeg2 = vertcat(px + params["legL"] * cos(th+bq1) + params["legL"] * cos(th+bq1+bq2),
+    py + params["legL"] * sin(th+bq1) + params["legL"] * sin(th+bq1+bq2),) #rear of the back leg 
+phfLeg1 = vertcat(px + params["torL"] * cos(th) + params["legL"] * cos(th+fq1),
+    py + params["torL"] * sin(th) + params["legL"] * sin(th+fq1))#front leg thigh center of position
+phfLeg2 = vertcat(px + params["torL"] * cos(th) + params["legL"] * cos(th+fq1) + params["legL"] * cos(th+fq1+fq2),
+    py + params["torL"] * sin(th) + params["legL"] * sin(th+fq1) + params["legL"] * sin(th+fq1+fq2))#front leg
 
 #jtimes: Jacobian-times-vector
 dpMtor = jtimes(pMtor, q, dq)
@@ -108,7 +118,7 @@ for k in range(7):
             MC[k,j] += 0.5*(gradient(MD[k,j], q[i]) + gradient(MD[k,j], q[j]) - gradient(MD[k,j], q[k])) * dq[i]
 MC = simplify(MC)
 MG = simplify(jacobian(PE,q)).T
-MB = simplify(jacobian(veccat(bq1, bq2, fq1, fq2), q))
+MB = simplify(jacobian(veccat(bq1, bq2, fq1, fq2), q)).T
 
 # print(pMtor)
 
@@ -147,6 +157,34 @@ Fsol = solve(FA,Fb)
 
 dx = vertcat(dq, Fsol[:7])
 
-DynF = Function('Dynf', [x], [dx])
+# DynF = Function('Dynf', [x], [dx])
+
+# TODO: can try avoid constraint float
 
 
+def buildDynF(constraints):
+
+    Flist_format = [MX.sym("F%d"%i, c.size()[0]) for i,c in enumerate(constraints)]
+    ddq_format = MX.sym("ddq",7)
+    Sol_format = vertcat(ddq_format, *Flist_format)
+    print(["ddq", *[s.name() for s in Flist_format]])
+    solParse = Function("solParse",[Sol_format], [ddq_format, *Flist_format], ["sol"], ["ddq", *[s.name() for s in Flist_format]])
+
+    consJs = [jacobian(c,q) for c in constraints]
+
+    consA = vertcat(* consJs ) # constraint matrix
+    consb = vertcat(* [- jtimes(j,q,dq)@dq for j in consJs]) # consA ddq = consb
+    consl = consA.size()[0]
+
+    FA = vertcat(MD,consA)
+    FA = simplify( horzcat(FA, vertcat(consA.T, np.zeros((consl, consl) ))))
+    Fb = simplify(vertcat(- (MC@dq) - MG + MB @ u, consb))
+    Fsol = solve(FA,Fb)
+
+    ddq = Fsol[:7]
+    dx = vertcat(dq,ddq)
+
+    solS = solParse(Fsol)
+    return Function("DynF", [x,u], [dx, *solS], ["x","u"], ["dx", *solParse.name_out()])
+    
+DynF = buildDynF([phTor])
