@@ -18,7 +18,8 @@ XDes = np.array([0,0.5,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.p
 opt.init(X0)
 
 for i in range(30):
-    opt.step(dynF, np.zeros(4),X0)
+    opt.step(lambda dx,x,u : dynF(x=x,u=u)["dx"] - dx, 
+            np.array([1,125,1,125]),X0)
     opt.addCost(lambda x,u: ca.dot(x-XDes, x-XDes)+0.01*ca.dot(u,u))
 
     def holoCons(x,u):
@@ -34,5 +35,5 @@ for i in range(30):
 
 opt.startSolve()
 
-with open("collo2Sol.pkl", "wb") as f:
+with open("collo2Sol_with_init.pkl", "wb") as f:
     pkl.dump(opt._sol, f)

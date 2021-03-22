@@ -113,7 +113,9 @@ class ColloOptimizer(TrajOptimizer):
             "Xk": Xk,
         }
         
-
+    """
+    dynF: (dx, x, u) -> g
+    """
     def step(self,dynF,u0,x0):
         Uk = ca.MX.sym('U_%d'%(self._stepCount), self._uDim)
         self._w.append(Uk)
@@ -144,11 +146,12 @@ class ColloOptimizer(TrajOptimizer):
 
             # Append collocation equations
             # fj, qj = f(Xc[j-1],Uk)
-            dynFsol = dynF(x=Xc[j-1],u = Uk)
+            g = dynF(xp/self._dt, Xc[j-1], Uk)
+            # dynFsol = dynF(x=Xc[j-1],u = Uk)
 
-            self._g.append(self._dt*dynFsol["dx"] - xp)
-            self._lbg.append([0]*self._xDim)
-            self._ubg.append([0]*self._xDim)
+            self._g.append(g)
+            self._lbg.append([0]*g.size(1)) #size(1): the dim of axis0
+            self._ubg.append([0]*g.size(1)) #size(1): the dim of axis0
 
             # Add contribution to the end state
             Xk_end = Xk_end + self._D[j]*Xc[j-1];
