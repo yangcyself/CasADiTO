@@ -89,11 +89,11 @@ DynFuncs = {
 }
 
 Scheme = [ # list: (contact constaints, length)
-    ((1,1), 3, "start"),
-    ((1,0), 3, "lift"),
-    ((0,0), 3, "fly"),
-    # ([model.phbLeg2], 3, "land"),
-    ((1,1), 3, "finish")
+    ((1,1), 10, "start"),
+    ((1,0), 10, "lift"),
+    ((0,0), 10, "fly"),
+    # ([model.phbLeg2], 10, "land"),
+    ((1,1), 10, "finish")
 ]
 h = 0.05
 

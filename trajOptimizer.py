@@ -1,0 +1,195 @@
+import numpy as np
+import casadi as ca
+
+
+class TrajOptimizer:
+    def __init__(self, xDim, uDim, uLim, dt):
+        self._xDim = xDim
+        self._uDim = uDim
+        uLim = np.array(uLim)
+        self._uLim = uLim if uLim.ndim == 2 else np.tile(uLim,(uDim,1))
+        assert(self._uLim.shape == (self._uDim,2))
+        self._w = []
+        self._w0 = []
+        self._lbw = []
+        self._ubw = []
+        self._J = 0
+        self._g=[]
+        self._lbg = []
+        self._ubg = []
+        self._sol = None
+        self._stepCount = 0
+        self._lastStep = {}
+        self._dt = dt
+    
+    def getSolU(self):
+        raise NotImplementedError
+
+    def getSolX(self):
+        raise NotImplementedError
+    
+    def startSolve(self):
+        raise NotImplementedError
+        
+    def init(self):
+        raise NotImplementedError
+
+    def step(self):
+        raise NotImplementedError
+    
+    # Add constriant of the state of last step
+    def addConstraint(self):
+        raise NotImplementedError
+    
+    # Add constriant of the state of last step
+    def addCost(self):
+        raise NotImplementedError
+
+class HaveNotRunOptimizerError(Exception):
+    def __init__(self):
+        super().__init__("optimization must be runned before this")
+
+
+class ColloOptimizer(TrajOptimizer):
+    def __init__(self, xDim, uDim, uLim, dt, colloRoots):
+        super().__init__(xDim, uDim, uLim, dt)
+        self._x_plot = []
+        self._u_plot = []
+        self._parseSol = None
+
+        self._tau_root = colloRoots
+        self._d = len(colloRoots) - 1
+        self._C = np.zeros((self._d+1,self._d+1))
+        # Coefficients of the continuity equation
+        self._D = np.zeros(self._d+1)
+
+        # Coefficients of the quadrature function
+        self._B = np.zeros(self._d+1)
+        # Construct polynomial basis
+        for j in range(self._d+1):
+            # Construct Lagrange polynomials to get the polynomial basis at the collocation point
+            p = np.poly1d([1])
+            for r in range(self._d+1):
+                if r != j:
+                    p *= np.poly1d([1, -self._tau_root[r]]) / (self._tau_root[j]-self._tau_root[r])
+
+            # Evaluate the polynomial at the final time to get the coefficients of the continuity equation
+            self._D[j] = p(1.0)
+
+            # Evaluate the time derivative of the polynomial at all collocation points to get the coefficients of the continuity equation
+            pder = np.polyder(p)
+            for r in range(self._d+1):
+                self._C[j,r] = pder(self._tau_root[r])
+
+            # Evaluate the integral of the polynomial to get the coefficients of the quadrature function
+            pint = np.polyint(p)
+            self._B[j] = pint(1.0)
+
+    def getSolU(self):
+        if(self._sol is None):
+            raise HaveNotRunOptimizerError
+        
+        x_opt, u_opt = self._parseSol(self._sol['x'])
+        u_opt = u_opt.full() # to numpy array
+        return u_opt
+
+    def getSolX(self):
+        if(self._sol is None):
+            raise HaveNotRunOptimizerError
+        
+        x_opt, u_opt = self._parseSol(self._sol['x'])
+        x_opt = x_opt.full() # to numpy array
+        return x_opt
+    
+            
+    def init(self, x0):
+        Xk = ca.MX.sym('X0', 14)
+        self._w.append(Xk)
+        self._lbw.append(x0)
+        self._ubw.append(x0)
+        self._w0.append(x0)
+        self._x_plot.append(Xk)
+        self._lastStep = {
+            "Xk": Xk,
+        }
+        
+
+    def step(self,dynF,u0,x0):
+        Uk = ca.MX.sym('U_%d'%(self._stepCount), self._uDim)
+        self._w.append(Uk)
+        self._lbw.append(self._uLim[:,0])
+        self._ubw.append(self._uLim[:,1])
+        self._w0.append(u0)
+        self._u_plot.append(Uk)
+
+        Xc = []
+        for j in range(self._d):
+            Xkj = ca.MX.sym('X_%d_%d'%(self._stepCount,j), 14)
+            Xc.append(Xkj)
+            self._w.append(Xkj)
+            self._lbw.append([-np.inf]*14)
+            self._ubw.append([np.inf]*14)
+            self._w0.append(x0)
+        
+        Xk = self._lastStep["Xk"]
+
+        # Loop over collocation points
+        Xk_end = self._D[0]*Xk # Xk_end is the next break point D[0]*collocation[0] + D[0]*collocation[1] ... 
+        # the collocation[0] needs to be the previous Xk, so Xc only contains the collocations[1...d]
+        # p[0] is the polynomial that p(0)=1, and p[j!=0](0) = 0
+        for j in range(1,self._d+1):
+            # Expression for the state derivative at the collocation point
+            xp = self._C[0,j]*Xk
+            for r in range(self._d): xp = xp + self._C[r+1,j]*Xc[r]
+
+            # Append collocation equations
+            # fj, qj = f(Xc[j-1],Uk)
+            dynFsol = dynF(x=Xc[j-1],u = Uk)
+
+            self._g.append(self._dt*dynFsol["dx"] - xp)
+            self._lbg.append([0]*self._xDim)
+            self._ubg.append([0]*self._xDim)
+
+            # Add contribution to the end state
+            Xk_end = Xk_end + self._D[j]*Xc[j-1];
+
+
+        self._stepCount += 1
+        self._lastStep = {
+            "Uk":Uk,
+            "Xk": Xk_end,
+            "Xc": Xc
+        }
+
+    # Add constriant of the state of last step
+    # func: x,u -> g
+    def addConstraint(self, func, lb, ub):
+        for c in self._lastStep["Xc"]:
+            self._g.append(func(c, self._lastStep["Uk"]))
+            self._lbg.append(lb)
+            self._ubg.append(ub)
+    
+    # Add constriant of the state of last step
+    def addCost(self,func):
+        self._J += func(self._lastStep["Xk"], self._lastStep["Uk"])
+
+        
+    def startSolve(self, solver = 'ipopt'):
+        w = ca.vertcat(*self._w)
+        g = ca.vertcat(*self._g)
+        x_plot = ca.horzcat(*self._x_plot)
+        u_plot = ca.horzcat(*self._u_plot)
+        w0 = np.concatenate(self._w0)
+        lbw = np.concatenate(self._lbw)
+        ubw = np.concatenate(self._ubw)
+        lbg = np.concatenate(self._lbg)
+        ubg = np.concatenate(self._ubg)
+        # Create an NLP solver
+        prob = {'f':self._J, 'x': w, 'g': g}
+        solver = ca.nlpsol('solver', solver, prob)
+
+        print("Finished setting up solver")
+
+        self._sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
+
+    
