@@ -127,11 +127,14 @@ PE = PEtor + PEbLeg1 + PEbLeg2 + PEfLeg1 + PEfLeg2
 
 L = KE - PE #ycytmp I think this should be plus, but in ME192 it is -
 
-# EOM = jacobian(jacobian(L,dq), q)@dq - jacobian(L,q).T # equation of motion
-# EOM = simplify(EOM)
+ddq = MX.sym("ddq",7)
+Q = MX.sym("Q",7)
+print(jtimes(jacobian(L,dq).T, dq, ddq).size(), jacobian(L,q).T.size(), Q.size())
+EOM0 = jtimes(jacobian(L,dq).T, dq, ddq) - jacobian(L,q).T - Q # equation of motion
+EOM0 = simplify(EOM0)
 # print(EOM)
-# EOM_func = Function("EOM_func", [x], [EOM])
-# # print("EOM",EOM_func(x_val))
+EOM_func0 = Function("EOM0_func", [x, ddq, Q], [EOM0])
+# print("EOM",EOM_func(x_val))
 
 MD = simplify(jacobian(jacobian(KE,dq)    ,dq))
 MC = MX(7,7)
@@ -184,6 +187,17 @@ dx = vertcat(dq, Fsol[:7])
 
 # DynF = Function('Dynf', [x], [dx])
 
+
+ddq = MX.sym("ddq", 7)
+btoeF = MX.sym("btoeF",2)
+ftoeF = MX.sym("ftoeF",2)
+F = vertcat(btoeF,ftoeF)
+dx = veccat(dq,ddq)
+toeJac = jacobian(vertcat(phbLeg2, phfLeg2), q)
+EOM = MD @ ddq + MC@dq + MG - MB @ u - toeJac.T @ F
+EOMfunc = Function("EOM",[x,ddq,u,F],[EOM])
+
+
 # TODO: can try avoid constraint float
 # The cache to reuse jacobians of each constraints
 # This cache together with other Rounge caches saves 1/3 of the memory cost!
@@ -198,7 +212,6 @@ def updateJacobianCache(cons, name):
         res = jacobian(cons,q) 
         buildJacobian_Cache[name] = res
         return res
-
 
 def buildDynF(constraints,name="",consNames = None):
     consNames = [None]*len(constraints) if consNames is None else consNames
@@ -216,7 +229,7 @@ def buildDynF(constraints,name="",consNames = None):
     consl = consA.size()[0]
 
     FA = vertcat(MD,consA)
-    FA = simplify( horzcat(FA, vertcat(consA.T, np.zeros((consl, consl) ))))
+    FA = simplify( horzcat(FA, -vertcat(consA.T, np.zeros((consl, consl) ))))
     Fb = simplify(vertcat(- (MC@dq) - MG + MB @ u, consb))
     Fsol = solve(FA,Fb)
 
@@ -229,4 +242,19 @@ def buildDynF(constraints,name="",consNames = None):
 def buildValF(v,name = ""):
     return Function("%s_val"%name, [x], [v],[x], [name+"v"])
 
-DynF = buildDynF([phTor, phbLeg2])
+
+# x_val = np.array([0,0,0,-0.3,-2.5, -0.3, -2.5,
+#                   0,0,0,0,    0,    0,    0])
+# u_val = np.array([20, 60, 32, 45])
+# DynF = buildDynF([phbLeg2, phfLeg2])
+# # DynF = buildDynF([])
+# # DynF = buildDynF([phbLeg2])
+
+# sol = DynF(x = x_val, u = u_val)
+
+# print(sol["F0"],sol["F1"])
+# print(EOMfunc(x_val, sol["ddq"], u_val, vertcat(sol["F0"],sol["F1"])))
+# # print(EOMfunc(x_val, sol["ddq"], u_val, vertcat(0,0,0,0)))
+# # print(EOM_func0(x_val, sol["ddq"], vertcat(0,0,0,u_val)))
+# # print(EOM_func0(x_val, sol["ddq"], vertcat(0,0,0,u_val)))
+# # print(EOM_func0(x_val, sol["ddq"], vertcat(0,0,0,u_val) - JacFuncs["Jbtoe"](x_val).T@sol["F0"]))
