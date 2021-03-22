@@ -14,13 +14,14 @@ def Ctrl(x):
     CoM = model.pComFuncs["pMtor"](x)
     dCoM = model.dpComFuncs["dpMtor"](x)
     
-    pbtoe = model.pComFuncs["phbLeg2"](x) - CoM
-    pftoe = model.pComFuncs["phfLeg2"](x) - CoM
+    pbtoe = model.pFuncs["phbLeg2"](x) - CoM
+    pftoe = model.pFuncs["phfLeg2"](x) - CoM
 
-    F = 10*(np.array([0.5, 1.3]) - CoM) + ( - dCoM) \
+    F = 10*(np.array([0.5, 1]) - CoM) + 2*( - dCoM) \
         + np.array([0, model.params["G"]])*(model.params["torM"] + 4* model.params["legM"])
-    Fth = 10 * (0 - x[2]) + (-x[9])
+    Fth = np.array(10 * (0 - x[2]) + 2*(-x[9])).reshape(1,1)
 
+    print("F",F,Fth)
     MA = np.zeros((3,4))
     MA[:2,:2] =  np.eye(2)
     MA[:2,2:4] = np.eye(2)
@@ -28,15 +29,21 @@ def Ctrl(x):
 
     FootF = np.linalg.pinv(MA) @ np.concatenate([F,Fth])
     
+    print("FootF",FootF.transpose())
     Jac = np.concatenate([model.JacFuncs["Jbtoe"](x), model.JacFuncs["Jftoe"](x)])
-    u = Jac.T @ FootF
+    u = - Jac.T @ FootF
 
-    return u
+    return u[3:]
 
 robotLines = []
 
-for i in range(3000):
-    sol = model.DynF(x = x_val,u = np.zeros(4))
+DynF = model.buildDynF([model.phbLeg2, model.phfLeg2],"all_leg", ["btoe","ftoe"])
+N = 1000
+for i in range(N):
+    u = Ctrl(x_val)
+
+    sol = DynF(x = x_val,u = u)
+    print("solF",sol["F0"] ,sol["F1"])
     x_val += sol["dx"] * 0.001
     
     if(not i %10):
@@ -52,13 +59,13 @@ fig, ax = plt.subplots()
 # line, = ax.plot(robotLines[0][:,0], robotLines[0][:,1])
 
 def animate(i):
-    i = i%300
+    i = i%int(N/10)
     # line.set_xdata(robotLines[i][:,0])  # update the data.
     # line.set_ydata(robotLines[i][:,1])  # update the data.
     ax.clear()
     line, = ax.plot(robotLines[i][:,0], robotLines[i][:,1])
-    ax.set_xlim(-2,2)
-    ax.set_ylim(-3.5,0.5)
+    ax.set_xlim(-1.5,2.5)
+    ax.set_ylim(-0.5,3.5)
     return line,
 
 ani = animation.FuncAnimation(

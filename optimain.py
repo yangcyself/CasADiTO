@@ -1,6 +1,6 @@
 from casadi import *
 import model, vis
-
+import pickle as pkl
 
 T = 10. # Time horizon
 N = 20 # number of control intervals
@@ -75,95 +75,98 @@ ubg = []
 
 # Formulate the NLP
 # Xk = MX([0, 1])
-Xk = MX([0,1,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
+Xinit = np.array([0,1,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
+Xk = MX(Xinit)
 
 XDes = MX([2,1,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
-for cons, N, name in Scheme:
-    DynF = DynFuncs[cons]
-    F = Fs[cons]
+if __name__ == "__main__":
 
-    if(cons[0]):
-        g += [model.pFuncs["phbLeg2"](Xk)[1] ]
-        lbg += [0] 
-        ubg += [0]
-    if(cons[1]):
-        g += [model.pFuncs["phfLeg2"](Xk)[1]]
-        lbg += [0] 
-        ubg += [0]
-    
-    for k in range(N):
-        # New NLP variable for the control
-        Uk = MX.sym('U_%s_%d'%(name,k),4)
-        w += [Uk]
-        lbw += [-100]*4
-        ubw += [100]*4
-        # w0 += [0]*4
-        w0 += list(np.random.random(4))
+    for cons, N, name in Scheme:
+        DynF = DynFuncs[cons]
+        F = Fs[cons]
 
-        # add friction cone constaint
-        dynFk = DynF(x = Xk, u = Uk)
-        g += [MU * dynFk["F%d"%i][1] + dynFk["F%d"%i][0] for i in range(sum(cons))]
-        lbg += [0] * sum(cons)
-        ubg += [inf] * sum(cons)
-        g += [MU * dynFk["F%d"%i][1] - dynFk["F%d"%i][0] for i in range(sum(cons))]
-        lbg += [0] * sum(cons)
-        ubg += [inf] * sum(cons)
+        if(cons[0]):
+            g += [model.pFuncs["phbLeg2"](Xk)[1] ]
+            lbg += [0] 
+            ubg += [0]
+        if(cons[1]):
+            g += [model.pFuncs["phfLeg2"](Xk)[1]]
+            lbg += [0] 
+            ubg += [0]
+        
+        for k in range(N):
+            # New NLP variable for the control
+            Uk = MX.sym('U_%s_%d'%(name,k),4)
+            w += [Uk]
+            lbw += [-100]*4
+            ubw += [100]*4
+            # w0 += [0]*4
+            w0 += list(np.random.random(4))
 
-        # add higher than ground constraint
-        g += [pfunc(Xk)[1] for i,pfunc in enumerate(model.pFuncs.values())
-                        if not(i+k)%6]
-        lbg += [0 for i in range(len(model.pFuncs)) if not (i+k)%6]
-        ubg += [inf for i in range(len(model.pFuncs)) if not (i+k)%6]
+            # add friction cone constaint
+            dynFk = DynF(x = Xk, u = Uk)
+            g += [MU * dynFk["F%d"%i][1] + dynFk["F%d"%i][0] for i in range(sum(cons))]
+            lbg += [0] * sum(cons)
+            ubg += [inf] * sum(cons)
+            g += [MU * dynFk["F%d"%i][1] - dynFk["F%d"%i][0] for i in range(sum(cons))]
+            lbg += [0] * sum(cons)
+            ubg += [inf] * sum(cons)
 
-        # Integrate till the end of the interval
-        Fk = F(x0=Xk, p=Uk)
-        Xk = Fk['xf']
-        J=J+Fk['qf']
+            # add higher than ground constraint
+            g += [pfunc(Xk)[1] for i,pfunc in enumerate(model.pFuncs.values())
+                            if not(i+k)%6]
+            lbg += [0 for i in range(len(model.pFuncs)) if not (i+k)%6]
+            ubg += [inf for i in range(len(model.pFuncs)) if not (i+k)%6]
 
-        # Add inequality constraint
-        # g += [Xk[0]]
-        # lbg += [-.25]
-        # ubg += [inf]
+            # Integrate till the end of the interval
+            Fk = F(x0=Xk, p=Uk)
+            Xk = Fk['xf']
+            J=J+Fk['qf']
 
-J += dot((Xk - XDes),(Xk - XDes))
+            # Add inequality constraint
+            # g += [Xk[0]]
+            # lbg += [-.25]
+            # ubg += [inf]
 
-print("problem defined")
+    J += dot((Xk - XDes),(Xk - XDes))
 
-# Create an NLP solver
-prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g)}
-solver = nlpsol('solver', 'ipopt', prob);
+    print("problem defined")
 
-print("solve the NLP")
+    # Create an NLP solver
+    prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g)}
+    solver = nlpsol('solver', 'ipopt', prob);
 
-# Solve the NLP
-sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
-w_opt = sol['x']
+    print("solve the NLP")
 
-import pickle as pkl
+    # Solve the NLP
+    sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
+    w_opt = sol['x']
 
-with open("solution.pkl","wb") as f:
-    pkl.dump(sol,f)
 
-# # Plot the solution
-# u_opt = w_opt
-# x_opt = [[0, 1]]
-# for k in range(N):
-#     Fk = F(x0=x_opt[-1], p=u_opt[k])
-#     x_opt += [Fk['xf'].full()]
-# x1_opt = [r[0] for r in x_opt]
-# x2_opt = [r[1] for r in x_opt]
 
-# tgrid = [T/N*k for k in range(N+1)]
-# import matplotlib.pyplot as plt
-# plt.figure(1)
-# plt.clf()
-# plt.plot(tgrid, x1_opt, '--')
-# plt.plot(tgrid, x2_opt, '-')
-# plt.step(tgrid, vertcat(DM.nan(1), u_opt), '-.')
-# plt.xlabel('t')
-# plt.legend(['x1','x2','u'])
-# plt.grid()
-# plt.show()
+    with open("solution.pkl","wb") as f:
+        pkl.dump(sol,f)
+
+    # # Plot the solution
+    # u_opt = w_opt
+    # x_opt = [[0, 1]]
+    # for k in range(N):
+    #     Fk = F(x0=x_opt[-1], p=u_opt[k])
+    #     x_opt += [Fk['xf'].full()]
+    # x1_opt = [r[0] for r in x_opt]
+    # x2_opt = [r[1] for r in x_opt]
+
+    # tgrid = [T/N*k for k in range(N+1)]
+    # import matplotlib.pyplot as plt
+    # plt.figure(1)
+    # plt.clf()
+    # plt.plot(tgrid, x1_opt, '--')
+    # plt.plot(tgrid, x2_opt, '-')
+    # plt.step(tgrid, vertcat(DM.nan(1), u_opt), '-.')
+    # plt.xlabel('t')
+    # plt.legend(['x1','x2','u'])
+    # plt.grid()
+    # plt.show()
