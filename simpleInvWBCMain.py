@@ -29,25 +29,19 @@ def Ctrl(x):
 
     FootF = np.linalg.pinv(MA) @ np.concatenate([F,Fth])
     
-    # print("FootF",FootF.transpose())
-    Jac = np.concatenate([model.JacFuncs["Jbtoe"](x), model.JacFuncs["Jftoe"](x)])
-    # print(Jac)
-    u = - Jac.T @ FootF
-    # print("u", u[3:].T)
-    return u[3:]
+    return FootF
 
 robotLines = []
 
-DynF = model.buildDynF([model.phbLeg2, model.phfLeg2],"all_leg", ["btoe","ftoe"])
+DynF = model.buildInvF([model.phbLeg2, model.phfLeg2],"all_leg", ["btoe","ftoe"])
 N = 1000
 for i in range(N):
-    u = Ctrl(x_val)
+    F = Ctrl(x_val)
 
-    sol = DynF(x = x_val,u = u)
-    print("EOM: ", model.EOMfunc(x_val,sol["ddq"],u, np.concatenate([sol["F0"],sol["F1"]])))
+    sol = DynF(x = x_val,F0 = F[:2], F1 = F[2:])
+
     # print("EOM0:", model.EOM0(x_val,sol["ddq"], u, np.concatenate([sol["F0"],sol["F1"]]) ))
 
-    print("solF",sol["F0"] ,sol["F1"])
     x_val += sol["dx"] * 0.001
     
     if(not i %10):

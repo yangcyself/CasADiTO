@@ -14,10 +14,10 @@ DynFuncs = {
 
 Scheme = [ # list: (contact constaints, length)
     ((1,1), 10, "start"),
-    # ((1,0), 10, "lift"),
-    # ((0,0), 10, "fly"),
-    # # ([model.phbLeg2], 3, "land"),
-    # ((1,1), 10, "finish")
+    ((1,0), 10, "lift"),
+    ((0,0), 10, "fly"),
+    # ([model.phbLeg2], 3, "land"),
+    ((1,1), 10, "finish")
 ]
 
 # input dims: [ux4,Fbx2,Ffx2]
@@ -26,7 +26,7 @@ opt = DirectOptimizer(14, 4, [-100, 100], 0.05)
 X0 = np.array([0,1,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
-XDes = np.array([0,0.5,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
+XDes = np.array([1.5,1,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
 def rounge_Kutta(x,u,dynF):
@@ -37,6 +37,7 @@ def rounge_Kutta(x,u,dynF):
     k4 = dynF(x + DT * k3, u)
     x=x+DT/6*(k1 +2*k2 +2*k3 +k4)
     return x
+
 
 opt.init(X0)
 
@@ -69,10 +70,12 @@ for cons, N, name in Scheme:
             holoCons, [0]*(sum(cons))*2, [np.inf]*(sum(cons))*2
         )
 
-opt.startSolve()
+if __name__ == "__main__" :
 
-with open("directSol_with_init_toyProblem.pkl", "wb") as f:
-    pkl.dump(opt._sol, f)
+    opt.startSolve()
 
-with open("directSol_with_init_x_u_toyProblem.pkl", "wb") as f:
-    pkl.dump((opt.getSolX, opt.getSolU), f)
+    with open("directSol_with_init_toyProblem.pkl", "wb") as f:
+        pkl.dump(opt._sol, f)
+
+    with open("directSol_with_init_x_u_toyProblem.pkl", "wb") as f:
+        pkl.dump((opt.getSolX(), opt.getSolU()), f)
