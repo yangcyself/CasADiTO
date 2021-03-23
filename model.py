@@ -3,21 +3,21 @@ from casadi import *
 
 
 # Declare model variables
-px = MX.sym('px')
-py = MX.sym('py')
-th = MX.sym('th')
-bq1 = MX.sym('bq1')
-bq2 = MX.sym('bq2')
-fq1 = MX.sym('fq1')
-fq2 = MX.sym('fq2')
+px = SX.sym('px')
+py = SX.sym('py')
+th = SX.sym('th')
+bq1 = SX.sym('bq1')
+bq2 = SX.sym('bq2')
+fq1 = SX.sym('fq1')
+fq2 = SX.sym('fq2')
 
-dpx = MX.sym('dpx')
-dpy = MX.sym('dpy')
-dth = MX.sym('dth')
-dbq1 = MX.sym('dbq1')
-dbq2 = MX.sym('dbq2')
-dfq1 = MX.sym('dfq1')
-dfq2 = MX.sym('dfq2')
+dpx = SX.sym('dpx')
+dpy = SX.sym('dpy')
+dth = SX.sym('dth')
+dbq1 = SX.sym('dbq1')
+dbq2 = SX.sym('dbq2')
+dfq1 = SX.sym('dfq1')
+dfq2 = SX.sym('dfq2')
 
 params = {
     "legL":1,
@@ -32,7 +32,7 @@ params = {
 q = vertcat(px, py, th, bq1, bq2, fq1, fq2)
 dq = vertcat(dpx, dpy, dth, dbq1, dbq2, dfq1, dfq2)
 x = vertcat(q, dq)
-u = MX.sym('u',4)
+u = SX.sym('u',4)
 
 # Build Model using the euler methods
 
@@ -127,8 +127,8 @@ PE = PEtor + PEbLeg1 + PEbLeg2 + PEfLeg1 + PEfLeg2
 
 L = KE - PE #ycytmp I think this should be plus, but in ME192 it is -
 
-ddq = MX.sym("ddq",7)
-Q = MX.sym("Q",7)
+ddq = SX.sym("ddq",7)
+Q = SX.sym("Q",7)
 EOM0 = jtimes(jacobian(L,dq).T, dq, ddq) - jacobian(L,q).T - Q # equation of motion
 EOM0 = simplify(EOM0)
 # print(EOM)
@@ -136,7 +136,7 @@ EOM_func0 = Function("EOM0_func", [x, ddq, Q], [EOM0])
 # print("EOM",EOM_func(x_val))
 
 MD = simplify(jacobian(jacobian(KE,dq)    ,dq))
-MC = MX(7,7)
+MC = SX(7,7)
 
 for k in range(7):
     for j in range(7):
@@ -187,9 +187,9 @@ dx = vertcat(dq, Fsol[:7])
 # DynF = Function('Dynf', [x], [dx])
 
 
-ddq = MX.sym("ddq", 7)
-btoeF = MX.sym("btoeF",2)
-ftoeF = MX.sym("ftoeF",2)
+ddq = SX.sym("ddq", 7)
+btoeF = SX.sym("btoeF",2)
+ftoeF = SX.sym("ftoeF",2)
 F = vertcat(btoeF,ftoeF)
 dx = veccat(dq,ddq)
 toeJac = jacobian(vertcat(phbLeg2, phfLeg2), q)
@@ -215,11 +215,12 @@ def updateJacobianCache(cons, name):
 def buildDynF(constraints,name="",consNames = None):
     consNames = [None]*len(constraints) if consNames is None else consNames
 
-    Flist_format = [MX.sym("F%d"%i, c.size()[0]) for i,c in enumerate(constraints)]
-    ddq_format = MX.sym("ddq",7)
+    Flist_format = [SX.sym("F%d"%i, c.size()[0]) for i,c in enumerate(constraints)]
+    Flist_Names = ["F%d"%i for i in range(len(constraints))]
+    ddq_format = SX.sym("ddq",7)
     Sol_format = vertcat(ddq_format, *Flist_format)
-    tmp = MX([0])# add tmp as an output to ensure that the function always returns a tuple
-    solParse = Function("solParse",[Sol_format], [tmp, ddq_format, *Flist_format], ["sol"], ["0","ddq", *[s.name() for s in Flist_format]])
+    tmp = SX([0])# add tmp as an output to ensure that the function always returns a tuple
+    solParse = Function("solParse",[Sol_format], [tmp, ddq_format, *Flist_format], ["sol"], ["0","ddq", *Flist_Names])
     print("name out:",solParse.name_out())
     consJs = [updateJacobianCache(c,n) for c,n in zip(constraints, consNames)]
 
@@ -239,11 +240,53 @@ def buildDynF(constraints,name="",consNames = None):
     return Function("DynF_%s"%name, [x,u], [dx, *solS], ["x","u"], ["dx", *(solParse.name_out()[1:])])
 
 def buildValF(v,name = ""):
-    return Function("%s_val"%name, [x], [v],[x], [name+"v"])
+    return Function("%s_val"%name, [x], [v],["x"], [name+"v"])
 
 
-# x_val = np.array([0,0,0,-0.3,-2.5, -0.3, -2.5,
-#                   0,0,0,0,    0,    0,    0])
+
+def buildInvF(constraints,name="",consNames = None):
+    """build dynamic function (x,F)-> (dx, u, ...)
+       [MD,  MB] x [ddq, u]^T = [....]
+
+    Args:
+        constraints (MX): postion of syms of joints to be fixed, e.g.: phbleg1
+        name (str, optional): name of the built function. Defaults to "".
+        consNames ([str], optional): name of the jacobians. This is used to reuse Jac calculation. Defaults to None.
+
+    Returns:
+        Function
+    """    
+    consNames = [None]*len(constraints) if consNames is None else consNames
+
+    Flist_format = [SX.sym("F%d"%i, c.size()[0]) for i,c in enumerate(constraints)]
+    Flist_Names = ["F%d"%i for i in range(len(constraints))]
+    ddq_format = SX.sym("ddq",7)
+    Fvec = veccat(*Flist_format)
+
+    consJs = [updateJacobianCache(c,n) for c,n in zip(constraints, consNames)]
+
+    consA = vertcat(* consJs ) # constraint matrix
+    consb = vertcat(* [- jtimes(j,q,dq)@dq for j in consJs]) # consA ddq = consb
+    consl = consA.size()[0]
+    ul = 4
+
+    FA = vertcat(MD,consA)
+    FA = simplify( horzcat(FA, -vertcat(MB, np.zeros((consl, ul) ))))
+    Fb = simplify(vertcat(- (MC@dq) - MG + consA.T @ Fvec, consb))
+    Fsol = pinv(FA) @ Fb 
+
+    ddq = Fsol[:7]
+    u = Fsol[7:]
+    dx = vertcat(dq,ddq)
+
+    return Function("DynF_%s"%name, [x,*Flist_format], [dx, u], ["x",*Flist_Names], ["dx", "u"])
+
+def buildValF(v,name = ""):
+    return Function("%s_val"%name, [x], [v],["x"], [name+"v"])
+
+
+x_val = np.array([0,0,0,-0.3,-2.5, -0.3, -2.5,
+                  0,0,0,0,    0,    0,    0])
 # u_val = np.array([20, 60, 32, 45])
 # DynF = buildDynF([phbLeg2, phfLeg2])
 # # DynF = buildDynF([])
@@ -257,3 +300,6 @@ def buildValF(v,name = ""):
 # # print(EOM_func0(x_val, sol["ddq"], vertcat(0,0,0,u_val)))
 # # print(EOM_func0(x_val, sol["ddq"], vertcat(0,0,0,u_val)))
 # # print(EOM_func0(x_val, sol["ddq"], vertcat(0,0,0,u_val) - JacFuncs["Jbtoe"](x_val).T@sol["F0"]))
+
+IdynF = buildInvF([phbLeg2, phfLeg2])
+print(IdynF(x = x_val, F0 = np.array([0,150]), F1 = np.array([0,150])))
