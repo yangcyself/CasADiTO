@@ -1,7 +1,7 @@
 import model, vis
-from casadi import np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import numpy as np
 
 x_val = np.array([0,1,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
@@ -17,11 +17,11 @@ def Ctrl(x):
     pbtoe = model.pFuncs["phbLeg2"](x) - CoM
     pftoe = model.pFuncs["phfLeg2"](x) - CoM
 
-    F = 10*(np.array([0.5, 1]) - CoM) + 2*( - dCoM) \
+    F = 1000*(np.array([0.5, 1]) - CoM) + 2*( - dCoM) \
         + np.array([0, model.params["G"]])*(model.params["torM"] + 4* model.params["legM"])
-    Fth = np.array(10 * (0 - x[2]) + 2*(-x[9])).reshape(1,1)
+    Fth = 100*np.array(10 * (0 - x[2]) + 2*(-x[9])).reshape(1,1)
 
-    print("F",F,Fth)
+    # print("F",F,Fth)
     MA = np.zeros((3,4))
     MA[:2,:2] =  np.eye(2)
     MA[:2,2:4] = np.eye(2)
@@ -29,10 +29,11 @@ def Ctrl(x):
 
     FootF = np.linalg.pinv(MA) @ np.concatenate([F,Fth])
     
-    print("FootF",FootF.transpose())
+    # print("FootF",FootF.transpose())
     Jac = np.concatenate([model.JacFuncs["Jbtoe"](x), model.JacFuncs["Jftoe"](x)])
+    # print(Jac)
     u = - Jac.T @ FootF
-
+    # print("u", u[3:].T)
     return u[3:]
 
 robotLines = []
@@ -43,6 +44,9 @@ for i in range(N):
     u = Ctrl(x_val)
 
     sol = DynF(x = x_val,u = u)
+    print("EOM: ", model.EOMfunc(x_val,sol["ddq"],u, np.concatenate([sol["F0"],sol["F1"]])))
+    # print("EOM0:", model.EOM0(x_val,sol["ddq"], u, np.concatenate([sol["F0"],sol["F1"]]) ))
+
     print("solF",sol["F0"] ,sol["F1"])
     x_val += sol["dx"] * 0.001
     

@@ -129,7 +129,6 @@ L = KE - PE #ycytmp I think this should be plus, but in ME192 it is -
 
 ddq = MX.sym("ddq",7)
 Q = MX.sym("Q",7)
-print(jtimes(jacobian(L,dq).T, dq, ddq).size(), jacobian(L,q).T.size(), Q.size())
 EOM0 = jtimes(jacobian(L,dq).T, dq, ddq) - jacobian(L,q).T - Q # equation of motion
 EOM0 = simplify(EOM0)
 # print(EOM)
