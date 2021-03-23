@@ -45,6 +45,9 @@ class TrajOptimizer:
     def addCost(self):
         raise NotImplementedError
 
+    def loadSol(self, sol):
+        self._sol = sol
+
 class HaveNotRunOptimizerError(Exception):
     def __init__(self):
         super().__init__("optimization must be runned before this")
@@ -209,15 +212,23 @@ class DirectOptimizer(TrajOptimizer):
     def getSolU(self):
         if(self._sol is None):
             raise HaveNotRunOptimizerError
-        
+        if(self._parseSol is None):
+            self._parseSol = ca.Function('solutionParse', [ca.vertcat(*self._w)],
+                                 [ca.horzcat(*self._x_plot), ca.horzcat(*self._u_plot)],
+                                  ['w'], ['x', 'u'])
+
         x_opt, u_opt = self._parseSol(self._sol['x'])
         u_opt = u_opt.full() # to numpy array
         return u_opt
 
-    def getSolX(self):
+    def getSolX(self):        
         if(self._sol is None):
             raise HaveNotRunOptimizerError
-        
+        if(self._parseSol is None):
+            self._parseSol = ca.Function('solutionParse', [ca.vertcat(*self._w)],
+                                 [ca.horzcat(*self._x_plot), ca.horzcat(*self._u_plot)],
+                                  ['w'], ['x', 'u'])
+
         x_opt, u_opt = self._parseSol(self._sol['x'])
         x_opt = x_opt.full() # to numpy array
         return x_opt
@@ -282,7 +293,6 @@ class DirectOptimizer(TrajOptimizer):
     def addCost(self,func):
         self._J += func(self._lastStep["Xk"], self._lastStep["Uk"])
 
-        
     def startSolve(self, solver = 'ipopt'):
         w = ca.vertcat(*self._w)
         g = ca.vertcat(*self._g)
@@ -293,10 +303,27 @@ class DirectOptimizer(TrajOptimizer):
         ubw = np.concatenate(self._ubw)
         lbg = np.concatenate(self._lbg)
         ubg = np.concatenate(self._ubg)
+
+        # ## hand in the jacobian of constraint
+        gjac = ca.simplify(ca.jacobian(g,w)).sparsity() 
+        # passing this sparsity makes it useful
+        p = ca.MX.sym("p")
+        gjacFunc = ca.Function("gjacFunc", [w,p], [g, gjac])
+        # print(" generated the sparse jacobian")
+
         # Create an NLP solver
         prob = {'f':self._J, 'x': w, 'g': g}
         print("begin setting up solver")
-        solver = ca.nlpsol('solver', solver, prob)
+        solver = ca.nlpsol('solver', solver, prob, 
+        {"calc_f" : True,
+         "calc_g" : True,
+         "calc_lam_x" : True,
+         "calc_multipliers" : True,
+        # "expand" : True,
+            "verbose_init":True,
+            # "max_iter" : 3, # unkown option
+            # "jac_g": gjacFunc
+             })
 
         print("Finished setting up solver")
 
