@@ -106,7 +106,7 @@ class ColloOptimizer(TrajOptimizer):
     
             
     def init(self, x0):
-        Xk = ca.SX.sym('X0', self._x)
+        Xk = ca.MX.sym('X0', self._xDim)
         self._w.append(Xk)
         self._lbw.append(x0)
         self._ubw.append(x0)
@@ -120,7 +120,7 @@ class ColloOptimizer(TrajOptimizer):
     dynF: (dx, x, u) -> g
     """
     def step(self,dynF,u0,x0):
-        Uk = ca.SX.sym('U_%d'%(self._stepCount), self._uDim)
+        Uk = ca.MX.sym('U_%d'%(self._stepCount), self._uDim)
         self._w.append(Uk)
         self._lbw.append(self._uLim[:,0])
         self._ubw.append(self._uLim[:,1])
@@ -129,11 +129,11 @@ class ColloOptimizer(TrajOptimizer):
 
         Xc = []
         for j in range(self._d):
-            Xkj = ca.SX.sym('X_%d_%d'%(self._stepCount,j), self._x)
+            Xkj = ca.MX.sym('X_%d_%d'%(self._stepCount,j), self._xDim)
             Xc.append(Xkj)
             self._w.append(Xkj)
-            self._lbw.append([-np.inf]*self._x)
-            self._ubw.append([np.inf]*self._x)
+            self._lbw.append([-np.inf]*self._xDim)
+            self._ubw.append([np.inf]*self._xDim)
             self._w0.append(x0)
         
         Xk = self._lastStep["Xk"]
@@ -235,7 +235,7 @@ class DirectOptimizer(TrajOptimizer):
     
             
     def init(self, x0):
-        Xk = ca.SX.sym('X0', self._xDim)
+        Xk = ca.MX.sym('X0', self._xDim)
         self._w.append(Xk)
         self._lbw.append(x0)
         self._ubw.append(x0)
@@ -250,7 +250,7 @@ class DirectOptimizer(TrajOptimizer):
     intF: (x, u, dynF) -> x
     """
     def step(self, dynF, intF, u0,x0):
-        Uk = ca.SX.sym('U_%d'%(self._stepCount), self._uDim)
+        Uk = ca.MX.sym('U_%d'%(self._stepCount), self._uDim)
         self._w.append(Uk)
         self._lbw.append(self._uLim[:,0])
         self._ubw.append(self._uLim[:,1])
@@ -262,7 +262,7 @@ class DirectOptimizer(TrajOptimizer):
 
         Xnew = intF(Xk, Uk, dynF)
 
-        Xk_puls_1 = ca.SX.sym('X_%d'%(self._stepCount), self._xDim)
+        Xk_puls_1 = ca.MX.sym('X_%d'%(self._stepCount), self._xDim)
         self._w.append(Xk_puls_1)
         self._lbw.append([-np.inf] * self._xDim)
         self._ubw.append([+np.inf] * self._xDim)
@@ -307,7 +307,7 @@ class DirectOptimizer(TrajOptimizer):
         # ## hand in the jacobian of constraint
         gjac = ca.simplify(ca.jacobian(g,w)).sparsity() 
         # passing this sparsity makes it useful
-        p = ca.SX.sym("p")
+        p = ca.MX.sym("p")
         gjacFunc = ca.Function("gjacFunc", [w,p], [g, gjac])
         # print(" generated the sparse jacobian")
 
