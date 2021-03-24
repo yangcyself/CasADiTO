@@ -4,8 +4,8 @@ import pickle as pkl
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-with open("directSol_with_init.pkl", "rb") as f:
-    sol = pkl.load(f)
+with open("data/nlpSol/direct1616555470.pkl", "rb") as f:
+    sol = pkl.load(f)["sol"]
 
 print(sol.keys())
 
