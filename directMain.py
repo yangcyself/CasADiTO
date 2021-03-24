@@ -27,10 +27,10 @@ Scheme = [ # list: (contact constaints, length)
     ((1,1), 50, "finish")
 ]
 
-X0 = np.array([0,1,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
+X0 = np.array([0,0.25,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
-XDes = np.array([1.5,1,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
+XDes = np.array([1.5,0.25,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
 Xlift0 = X0.copy()
@@ -124,4 +124,4 @@ if __name__ == "__main__" :
             }, f)
 
         ss.add_info("solutionPkl",dumpname)
-        ss.add_info("Note","Will a good U0 help?")
+        ss.add_info("Note","Changed to use the model provided by sanbai")

@@ -1,6 +1,16 @@
 
 from casadi import *
+import yaml
 
+
+ConfigFile = "data/robotConfigs/robot1.yaml"
+
+with open(ConfigFile, 'r') as stream:
+    try:
+        robotParam = yaml.safe_load(stream)
+    except yaml.YAMLError as exc:
+        print(exc)
+        exit()
 
 # Declare model variables
 px = SX.sym('px')
@@ -20,12 +30,17 @@ dfq1 = SX.sym('dfq1')
 dfq2 = SX.sym('dfq2')
 
 params = {
-    "legL":1,
-    "torL":1,
-    "legM":5,
-    "torM":10,
-    "legI":0.5,
-    "torI":1,
+    "legL1":robotParam["l1"],
+    "legL2":robotParam["l2"],
+    "legLc1":robotParam["lc1"],
+    "legLc2":robotParam["lc2"],
+    "torL":robotParam["L"],
+    "legM1":robotParam["m1"],
+    "legM2":robotParam["m2"],
+    "torM":robotParam["M"],
+    "legI1":robotParam["j1"],
+    "legI2":robotParam["j2"],
+    "torI":robotParam["J"],
     "G":9.81,
 }
 
@@ -42,35 +57,35 @@ pMtor = vertcat(
 )#torsor center of position
 
 pMbLeg1 = vertcat(
-    px + params["legL"]/2 * cos(th+bq1),
-    py + params["legL"]/2 * sin(th+bq1),
+    px + params["legLc1"] * cos(th+bq1),
+    py + params["legLc1"] * sin(th+bq1),
 )#back leg thigh center of position
 
 pMbLeg2 = vertcat(
-    px + params["legL"] * cos(th+bq1) + params["legL"]/2 * cos(th+bq1+bq2),
-    py + params["legL"] * sin(th+bq1) + params["legL"]/2 * sin(th+bq1+bq2),
+    px + params["legL1"] * cos(th+bq1) + params["legLc2"] * cos(th+bq1+bq2),
+    py + params["legL1"] * sin(th+bq1) + params["legLc1"] * sin(th+bq1+bq2),
 )#back leg center of position
 
 pMfLeg1 = vertcat(
-    px + params["torL"] * cos(th) + params["legL"]/2 * cos(th+fq1),
-    py + params["torL"] * sin(th) + params["legL"]/2 * sin(th+fq1),
+    px + params["torL"] * cos(th) + params["legLc1"] * cos(th+fq1),
+    py + params["torL"] * sin(th) + params["legLc1"] * sin(th+fq1),
 )#front leg thigh center of position
 
 pMfLeg2 = vertcat(
-    px + params["torL"] * cos(th) + params["legL"] * cos(th+fq1) + params["legL"]/2 * cos(th+fq1+fq2),
-    py + params["torL"] * sin(th) + params["legL"] * sin(th+fq1) + params["legL"]/2 * sin(th+fq1+fq2),
+    px + params["torL"] * cos(th) + params["legL1"] * cos(th+fq1) + params["legLc2"] * cos(th+fq1+fq2),
+    py + params["torL"] * sin(th) + params["legL1"] * sin(th+fq1) + params["legLc2"] * sin(th+fq1+fq2),
 )#front leg center of position
 
 prTor = vertcat(px,py) #rear of the torso
 phTor = vertcat(px+params["torL"] * cos(th),py+params["torL"] * sin(th)) #head of the torso
-phbLeg1 = vertcat(px + params["legL"] * cos(th+bq1),
-    py + params["legL"] * sin(th+bq1)) #rear of the back leg thigh
-phbLeg2 = vertcat(px + params["legL"] * cos(th+bq1) + params["legL"] * cos(th+bq1+bq2),
-    py + params["legL"] * sin(th+bq1) + params["legL"] * sin(th+bq1+bq2),) #rear of the back leg 
-phfLeg1 = vertcat(px + params["torL"] * cos(th) + params["legL"] * cos(th+fq1),
-    py + params["torL"] * sin(th) + params["legL"] * sin(th+fq1))#front leg thigh center of position
-phfLeg2 = vertcat(px + params["torL"] * cos(th) + params["legL"] * cos(th+fq1) + params["legL"] * cos(th+fq1+fq2),
-    py + params["torL"] * sin(th) + params["legL"] * sin(th+fq1) + params["legL"] * sin(th+fq1+fq2))#front leg
+phbLeg1 = vertcat(px + params["legL1"] * cos(th+bq1),
+    py + params["legL1"] * sin(th+bq1)) #rear of the back leg thigh
+phbLeg2 = vertcat(px + params["legL1"] * cos(th+bq1) + params["legL2"] * cos(th+bq1+bq2),
+    py + params["legL1"] * sin(th+bq1) + params["legL2"] * sin(th+bq1+bq2),) #rear of the back leg 
+phfLeg1 = vertcat(px + params["torL"] * cos(th) + params["legL1"] * cos(th+fq1),
+    py + params["torL"] * sin(th) + params["legL1"] * sin(th+fq1))#front leg thigh center of position
+phfLeg2 = vertcat(px + params["torL"] * cos(th) + params["legL1"] * cos(th+fq1) + params["legL2"] * cos(th+fq1+fq2),
+    py + params["torL"] * sin(th) + params["legL1"] * sin(th+fq1) + params["legL2"] * sin(th+fq1+fq2))#front leg
 
 #jtimes: Jacobian-times-vector
 dpMtor = jtimes(pMtor, q, dq)
@@ -111,18 +126,18 @@ JacFuncs = {
 
 # Kinetic energy
 KEtor = 0.5*params["torM"] * dot(dpMtor, dpMtor) + 0.5*params["torI"]*dth**2
-KEbLeg1 = 0.5*params["legM"] * dot(dpMbLeg1, dpMbLeg1) + 0.5*params["legI"]*(dth+dbq1)**2
-KEbLeg2 = 0.5*params["legM"] * dot(dpMbLeg2, dpMbLeg2) + 0.5*params["legI"]*(dth+dbq1+dbq2)**2
-KEfLeg1 = 0.5*params["legM"] * dot(dpMfLeg1, dpMfLeg1) + 0.5*params["legI"]*(dth+dfq1)**2
-KEfLeg2 = 0.5*params["legM"] * dot(dpMfLeg2, dpMfLeg2) + 0.5*params["legI"]*(dth+dfq1+dfq2)**2
+KEbLeg1 = 0.5*params["legM1"] * dot(dpMbLeg1, dpMbLeg1) + 0.5*params["legI1"]*(dth+dbq1)**2
+KEbLeg2 = 0.5*params["legM2"] * dot(dpMbLeg2, dpMbLeg2) + 0.5*params["legI2"]*(dth+dbq1+dbq2)**2
+KEfLeg1 = 0.5*params["legM1"] * dot(dpMfLeg1, dpMfLeg1) + 0.5*params["legI1"]*(dth+dfq1)**2
+KEfLeg2 = 0.5*params["legM2"] * dot(dpMfLeg2, dpMfLeg2) + 0.5*params["legI2"]*(dth+dfq1+dfq2)**2
 KE = KEtor + KEbLeg1 + KEbLeg2 + KEfLeg1 + KEfLeg2
 
 # Potential energy
 PEtor = params["G"] * params["torM"] * pMtor[1]
-PEbLeg1 = params["G"] * params["legM"] * pMbLeg1[1]
-PEbLeg2 = params["G"] * params["legM"] * pMbLeg2[1]
-PEfLeg1 = params["G"] * params["legM"] * pMfLeg1[1]
-PEfLeg2 = params["G"] * params["legM"] * pMfLeg2[1]
+PEbLeg1 = params["G"] * params["legM1"] * pMbLeg1[1]
+PEbLeg2 = params["G"] * params["legM2"] * pMbLeg2[1]
+PEfLeg1 = params["G"] * params["legM1"] * pMfLeg1[1]
+PEfLeg2 = params["G"] * params["legM2"] * pMfLeg2[1]
 PE = PEtor + PEbLeg1 + PEbLeg2 + PEfLeg1 + PEfLeg2
 
 L = KE - PE #ycytmp I think this should be plus, but in ME192 it is -

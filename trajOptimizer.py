@@ -325,9 +325,11 @@ class DirectOptimizer(TrajOptimizer):
          "calc_multipliers" : True,
         # "expand" : True,
             "verbose_init":True,
-            # "max_iter" : 3, # unkown option
             # "jac_g": gjacFunc
-             })
+        "ipopt":{
+            "max_iter" : 5000, # unkown option
+            }
+        })
 
         print("Finished setting up solver")
 

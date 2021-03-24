@@ -4,7 +4,7 @@ import pickle as pkl
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-with open("data/nlpSol/direct1616555470.pkl", "rb") as f:
+with open("data/nlpSol/direct1616576464.pkl", "rb") as f:
     sol = pkl.load(f)["sol"]
 
 print(sol.keys())
@@ -20,12 +20,13 @@ x_sim = [x_opt[0]]
 print("u_optShape", u_opt.shape)
 print("x_optShape", x_opt.shape)
 
-
+u_count = 0
 for cons, N, name in Scheme:
     dynF = DynFuncs[cons]
     for i in range(N):
-        x_sim.append( np.array(rounge_Kutta(x_sim[-1], u_opt[i], 
+        x_sim.append( np.array(rounge_Kutta(x_sim[-1], u_opt[u_count], 
             lambda x,u : dynF(x=x,u=u)["dx"])).reshape(-1))
+        u_count += 1
         
         # x = x_sim[-1]
         # for n,pfunc in model.pFuncs.items():
