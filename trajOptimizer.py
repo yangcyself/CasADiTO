@@ -3,11 +3,13 @@ import casadi as ca
 
 
 class TrajOptimizer:
-    def __init__(self, xDim, uDim, uLim, dt):
+    def __init__(self, xDim, uDim, xLim, uLim, dt):
         self._xDim = xDim
         self._uDim = uDim
         uLim = np.array(uLim)
+        xLim = np.array(xLim)
         self._uLim = uLim if uLim.ndim == 2 else np.tile(uLim,(uDim,1))
+        self._xLim = xLim if xLim.ndim == 2 else (np.tile(xLim,(xDim,1)) if len(xLim)==2 else np.concatenate([-abs(xLim)[:,None], abs(xLim)[:,None]],axis = 1))
         assert(self._uLim.shape == (self._uDim,2))
         self._w = []
         self._w0 = []
@@ -48,14 +50,16 @@ class TrajOptimizer:
     def loadSol(self, sol):
         self._sol = sol
 
+
+
 class HaveNotRunOptimizerError(Exception):
     def __init__(self):
         super().__init__("optimization must be runned before this")
 
 
 class ColloOptimizer(TrajOptimizer):
-    def __init__(self, xDim, uDim, uLim, dt, colloRoots):
-        super().__init__(xDim, uDim, uLim, dt)
+    def __init__(self, xDim, uDim, xLim, uLim,dt, colloRoots):
+        super().__init__(xDim, uDim, xLim, uLim, dt)
         self._x_plot = []
         self._u_plot = []
         self._parseSol = None
@@ -203,8 +207,8 @@ class ColloOptimizer(TrajOptimizer):
 
 
 class DirectOptimizer(TrajOptimizer):
-    def __init__(self, xDim, uDim, uLim, dt):
-        super().__init__(xDim, uDim, uLim, dt)
+    def __init__(self, xDim, uDim, xLim, uLim, dt):
+        super().__init__(xDim, uDim, xLim, uLim, dt)
         self._x_plot = []
         self._u_plot = []
         self._parseSol = None
@@ -329,3 +333,5 @@ class DirectOptimizer(TrajOptimizer):
 
         self._sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
         self._parseSol = ca.Function('solutionParse', [w], [x_plot, u_plot], ['w'], ['x', 'u'])
+
+
