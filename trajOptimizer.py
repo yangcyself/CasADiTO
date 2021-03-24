@@ -136,8 +136,8 @@ class ColloOptimizer(TrajOptimizer):
             Xkj = ca.MX.sym('X_%d_%d'%(self._stepCount,j), self._xDim)
             Xc.append(Xkj)
             self._w.append(Xkj)
-            self._lbw.append([-np.inf]*self._xDim)
-            self._ubw.append([np.inf]*self._xDim)
+            self._lbw.append(self._xLim[:,0])
+            self._ubw.append(self._xLim[:,1])
             self._w0.append(x0)
         
         Xk = self._lastStep["Xk"]
@@ -268,8 +268,8 @@ class DirectOptimizer(TrajOptimizer):
 
         Xk_puls_1 = ca.MX.sym('X_%d'%(self._stepCount), self._xDim)
         self._w.append(Xk_puls_1)
-        self._lbw.append([-np.inf] * self._xDim)
-        self._ubw.append([+np.inf] * self._xDim)
+        self._lbw.append(self._xLim[:,0])
+        self._ubw.append(self._xLim[:,1])
         self._w0.append(x0)
         self._x_plot.append(Xk_puls_1)
 
