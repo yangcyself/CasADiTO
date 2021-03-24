@@ -2,6 +2,10 @@ from trajOptimizer import *
 import model, vis
 import pickle as pkl
 
+from ExperimentSecretary.Core import Session
+import os
+import time
+
 """
 use direct scription method, use ronge kuta
 """
@@ -13,11 +17,11 @@ DynFuncs = {
 }
 
 Scheme = [ # list: (contact constaints, length)
-    ((1,1), 30, "start"),
-    ((1,0), 30, "lift"),
-    ((0,0), 30, "fly"),
-    # ([model.phbLeg2], 3, "land"),
-    ((1,1), 30, "finish")
+    ((1,1), 10, "start"),
+    # ((1,0), 30, "lift"),
+    # ((0,0), 30, "fly"),
+    # # ([model.phbLeg2], 3, "land"),
+    # ((1,1), 30, "finish")
 ]
 
 # input dims: [ux4,Fbx2,Ffx2]
@@ -26,7 +30,7 @@ opt = DirectOptimizer(14, 4, [-100, 100], 0.005)
 X0 = np.array([0,1,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
-XDes = np.array([1.5,1,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
+XDes = np.array([0,0.5,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
 def rounge_Kutta(x,u,dynF):
@@ -75,10 +79,16 @@ opt.addConstraint(lambda x,u: x-XDes, [0]*14, [0]*14)
 
 if __name__ == "__main__" :
 
-    opt.startSolve()
+    with Session(__file__,terminalLog = True) as ss:
+        opt.startSolve()
+        
+        dumpname = os.path.abspath(os.path.join("./data/nlpSol", "direct%d.pkl"%time.time()))
 
-    with open("directSol_with_init_large.pkl", "wb") as f:
-        pkl.dump(opt._sol, f)
+        with open(dumpname, "wb") as f:
+            pkl.dump({
+                "sol":opt._sol,
+                "sol_x":opt.getSolX(),
+                "sol_u":opt.getSolU()
+            }, f)
 
-    with open("directSol_with_init_x_u_large.pkl", "wb") as f:
-        pkl.dump((opt.getSolX(), opt.getSolU()), f)
+        ss.add_info("solutionPkl",dumpname)
