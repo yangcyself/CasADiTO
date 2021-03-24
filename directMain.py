@@ -45,19 +45,26 @@ References = [
         Xlift0,
         [100,200,0,0]
     ),
-    lambda i:( # lift
+    lambda i:( # fly
         X0 + np.concatenate([np.array([1.5/50*i, 2*1.5/50*i*(1.5-1.5/50*i)]), np.zeros(12)]),
         [0,0,0,0]
     ),
-    lambda i:( # lift
+    lambda i:( # finish
         XDes,
         [1,125,1,150]
-    ),
+    )
+]
 
+stateFinalCons = [ # the constraints to enforce at the end of each state
+    (lambda x,u: x[2], [0], [np.inf]), # lift up body
+    (lambda x,u: ca.vertcat(x[7],x[8]), [0.5]*2, [np.inf]*2), # have positive velocity
+    (lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1]), 
+                    [0]*2, [0]*2), # feet land
+    (lambda x,u: x - XDes, [0]*14, [0]*14) # arrive at desire state
 ]
 
 # input dims: [ux4,Fbx2,Ffx2]
-opt = DirectOptimizer(14, 4, [np.inf, np.inf, np.math.pi, np.math.pi, np.math.pi, np.math.pi, np.math.pi],
+opt = DirectOptimizer(14, 4, [np.inf, np.inf, np.math.pi, np.math.pi, np.math.pi, np.math.pi, np.math.pi] + [100]*7,
                         [-200, 200], dT)
 
 
@@ -73,7 +80,7 @@ def rounge_Kutta(x,u,dynF):
 
 opt.init(X0)
 
-for (cons, N, name),R in zip(Scheme,References):
+for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     dynF = DynFuncs[cons]
     for i in range(N):
         x_0, u_0 = R(i)
@@ -99,7 +106,7 @@ for (cons, N, name),R in zip(Scheme,References):
             holoCons, [0]*(sum(cons))*3, [np.inf]*(sum(cons))*3
         )
 
-opt.addConstraint(lambda x,u: x - XDes, [0]*14, [0]*14)
+    opt.addConstraint(*FinalC)
 
 
 if __name__ == "__main__" :
