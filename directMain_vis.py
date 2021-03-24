@@ -4,7 +4,7 @@ import pickle as pkl
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-with open("directSol_with_init_toyProblem.pkl", "rb") as f:
+with open("directSol_with_init.pkl", "rb") as f:
     sol = pkl.load(f)
 
 print(sol.keys())
@@ -24,9 +24,21 @@ print("x_optShape", x_opt.shape)
 for cons, N, name in Scheme:
     dynF = DynFuncs[cons]
     for i in range(N):
-        x_sim.append(rounge_Kutta(x_sim[-1], u_opt[i], 
-            lambda x,u : dynF(x=x,u=u)["dx"]))
+        x_sim.append( np.array(rounge_Kutta(x_sim[-1], u_opt[i], 
+            lambda x,u : dynF(x=x,u=u)["dx"])).reshape(-1))
         
+        # x = x_sim[-1]
+        # for n,pfunc in model.pFuncs.items():
+        #     if(pfunc(x)[1]<0):
+        #         print(n, pfunc(x)[1])
+
+# for x in x_opt:
+#     for n,pfunc in model.pFuncs.items():
+#         if(pfunc(x)[1]<0):
+#             print(n, pfunc(x)[1])
+
+print("x_simShape", np.array(x_sim).shape)
+print(x_sim[:2])
 
 # Animate
 fig, ax = plt.subplots()
@@ -46,8 +58,8 @@ def animate(i):
     robotLinesol = vis.visFunc(xsol[:7])
     linesim, = ax.plot(robotLinesim[:,0], robotLinesim[:,1])
     linesol, = ax.plot(robotLinesol[:,0], robotLinesol[:,1])
-    ax.set_xlim(-1.5,2.5)
-    ax.set_ylim(-0.5,3.5)
+    ax.set_xlim(-1.5,3.5)
+    ax.set_ylim(-0.5,4.5)
     return linesim,linesol
 
 ani = animation.FuncAnimation(
@@ -63,4 +75,12 @@ ani = animation.FuncAnimation(
 #     fps=15, metadata=dict(artist='Me'), bitrate=1800)
 # ani.save("movie.mp4", writer=writer)
 
+plt.show()
+
+plt.figure()
+plt.plot(u_opt)
+plt.legend(["u1","u2","u3","u4"])
+plt.figure()
+plt.plot(x_opt[:,:7])
+plt.legend(["x","y","th","q1","q2","q3","q4"])
 plt.show()

@@ -13,15 +13,15 @@ DynFuncs = {
 }
 
 Scheme = [ # list: (contact constaints, length)
-    ((1,1), 10, "start"),
-    ((1,0), 10, "lift"),
-    ((0,0), 10, "fly"),
+    ((1,1), 30, "start"),
+    ((1,0), 30, "lift"),
+    ((0,0), 30, "fly"),
     # ([model.phbLeg2], 3, "land"),
-    ((1,1), 10, "finish")
+    ((1,1), 30, "finish")
 ]
 
 # input dims: [ux4,Fbx2,Ffx2]
-opt = DirectOptimizer(14, 4, [-100, 100], 0.05)
+opt = DirectOptimizer(14, 4, [-100, 100], 0.005)
 
 X0 = np.array([0,1,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
@@ -30,7 +30,7 @@ XDes = np.array([1.5,1,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.p
          0,0,0,0,    0,    0,    0])
 
 def rounge_Kutta(x,u,dynF):
-    DT = 0.05
+    DT = 0.005
     k1 = dynF(x, u)
     k2 = dynF(x + DT/2 * k1, u)
     k3 = dynF(x + DT/2 * k2, u)
@@ -47,7 +47,7 @@ for cons, N, name in Scheme:
         opt.step(lambda x,u : dynF(x=x,u=u)["dx"],
                 rounge_Kutta,
                 np.array([1,125,1,125]),X0)
-        opt.addCost(lambda x,u: ca.dot(x-XDes, x-XDes)+0.01*ca.dot(u,u))
+        opt.addCost(lambda x,u: 0.01 * ca.dot(x-XDes, x-XDes)+0.0001*ca.dot(u,u))
 
         
         for pfunc in model.pFuncs.values():
@@ -70,12 +70,15 @@ for cons, N, name in Scheme:
             holoCons, [0]*(sum(cons))*2, [np.inf]*(sum(cons))*2
         )
 
+opt.addConstraint(lambda x,u: x-XDes, [0]*14, [0]*14)
+
+
 if __name__ == "__main__" :
 
     opt.startSolve()
 
-    with open("directSol_with_init_toyProblem.pkl", "wb") as f:
+    with open("directSol_with_init_large.pkl", "wb") as f:
         pkl.dump(opt._sol, f)
 
-    with open("directSol_with_init_x_u_toyProblem.pkl", "wb") as f:
+    with open("directSol_with_init_x_u_large.pkl", "wb") as f:
         pkl.dump((opt.getSolX(), opt.getSolU()), f)
