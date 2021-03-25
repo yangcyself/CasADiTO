@@ -19,7 +19,7 @@ dT = 0.01
 X0 = np.array([0,0.25,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
-XDes = np.array([0.5,0.5,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+XDes = np.array([0, 0.4 ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 xlim = [
     [-np.inf,np.inf],
@@ -38,7 +38,7 @@ xlim = [
     model.params["dq2Lim"]
 ]
 
-opt = DirectOptimizer(14, 8, xlim, [-200, 200], dT)
+opt = ycyCollocation(14, 8, xlim, [-200, 200], dT)
 
 opt.init(X0)
 
