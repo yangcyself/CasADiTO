@@ -24,7 +24,7 @@ Scheme = [ # list: (contact constaints, length)
     ((1,0), 50, "lift"),
     ((0,0), 50, "fly"),
     # # ([model.phbLeg2], 3, "land"),
-    ((1,1), 50, "finish")
+    # ((1,1), 50, "finish")
 ]
 
 # X0 = np.array([0,0.25,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
@@ -36,7 +36,7 @@ Scheme = [ # list: (contact constaints, length)
 X0 = np.array([0,0.25,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
-XDes = np.array([0.5,0.25,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+XDes = np.array([0.5,0.5,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
 Xlift0 = X0.copy()
@@ -52,21 +52,21 @@ References = [
         [100,200,0,0]
     ),
     lambda i:( # fly
-        X0 + np.concatenate([np.array([1.5/50*i, 2*1.5/50*i*(1.5-1.5/50*i)]), np.zeros(12)]),
+        X0 + np.concatenate([np.array([0.5/50*i, 2*0.5/50*i*(0.5-0.5/50*i)]), np.zeros(12)]),
         [0,0,0,0]
     ),
-    lambda i:( # finish
-        XDes,
-        [1,125,1,150]
-    )
+    # lambda i:( # finish
+    #     XDes,
+    #     [1,125,1,150]
+    # )
 ]
 
 stateFinalCons = [ # the constraints to enforce at the end of each state
     (lambda x,u: x[2], [0], [np.inf]), # lift up body
     (lambda x,u: ca.vertcat(x[7],x[8]), [0.5]*2, [np.inf]*2), # have positive velocity
-    (lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1]), 
-                    [0]*2, [0]*2), # feet land
-    (lambda x,u: x - XDes, [0]*14, [0]*14) # arrive at desire state
+    # (lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1]), 
+    #                 [0]*2, [0]*2), # feet land
+    (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
 ]
 
 xlim = [
@@ -133,10 +133,10 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
 
 if __name__ == "__main__" :
 
-    minutes_to_wait = 60*1
-    for i in range(minutes_to_wait):
-        print("%d minutes to run the program"%(minutes_to_wait-i))
-        time.sleep(60)
+    # minutes_to_wait = 60*3
+    # for i in range(minutes_to_wait):
+    #     print("%d minutes to run the program"%(minutes_to_wait-i))
+    #     time.sleep(60)
 
 
     with Session(__file__,terminalLog = True) as ss:

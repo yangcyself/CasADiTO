@@ -12,17 +12,23 @@ if(len(sys.argv)<2):
 
 solFile = sys.argv[1]
 
-with open("data/nlpSol/direct1616631105.pkl", "rb") as f:
-    sol = pkl.load(f)["sol"]
+with open(solFile, "rb") as f:
+    solraw = pkl.load(f)
+    sol = solraw["sol"]
 
 print(sol.keys())
+print(solraw.keys())
 
 opt.loadSol(sol)
 
 
-    # # Plot the solution
+#     # # Plot the solution
 u_opt = opt.getSolU().T
 x_opt = opt.getSolX().T
+
+# u_opt = solraw["sol_u"].T
+# x_opt = solraw["sol_x"].T
+# x_sim = x_opt
 
 x_sim = [x_opt[0]]
 print("u_optShape", u_opt.shape)

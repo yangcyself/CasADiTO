@@ -301,7 +301,7 @@ def buildInvF(constraints,name="",consNames = None):
 
     return Function("DynF_%s"%name, [x,*Flist_format], [dx, u], ["x",*Flist_Names], ["dx", "u"])
 
-def buildValF(v,name = ""):
+def buildValF(v,name = "v"):
     return Function("%s_val"%name, [x], [v],["x"], [name+"v"])
 
 
@@ -323,3 +323,11 @@ x_val = np.array([0,0,0,-0.3,-2.5, -0.3, -2.5,
 
 IdynF = buildInvF([phbLeg2, phfLeg2])
 print(IdynF(x = x_val, F0 = np.array([0,150]), F1 = np.array([0,150])))
+
+if __name__ == "__main__":
+    print(buildValF(MD)(x_val))
+
+    print(buildValF(MC)(x_val+(np.random.random(14) - np.random.random(14))))
+
+
+    print(buildValF(toeJac)(x_val))

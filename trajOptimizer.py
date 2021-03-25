@@ -205,6 +205,120 @@ class ColloOptimizer(TrajOptimizer):
         self._parseSol = ca.Function('solutionParse', [w], [x_plot, u_plot], ['w'], ['x', 'u'])
 
 
+class ycyCollocation(TrajOptimizer):
+    """ycyCollocation
+        The collocation method assumes the x is second order. x = [q,dq]
+        Then ddq0 can be represented as 6q1 - 2dq1dt - 6q0 - 4dq0dt, 
+            assuming three order function aq^3 + bq^2 + cq + d = 0
+    """
+    def __init__(self, xDim, uDim, xLim, uLim,dt):
+        super().__init__(xDim, uDim, xLim, uLim, dt)
+        self._x_plot = []
+        self._u_plot = []
+        self._parseSol = None
+
+    def getSolU(self):
+        if(self._sol is None):
+            raise HaveNotRunOptimizerError
+        
+        x_opt, u_opt = self._parseSol(self._sol['x'])
+        u_opt = u_opt.full() # to numpy array
+        return u_opt
+
+    def getSolX(self):
+        if(self._sol is None):
+            raise HaveNotRunOptimizerError
+        
+        x_opt, u_opt = self._parseSol(self._sol['x'])
+        x_opt = x_opt.full() # to numpy array
+        return x_opt
+    
+            
+    def init(self, x0):
+        Xk = ca.MX.sym('X0', self._xDim)
+        self._w.append(Xk)
+        self._lbw.append(x0)
+        self._ubw.append(x0)
+        self._w0.append(x0)
+        self._x_plot.append(Xk)
+        self._lastStep = {
+            "Xk": Xk,
+        }
+        
+    """
+    dynF: (dx, x, u) -> g
+    dynF_g_lim: (lbg, ubg)
+    """
+    def step(self,dynF,u0,x0, dynF_g_lim = (0,0)):
+        Uk = ca.MX.sym('U_%d'%(self._stepCount), self._uDim)
+        self._w.append(Uk)
+        self._lbw.append(self._uLim[:,0])
+        self._ubw.append(self._uLim[:,1])
+        self._w0.append(u0)
+        self._u_plot.append(Uk)
+
+        Xk_puls_1 = ca.MX.sym('X_%d'%(self._stepCount+1), self._xDim)
+        self._w.append(Xk_puls_1)
+        self._lbw.append(self._xLim[:,0])
+        self._ubw.append(self._xLim[:,1])
+        self._w0.append(x0)
+        self._x_plot.append(Xk_puls_1)
+
+        Xk = self._lastStep["Xk"]
+        q0 = Xk[:self._xDim/2]
+        dq0 = Xk[self._xDim/2:]
+        q1 = Xk_puls_1[:self._xDim/2]
+        dq1 = Xk_puls_1[self._xDim/2:] 
+        ddq0 = 6 * q1 - 2*dq1*self._dt - 6 * q0 - 4*dq0*self._dt # 6q1 - 2dq1dt - 6q0 - 4dq0dt
+
+        g = dynF(ca.vertcat(dq0,ddq0),Xk, Uk)
+        # dynFsol = dynF(x=Xc[j-1],u = Uk)
+
+        self._g.append(g)
+        self._lbg.append(dynF_g_lim[0]*g.size(1)) #size(1): the dim of axis0
+        self._ubg.append(dynF_g_lim[1]*g.size(1)) #size(1): the dim of axis0
+
+        self._stepCount += 1
+        self._lastStep = {
+            "Uk":Uk,
+            "Xk": Xk_puls_1,
+        }
+
+    # Add constriant of the state of last step
+    # func: x,u -> g
+    def addConstraint(self, func, lb, ub):
+        Xk = self._lastStep["Xk"]
+        self._g.append(func(Xk, self._lastStep["Uk"]))
+        self._lbg.append(lb)
+        self._ubg.append(ub)
+    
+    # Add constriant of the state of last step
+    def addCost(self,func):
+        self._J += func(self._lastStep["Xk"], self._lastStep["Uk"])
+
+        
+    def startSolve(self, solver = 'ipopt'):
+        w = ca.vertcat(*self._w)
+        g = ca.vertcat(*self._g)
+        x_plot = ca.horzcat(*self._x_plot)
+        u_plot = ca.horzcat(*self._u_plot)
+        w0 = np.concatenate(self._w0)
+        lbw = np.concatenate(self._lbw)
+        ubw = np.concatenate(self._ubw)
+        lbg = np.concatenate(self._lbg)
+        ubg = np.concatenate(self._ubg)
+        # Create an NLP solver
+        prob = {'f':self._J, 'x': w, 'g': g}
+        print("begin setting up solver")
+        solver = ca.nlpsol('solver', solver, prob)
+
+        print("Finished setting up solver")
+
+        self._sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
+        self._parseSol = ca.Function('solutionParse', [w], [x_plot, u_plot], ['w'], ['x', 'u'])
+
+
+
 
 class DirectOptimizer(TrajOptimizer):
     def __init__(self, xDim, uDim, xLim, uLim, dt):
@@ -327,7 +441,7 @@ class DirectOptimizer(TrajOptimizer):
             "verbose_init":True,
             # "jac_g": gjacFunc
         "ipopt":{
-            "max_iter" : 5000, # unkown option
+            "max_iter" : 2000, # unkown option
             }
         })
 
