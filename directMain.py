@@ -27,10 +27,16 @@ Scheme = [ # list: (contact constaints, length)
     ((1,1), 50, "finish")
 ]
 
-X0 = np.array([0,0.25,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
+# X0 = np.array([0,0.25,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
+#          0,0,0,0,    0,    0,    0])
+
+# XDes = np.array([0.5,0.25,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
+#          0,0,0,0,    0,    0,    0])
+
+X0 = np.array([0,0.25,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
-XDes = np.array([1.5,0.25,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
+XDes = np.array([0.5,0.25,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
 Xlift0 = X0.copy()
@@ -63,9 +69,25 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
     (lambda x,u: x - XDes, [0]*14, [0]*14) # arrive at desire state
 ]
 
+xlim = [
+    [-np.inf,np.inf],
+    [0,np.inf],
+    [-model.PI, model.PI],
+    model.params["q1Lim"],
+    model.params["q2Lim"],
+    model.params["q1Lim"],
+    model.params["q2Lim"],
+    [-100,100],
+    [-100,100],
+    [-100,100],
+    model.params["dq1Lim"],
+    model.params["dq2Lim"],
+    model.params["dq1Lim"],
+    model.params["dq2Lim"]
+]
+
 # input dims: [ux4,Fbx2,Ffx2]
-opt = DirectOptimizer(14, 4, [np.inf, np.inf, np.math.pi, np.math.pi, np.math.pi, np.math.pi, np.math.pi] + [100]*7,
-                        [-200, 200], dT)
+opt = DirectOptimizer(14, 4, xlim, [-200, 200], dT)
 
 
 def rounge_Kutta(x,u,dynF):
@@ -87,7 +109,7 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         opt.step(lambda x,u : dynF(x=x,u=u)["dx"],
                 rounge_Kutta,
                 np.array(u_0),x_0)
-        opt.addCost(lambda x,u: 0.000001*ca.dot(u,u))
+        opt.addCost(lambda x,u: ca.dot(x[2:7]-X0[2:7],x[2:7]-X0[2:7])+0.000001*ca.dot(u,u))
 
         addAboveGoundConstraint(opt)
 
@@ -111,6 +133,12 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
 
 if __name__ == "__main__" :
 
+    minutes_to_wait = 60*1
+    for i in range(minutes_to_wait):
+        print("%d minutes to run the program"%(minutes_to_wait-i))
+        time.sleep(60)
+
+
     with Session(__file__,terminalLog = True) as ss:
         opt.startSolve()
         
@@ -124,4 +152,5 @@ if __name__ == "__main__" :
             }, f)
 
         ss.add_info("solutionPkl",dumpname)
-        ss.add_info("Note","Changed to use the model provided by sanbai")
+        ss.add_info("Note","added joint limit, what's more, I think \
+            to add a simple joint ref helps converge faster")

@@ -4,6 +4,7 @@ import yaml
 
 
 ConfigFile = "data/robotConfigs/robot1.yaml"
+PI = np.math.pi
 
 with open(ConfigFile, 'r') as stream:
     try:
@@ -41,6 +42,10 @@ params = {
     "legI1":robotParam["j1"],
     "legI2":robotParam["j2"],
     "torI":robotParam["J"],
+    "q1Lim": [-PI/2 - robotParam["ang1max"], -PI/2 - robotParam["ang1min"]],
+    "q2Lim": [-robotParam["ang2max"], -robotParam["ang2min"]],
+    "dq1Lim": [-robotParam["dang1lim"], robotParam["dang1lim"]],
+    "dq2Lim": [-robotParam["dang2lim"], robotParam["dang2lim"]],
     "G":9.81,
 }
 

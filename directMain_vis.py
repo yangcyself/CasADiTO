@@ -4,7 +4,15 @@ import pickle as pkl
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-with open("data/nlpSol/direct1616576464.pkl", "rb") as f:
+import sys
+
+if(len(sys.argv)<2):
+    print("please input the solution file name")
+    exit()
+
+solFile = sys.argv[1]
+
+with open("data/nlpSol/direct1616631105.pkl", "rb") as f:
     sol = pkl.load(f)["sol"]
 
 print(sol.keys())
