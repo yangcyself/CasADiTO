@@ -259,6 +259,7 @@ def buildDynF(constraints,name="",consNames = None):
     solS = solParse(Fsol)[1:]
     return Function("DynF_%s"%name, [x,u], [dx, *solS], ["x","u"], ["dx", *(solParse.name_out()[1:])])
 
+
 def buildValF(v,name = ""):
     return Function("%s_val"%name, [x], [v],["x"], [name+"v"])
 

@@ -277,7 +277,7 @@ class ycyCollocation(TrajOptimizer):
         dq0 = Xk[self._xDim/2:]
         q1 = Xk_puls_1[:self._xDim/2]
         dq1 = Xk_puls_1[self._xDim/2:] 
-        ddq0 = 6 * q1 - 2*dq1*self._dt - 6 * q0 - 4*dq0*self._dt # 6q1 - 2dq1dt - 6q0 - 4dq0dt
+        ddq0 = (6 * q1 - 2*dq1*self._dt - 6 * q0 - 4*dq0*self._dt)/(self._dt**2) # 6q1 - 2dq1dt - 6q0 - 4dq0dt
 
         g = dynF(ca.vertcat(dq0,ddq0),Xk, Uk)
         # dynFsol = dynF(x=Xc[j-1],u = Uk)
@@ -449,7 +449,7 @@ class DirectOptimizer(TrajOptimizer):
             "verbose_init":True,
             # "jac_g": gjacFunc
         "ipopt":{
-            "max_iter" : 2000, # unkown option
+            "max_iter" : 10000, # unkown option
             }
         })
 

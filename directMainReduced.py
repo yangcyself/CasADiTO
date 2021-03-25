@@ -23,8 +23,8 @@ Scheme = [ # list: (contact constaints, length)
     ((1,1), 50, "start"),
     ((1,0), 50, "lift"),
     ((0,0), 50, "fly"),
-    # ([model.phbLeg2], 3, "land"),
-    ((1,1), 50, "finish")
+    # # ([model.phbLeg2], 3, "land"),
+    # ((1,1), 50, "finish")
 ]
 
 # X0 = np.array([0,0.25,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
@@ -36,7 +36,7 @@ Scheme = [ # list: (contact constaints, length)
 X0 = np.array([0,0.25,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
-XDes = np.array([0.5,0.25,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+XDes = np.array([0.5,0.5,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
 Xlift0 = X0.copy()
@@ -55,17 +55,17 @@ References = [
         X0 + np.concatenate([np.array([0.5/50*i, 2*0.5/50*i*(0.5-0.5/50*i)]), np.zeros(12)]),
         [0,0,0,0]
     ),
-    lambda i:( # finish
-        XDes,
-        [1,125,1,150]
-    )
+    # lambda i:( # finish
+    #     XDes,
+    #     [1,125,1,150]
+    # )
 ]
 
 stateFinalCons = [ # the constraints to enforce at the end of each state
     (lambda x,u: x[2], [0], [np.inf]), # lift up body
     (lambda x,u: ca.vertcat(x[7],x[8]), [0.5]*2, [np.inf]*2), # have positive velocity
-    (lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1]), 
-                    [0]*2, [0]*2), # feet land
+    # (lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1]), 
+    #                 [0]*2, [0]*2), # feet land
     (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
 ]
 
@@ -109,7 +109,7 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         opt.step(lambda x,u : dynF(x=x,u=u)["dx"],
                 rounge_Kutta,
                 np.array(u_0),x_0)
-        opt.addCost(lambda x,u: 0.001*ca.dot(u,u))
+        opt.addCost(lambda x,u: ca.dot(x[2:7]-X0[2:7],x[2:7]-X0[2:7])+0.000001*ca.dot(u,u))
 
         addAboveGoundConstraint(opt)
 
@@ -148,10 +148,9 @@ if __name__ == "__main__" :
             pkl.dump({
                 "sol":opt._sol,
                 "sol_x":opt.getSolX(),
-                "sol_u":opt.getSolU(),
-                "Scheme":Scheme
+                "sol_u":opt.getSolU()
             }, f)
 
         ss.add_info("solutionPkl",dumpname)
-        ss.add_info("Scheme",Scheme)
-        ss.add_info("Note","Long Term Solve")
+        ss.add_info("Note","added joint limit, what's more, I think \
+            to add a simple joint ref helps converge faster")

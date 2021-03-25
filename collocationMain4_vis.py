@@ -1,4 +1,5 @@
 from collocationMain4 import *
+from directMain import rounge_Kutta, DynFuncs
 import vis
 import pickle as pkl
 import matplotlib.pyplot as plt
@@ -30,9 +31,26 @@ x_opt = opt.getSolX().T
 # x_opt = solraw["sol_x"].T
 # x_sim = x_opt
 
-x_sim = x_opt
+
 print("u_optShape", u_opt.shape)
 print("x_optShape", x_opt.shape)
+
+print("x_opt[0]",x_opt[0])
+print("x_opt[1]",x_opt[1])
+print("ddq1",(6 * x_opt[1][:7] - 2*x_opt[1][7:]*dT 
+            - 6 * x_opt[0][:7] - 4*x_opt[0][7:]*dT)/dT**2)
+
+
+x_sim = [x_opt[0]]
+u_count = 0
+for cons, N, name in Scheme:
+    dynF = DynFuncs[cons]
+    for i in range(N):
+        x_sim.append( np.array(rounge_Kutta(x_sim[-1], u_opt[u_count][:4], 
+            lambda x,u : dynF(x=x,u=u)["dx"])).reshape(-1))
+        u_count += 1
+        
+
 
 # Animate
 fig, ax = plt.subplots()
