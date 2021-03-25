@@ -220,7 +220,11 @@ class ycyCollocation(TrajOptimizer):
     def getSolU(self):
         if(self._sol is None):
             raise HaveNotRunOptimizerError
-        
+        if(self._parseSol is None):
+            self._parseSol = ca.Function('solutionParse', [ca.vertcat(*self._w)],
+                                 [ca.horzcat(*self._x_plot), ca.horzcat(*self._u_plot)],
+                                  ['w'], ['x', 'u'])
+
         x_opt, u_opt = self._parseSol(self._sol['x'])
         u_opt = u_opt.full() # to numpy array
         return u_opt
@@ -228,7 +232,11 @@ class ycyCollocation(TrajOptimizer):
     def getSolX(self):
         if(self._sol is None):
             raise HaveNotRunOptimizerError
-        
+        if(self._parseSol is None):
+            self._parseSol = ca.Function('solutionParse', [ca.vertcat(*self._w)],
+                                 [ca.horzcat(*self._x_plot), ca.horzcat(*self._u_plot)],
+                                  ['w'], ['x', 'u'])
+
         x_opt, u_opt = self._parseSol(self._sol['x'])
         x_opt = x_opt.full() # to numpy array
         return x_opt
@@ -275,8 +283,8 @@ class ycyCollocation(TrajOptimizer):
         # dynFsol = dynF(x=Xc[j-1],u = Uk)
 
         self._g.append(g)
-        self._lbg.append(dynF_g_lim[0]*g.size(1)) #size(1): the dim of axis0
-        self._ubg.append(dynF_g_lim[1]*g.size(1)) #size(1): the dim of axis0
+        self._lbg.append([dynF_g_lim[0]]*g.size(1)) #size(1): the dim of axis0
+        self._ubg.append([dynF_g_lim[1]]*g.size(1)) #size(1): the dim of axis0
 
         self._stepCount += 1
         self._lastStep = {

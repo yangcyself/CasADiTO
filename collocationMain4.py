@@ -60,11 +60,10 @@ for i in range(10):
 
 opt.addConstraint(lambda x,u: (x - XDes)[:14], [0]*14, [0]*14)
 
-opt.startSolve()
-
 if __name__ == "__main__" :
 
     with Session(__file__,terminalLog = True) as ss:
+    # if(True):
         opt.startSolve()
         
         dumpname = os.path.abspath(os.path.join("./data/nlpSol", "ycyCollo%d.pkl"%time.time()))
