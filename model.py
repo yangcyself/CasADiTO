@@ -295,8 +295,28 @@ def buildInvF(constraints,name="",consNames = None):
 
     return Function("DynF_%s"%name, [x,*Flist_format], [dx, u], ["x",*Flist_Names], ["dx", "u"])
 
-def buildValF(v,name = "v"):
-    return Function("%s_val"%name, [x], [v],["x"], [name+"v"])
+def buildEOMF(consMap,name = "EOM"):
+    """Build the equation of Motion and constraint. Return g(x,u,F,ddq)
+
+    Args:
+        consMap ((bool,bool)): The contact condition of the back and front legs
+        name (str, optional): The name of the function. Defaults to "EOMF".
+
+    Returns:
+        g(x,u,F,ddq)->[SX]: The equation that should be zero
+    """
+    ddq = SX.sym("ddq",7)
+    F = SX.sym("F",4) #Fb, Ff
+
+    cons = [phbLeg2, phfLeg2]
+    consJ = [jacobian(c,q) for c in cons]
+    toeJac = vertcat(*consJ)
+
+    # [x, ddq, Q], [EOM0]
+    g = EOM_func0(x,ddq,MB @ u+toeJac.T @ F) # the EOM
+    g = vertcat(g, *[ cJ @ ddq + jtimes(cJ,q,dq)@dq for cJ,cm in zip(consJ,consMap) if cm])
+    g = vertcat(g, *[ F[i*2:i*2+2] for i,cm in enumerate(consMap) if not cm])
+    return Function("%sF"%name, [x,u,F,ddq], [g], ["x","u","F","ddq"], [name])
 
 
 x_val = np.array([0,0,0,-0.3,-2.5, -0.3, -2.5,

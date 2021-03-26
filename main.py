@@ -11,12 +11,17 @@ x_val = np.array([0,0,0,-0.3,-2.5, -0.3, -2.5,
 
 robotLines = []
 
+# EOMF = model.buildEOMF((0,0))
+# EOMF = model.buildEOMF((1,1))
+EOMF = model.buildEOMF((1,0))
+
 # DynF = model.buildDynF([],"all_leg", ["btoe","ftoe"])
 # DynF = model.buildDynF([model.phbLeg2, model.phfLeg2],"all_leg", ["btoe","ftoe"])
 DynF = model.buildDynF([model.phbLeg2],"all_leg", ["btoe"])
 N = 30000
 for i in range(N ):
     sol = DynF(x = x_val,u = np.zeros(4))
+    print(EOMF(x = x_val,u = np.zeros(4),F=np.concatenate([sol["F0"],np.array([0,0]).reshape(sol["F0"].size())]),ddq = sol["ddq"]))
     x_val += sol["dx"] * 0.0001
     # print(sol['FA'])
     # print(sol['Fb'])

@@ -154,4 +154,4 @@ if __name__ == "__main__" :
 
         ss.add_info("solutionPkl",dumpname)
         ss.add_info("Scheme",Scheme)
-        ss.add_info("Note","Long Term Solve")
+        ss.add_info("Note","Debugged the model!!!!!!")

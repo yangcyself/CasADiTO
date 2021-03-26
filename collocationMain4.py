@@ -39,6 +39,12 @@ xlim = [
     model.params["dq2Lim"]
 ]
 
+EoMFuncs = {
+    (1,1): model.buildEOMF((1,1)),
+    (1,0): model.buildEOMF((1,0)),
+    (0,0): model.buildEOMF((0,0))
+}
+
 Scheme = [ # list: (contact constaints, length)
     ((1,1), 50, "start"),
     ((1,0), 50, "lift"),
@@ -53,19 +59,19 @@ Xlift0[2] = np.math.pi/6
 References = [
     lambda i:( # start
         X0,
-        [1,125,1,150]
+        [1,125,1,150,0,125,0,150]
     ),
     lambda i:( # lift
         Xlift0,
-        [100,200,0,0]
+        [100,200,0,0,100,200,0,0]
     ),
     lambda i:( # fly
         X0 + np.concatenate([np.array([0.5/50*i, 2*0.5/50*i*(0.5-0.5/50*i)]), np.zeros(12)]),
-        [0,0,0,0]
+        [0,0,0,0, 0,0,0,0]
     ),
     lambda i:( # finish
         XDes,
-        [1,125,1,150]
+        [1,125,1,150, 0,125,0,150]
     )
 ]
 
@@ -82,9 +88,11 @@ opt = ycyCollocation(14, 8, xlim, [-100, 100], dT)
 opt.init(X0)
 
 for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
+    EOMF = EoMFuncs[cons]
     for i in range(N):
-        opt.step(lambda dx,x,u : model.EOMfunc(x,dx[7:],u[:4],u[4:]), # EOMfunc:  [x,ddq,u,F]=>[EOM]) 
-                np.array([1,125,1,125,0,150,0,150]),X0)
+        x_0, u_0 = R(i)
+        opt.step(lambda dx,x,u : EOMF(x,u[:4],u[4:],dx[7:]), # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+                np.array(u_0),x_0)
         opt.addCost(lambda x,u: 0.01*ca.dot(u[:4],u[:4]))
 
         def holoCons(x,u):
@@ -96,10 +104,6 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
             )
         opt.addConstraint(
             holoCons, [0]*(sum(cons))*3, [np.inf]*(sum(cons))*3
-        )
-        opt.addConstraint(
-            lambda x,u: ca.vertcat(*[u[4+i*2:6+i*2] for i in range(2) if not cons[i]]), 
-            [0]*(2-sum(cons))*2, [np.inf]*(2-sum(cons))*2
         )
 
     opt.addConstraint(*FinalC)
