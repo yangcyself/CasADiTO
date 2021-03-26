@@ -37,9 +37,11 @@ print("x_optShape", x_opt.shape)
 
 print("x_opt[0]",x_opt[0])
 print("x_opt[1]",x_opt[1])
-print("ddq1",(6 * x_opt[1][:7] - 2*x_opt[1][7:]*dT 
-            - 6 * x_opt[0][:7] - 4*x_opt[0][7:]*dT)/dT**2)
-
+ddq = (6 * x_opt[1][:7] - 2*x_opt[1][7:]*dT 
+            - 6 * x_opt[0][:7] - 4*x_opt[0][7:]*dT)/(dT**2)
+print("ddq0",ddq)
+print("U0F0",u_opt[0])
+print("EOMFfunction",EoMFuncs[(1,1)](x_opt[0], u_opt[0][:4],u_opt[0][4:],ddq))
 
 x_sim = [x_opt[0]]
 u_count = 0

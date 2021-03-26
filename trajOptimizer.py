@@ -215,6 +215,7 @@ class ycyCollocation(TrajOptimizer):
         super().__init__(xDim, uDim, xLim, uLim, dt)
         self._x_plot = []
         self._u_plot = []
+        self._qDim = int(self._xDim/2)
         self._parseSol = None
 
     def getSolU(self):
@@ -243,7 +244,7 @@ class ycyCollocation(TrajOptimizer):
     
             
     def init(self, x0):
-        Xk = ca.MX.sym('X0', self._xDim)
+        Xk = ca.SX.sym('X0', self._xDim)
         self._w.append(Xk)
         self._lbw.append(x0)
         self._ubw.append(x0)
@@ -258,14 +259,14 @@ class ycyCollocation(TrajOptimizer):
     dynF_g_lim: (lbg, ubg)
     """
     def step(self,dynF,u0,x0, dynF_g_lim = (0,0)):
-        Uk = ca.MX.sym('U_%d'%(self._stepCount), self._uDim)
+        Uk = ca.SX.sym('U_%d'%(self._stepCount), self._uDim)
         self._w.append(Uk)
         self._lbw.append(self._uLim[:,0])
         self._ubw.append(self._uLim[:,1])
         self._w0.append(u0)
         self._u_plot.append(Uk)
 
-        Xk_puls_1 = ca.MX.sym('X_%d'%(self._stepCount+1), self._xDim)
+        Xk_puls_1 = ca.SX.sym('X_%d'%(self._stepCount+1), self._xDim)
         self._w.append(Xk_puls_1)
         self._lbw.append(self._xLim[:,0])
         self._ubw.append(self._xLim[:,1])
@@ -273,14 +274,21 @@ class ycyCollocation(TrajOptimizer):
         self._x_plot.append(Xk_puls_1)
 
         Xk = self._lastStep["Xk"]
-        q0 = Xk[:self._xDim/2]
-        dq0 = Xk[self._xDim/2:]
-        q1 = Xk_puls_1[:self._xDim/2]
-        dq1 = Xk_puls_1[self._xDim/2:] 
+        q0 = Xk[:self._qDim]
+        dq0 = Xk[self._qDim:]
+        q1 = Xk_puls_1[:self._qDim]
+        dq1 = Xk_puls_1[self._qDim:] 
         ddq0 = (6 * q1 - 2*dq1*self._dt - 6 * q0 - 4*dq0*self._dt)/(self._dt**2) # 6q1 - 2dq1dt - 6q0 - 4dq0dt
-
+                # (6 * x_opt[1][:7] - 2*x_opt[1][7:]*dT - 6 * x_opt[0][:7] - 4*x_opt[0][7:]*dT)/dT**2
+        # print("dq0:",dq0,dq0.size())
+        # print(ca.vertcat(dq0,ddq0))
         g = dynF(ca.vertcat(dq0,ddq0),Xk, Uk)
+        # print("g.size()",g.size())
         # dynFsol = dynF(x=Xc[j-1],u = Uk)
+
+        self.dynChecker = ca.Function("dynCheck",
+            [Xk, Xk_puls_1, Uk], [g,ddq0], 
+            ["x0", "x1", "u"], ["g","ddq0"])
 
         self._g.append(g)
         self._lbg.append([dynF_g_lim[0]]*g.size(1)) #size(1): the dim of axis0
