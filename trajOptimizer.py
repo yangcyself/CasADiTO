@@ -271,9 +271,9 @@ class ycyCollocation(TrajOptimizer):
 
         if(self._lastStep["Uk"] is not None):
             Uk0 = self._lastStep["Uk"]
-            self._g.append(ca.dot(Uk0 - Uk, Uk0 - Uk))
-            self._lbg.append([-np.inf]) #size(1): the dim of axis0
-            self._ubg.append([self._dUlim]) #size(1): the dim of axis0
+            self._g.append(Uk0 - Uk)
+            self._lbg.append([0]*self._uDim) #size(1): the dim of axis0
+            self._ubg.append([0]*self._uDim) #size(1): the dim of axis0
 
         Xk_puls_1 = ca.SX.sym('X_%d'%(self._stepCount+1), self._xDim)
         self._w.append(Xk_puls_1)
@@ -299,31 +299,31 @@ class ycyCollocation(TrajOptimizer):
         # print("dq0:",dq0,dq0.size())
         # print(ca.vertcat(dq0,ddq0))
         g = dynF(ca.vertcat(dq0,ddq0),Xk, Uk)
-        # print("g.size()",g.size())
-        # dynFsol = dynF(x=Xc[j-1],u = Uk)
-
-        self.dynChecker = ca.Function("dynCheck",
-            [Xk, Xk_puls_1, Uk], [g,ddq0], 
-            ["x0", "x1", "u"], ["g","ddq0"])
 
         self._g.append(g)
         self._lbg.append([dynF_g_lim[0]]*g.size(1)) #size(1): the dim of axis0
         self._ubg.append([dynF_g_lim[1]]*g.size(1)) #size(1): the dim of axis0
 
+        qc = a0 + a1*(self._dt/2) + a2 * (self._dt/2)**2 + a3 * (self._dt/2)**3
+        dqc = a1 + 2 * a2 * (self._dt/2) + 3* a3 * (self._dt/2)**2
+        ddqc = 2 * a2 + 6 * a3 * (self._dt/2)
 
-        # constraint the acceleration at the junction between two base polynomials to be equal
-        ddQK = self._lastStep["ddQk"]
-        if(ddQK is not None):
-            # self._g.append(ddQK - ddq0)
-            # self._lbg.append([0]*self._qDim) #size(1): the dim of axis0
-            # self._ubg.append([0]*self._qDim) #size(1): the dim of axis0
-            ## Use Slack for junction
-            self._J += 1e3 * ca.dot(ddQK - ddq0, ddQK - ddq0)
+        Ukc = ca.SX.sym('U_%dc'%(self._stepCount), self._uDim)
+        self._w.append(Ukc)
+        self._lbw.append(self._uLim[:,0])
+        self._ubw.append(self._uLim[:,1])
+        self._w0.append(u0)
+        # self._u_plot.append(Ukc)
+
+        g = dynF(ca.vertcat(dqc,ddqc), ca.vertcat(qc, dqc), Ukc)
+        self._g.append(g)
+        self._lbg.append([dynF_g_lim[0]]*g.size(1)) #size(1): the dim of axis0
+        self._ubg.append([dynF_g_lim[1]]*g.size(1)) #size(1): the dim of axis0
 
         ddq1 = 6 * a3 * self._dt + 2*a2
         self._stepCount += 1
         self._lastStep = {
-            "Uk":Uk,
+            "Uk": 2*Ukc - Uk, # assume the U is first order spline
             "Xk": Xk_puls_1,
             "ddQk":ddq1
         }

@@ -116,8 +116,8 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
 
 if __name__ == "__main__" :
 
-    with Session(__file__,terminalLog = True) as ss:
-    # if(True):
+    # with Session(__file__,terminalLog = True) as ss:
+    if(True):
         opt.startSolve()
         
         dumpname = os.path.abspath(os.path.join("./data/nlpSol", "ycyCollo%d.pkl"%time.time()))
