@@ -217,6 +217,7 @@ class ycyCollocation(TrajOptimizer):
         self._u_plot = []
         self._qDim = int(self._xDim/2)
         self._parseSol = None
+        self._dUlim = (np.max(uLim)**2 * uDim)*self._dt*10
 
     def getSolU(self):
         if(self._sol is None):
@@ -252,7 +253,8 @@ class ycyCollocation(TrajOptimizer):
         self._x_plot.append(Xk)
         self._lastStep = {
             "Xk": Xk,
-            "ddQk":None
+            "ddQk":None,
+            "Uk" : None
         }
         
     """
@@ -266,6 +268,12 @@ class ycyCollocation(TrajOptimizer):
         self._ubw.append(self._uLim[:,1])
         self._w0.append(u0)
         self._u_plot.append(Uk)
+
+        if(self._lastStep["Uk"] is not None):
+            Uk0 = self._lastStep["Uk"]
+            self._g.append(ca.dot(Uk0 - Uk, Uk0 - Uk))
+            self._lbg.append([-np.inf]) #size(1): the dim of axis0
+            self._ubg.append([self._dUlim]) #size(1): the dim of axis0
 
         Xk_puls_1 = ca.SX.sym('X_%d'%(self._stepCount+1), self._xDim)
         self._w.append(Xk_puls_1)

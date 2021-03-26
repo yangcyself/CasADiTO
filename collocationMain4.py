@@ -3,11 +3,9 @@ import model, vis
 import pickle as pkl
 from trajOptimizerHelper import *
 
-
 from ExperimentSecretary.Core import Session
 import os
 import time
-
 
 """
 This file use dynamic constraint as dynamics, rather than dynF
@@ -53,7 +51,7 @@ Scheme = [ # list: (contact constaints, length)
     ((1,1), 50, "start"),
     ((1,0), 50, "lift"),
     ((0,0), 50, "fly"),
-    # # ([model.phbLeg2], 3, "land"),
+    # ([model.phbLeg2], 3, "land"),
     # ((1,1), 50, "finish")
 ]
 
@@ -63,7 +61,7 @@ Xlift0[2] = np.math.pi/6
 References = [
     lambda i:( # start
         X0,
-        [1,100,1,100,0,100,0,100]
+        [1,125,1,125,0,100,0,100]
     ),
     lambda i:( # lift
         Xlift0,
@@ -98,7 +96,7 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         x_0, u_0 = R(i)
         opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
                 np.array(u_0),x_0)
-        opt.addCost(lambda x,u: 0.01*ca.dot(u[:4],u[:4]))
+        opt.addCost(lambda x,u: 0.001*ca.dot(u[:4],u[:4]))
 
         addAboveGoundConstraint(opt)
 
