@@ -36,9 +36,9 @@ params = {
     "legLc1":robotParam["lc1"],
     "legLc2":robotParam["lc2"],
     "torL":robotParam["L"],
-    "legM1":robotParam["m1"],
-    "legM2":robotParam["m2"],
-    "torM":robotParam["M"],
+    "legM1":0.1, #robotParam["m1"],
+    "legM2":0.1, # robotParam["m2"],
+    "torM": 10, #robotParam["M"],
     "legI1":robotParam["j1"],
     "legI2":robotParam["j2"],
     "torI":robotParam["J"],
@@ -149,23 +149,28 @@ L = KE - PE #ycytmp I think this should be plus, but in ME192 it is -
 
 ddq = SX.sym("ddq",7)
 Q = SX.sym("Q",7)
-EOM0 = jtimes(jacobian(L,dq).T, dq, ddq) - jacobian(L,q).T - Q # equation of motion
+EOM0 = jtimes(jacobian(L,dq).T, dq, ddq) + jtimes(jacobian(L,dq).T, q, dq) - jacobian(L,q).T - Q # equation of motion
 EOM0 = simplify(EOM0)
 # print(EOM)
 EOM_func0 = Function("EOM0_func", [x, ddq, Q], [EOM0], ["x", "ddq", "Q"], ["EOM"])
 # print("EOM",EOM_func(x_val))
 
 MD = simplify(jacobian(jacobian(KE,dq)    ,dq))
-MC = SX(7,7)
+# MC = SX(7,7)
 
-for k in range(7):
-    for j in range(7):
-        MC[k,j] = 0
-        for i in range(7):
-            MC[k,j] += 0.5*(gradient(MD[k,j], q[i]) + gradient(MD[k,j], q[j]) - gradient(MD[k,j], q[k])) * dq[i]
-MC = simplify(MC)
+# for k in range(7):
+#     for j in range(7):
+#         MC[k,j] = 0
+#         for i in range(7):
+#             MC[k,j] += 0.5*(gradient(MD[k,j], q[i]) + gradient(MD[k,j], q[j]) - gradient(MD[k,j], q[k])) * dq[i]
+# MC = simplify(MC)
+
+MC = simplify(jacobian(jacobian(L,dq).T, q))
+
 MG = simplify(jacobian(PE,q)).T
 MB = simplify(jacobian(veccat(bq1, bq2, fq1, fq2), q)).T
+
+MCg = jtimes(jacobian(L,dq).T, q, dq) - jacobian(L,q).T
 
 # print(pMtor)
 
@@ -184,23 +189,9 @@ selectionM[:3,:3] = np.eye(3)
 FA = vertcat(MD,selectionM)
 FA = simplify( horzcat(FA, vertcat(selectionM.T, np.zeros((3,3)))))
 
-Fb = simplify(vertcat(- (MC@dq) - MG , 0,0,0))
+Fb = simplify(vertcat( -MCg, 0,0,0))
 
 Fsol = solve(FA,Fb)
-
-# MC_func = Function("MC_func",[x], [MC])
-# MD_func = Function("MD_func",[x], [MD])
-# MG_func = Function("MG_func",[x], [MG])
-# MB_func = Function("MB_func",[x], [MB])
-# FA_func = Function("FA_func",[x], [FA])
-# Fb_func = Function("Fb_func",[x], [Fb])
-
-# print("MC", MC_func(x_val))
-# print("MD", MD_func(x_val))
-# print("MG", MG_func(x_val))
-# print("MB", MB_func(x_val))
-# print("FA", FA_func(x_val))
-# print("Fb", Fb_func(x_val))
 
 dx = vertcat(dq, Fsol[:7])
 
@@ -213,7 +204,7 @@ ftoeF = SX.sym("ftoeF",2)
 F = vertcat(btoeF,ftoeF)
 dx = veccat(dq,ddq)
 toeJac = jacobian(vertcat(phbLeg2, phfLeg2), q)
-EOM = MD @ ddq + MC@dq + MG - MB @ u - toeJac.T @ F
+EOM = MD @ ddq + MCg - MB @ u - toeJac.T @ F
 EOMfunc = Function("EOM",[x,ddq,u,F],[EOM])
 
 
@@ -250,7 +241,8 @@ def buildDynF(constraints,name="",consNames = None):
 
     FA = vertcat(MD,consA)
     FA = simplify( horzcat(FA, -vertcat(consA.T, np.zeros((consl, consl) ))))
-    Fb = simplify(vertcat(- (MC@dq) - MG + MB @ u, consb))
+    # Fb = simplify(vertcat(- (MC@dq) - MG + MB @ u, consb))
+    Fb = simplify(vertcat(- MCg + MB @ u, consb))
     Fsol = solve(FA,Fb)
 
     ddq = Fsol[:7]
@@ -293,7 +285,8 @@ def buildInvF(constraints,name="",consNames = None):
 
     FA = vertcat(MD,consA)
     FA = simplify( horzcat(FA, -vertcat(MB, np.zeros((consl, ul) ))))
-    Fb = simplify(vertcat(- (MC@dq) - MG + consA.T @ Fvec, consb))
+    # Fb = simplify(vertcat(- (MC@dq) - MG + consA.T @ Fvec, consb))
+    Fb = simplify(vertcat(- MCg + consA.T @ Fvec, consb))
     Fsol = pinv(FA) @ Fb 
 
     ddq = Fsol[:7]

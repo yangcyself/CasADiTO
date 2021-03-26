@@ -11,10 +11,15 @@ x_val = np.array([0,0,0,-0.3,-2.5, -0.3, -2.5,
 
 robotLines = []
 
-for i in range(3000):
-    sol = model.DynF(x = x_val,u = np.zeros(4))
-    x_val += sol["dx"] * 0.001
-    
+# DynF = model.buildDynF([],"all_leg", ["btoe","ftoe"])
+# DynF = model.buildDynF([model.phbLeg2, model.phfLeg2],"all_leg", ["btoe","ftoe"])
+DynF = model.buildDynF([model.phbLeg2],"all_leg", ["btoe"])
+N = 30000
+for i in range(N ):
+    sol = DynF(x = x_val,u = np.zeros(4))
+    x_val += sol["dx"] * 0.0001
+    # print(sol['FA'])
+    # print(sol['Fb'])
     if(not i %10):
         robotLines.append(vis.visFunc(x_val[:7]))
 
@@ -28,7 +33,7 @@ fig, ax = plt.subplots()
 # line, = ax.plot(robotLines[0][:,0], robotLines[0][:,1])
 
 def animate(i):
-    i = i%300
+    i = i%len(robotLines)
     # line.set_xdata(robotLines[i][:,0])  # update the data.
     # line.set_ydata(robotLines[i][:,1])  # update the data.
     ax.clear()
@@ -38,7 +43,7 @@ def animate(i):
     return line,
 
 ani = animation.FuncAnimation(
-    fig, animate, interval=60, blit=True, save_count=50)
+    fig, animate, interval=6, blit=True, save_count=50)
 
 # To save the animation, use e.g.
 #
