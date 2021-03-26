@@ -47,10 +47,10 @@ EoMFuncs = {
 
 Scheme = [ # list: (contact constaints, length)
     ((1,1), 50, "start"),
-    # ((1,0), 50, "lift"),
-    # ((0,0), 50, "fly"),
-    # # # ([model.phbLeg2], 3, "land"),
-    # ((1,1), 50, "finish")
+    ((1,0), 50, "lift"),
+    ((0,0), 50, "fly"),
+    # # ([model.phbLeg2], 3, "land"),
+    ((1,1), 50, "finish")
 ]
 
 Xlift0 = X0.copy()
@@ -61,26 +61,26 @@ References = [
         X0,
         [1,125,1,150,0,125,0,150]
     ),
-    # lambda i:( # lift
-    #     Xlift0,
-    #     [100,200,0,0,100,200,0,0]
-    # ),
-    # lambda i:( # fly
-    #     X0 + np.concatenate([np.array([0.5/50*i, 2*0.5/50*i*(0.5-0.5/50*i)]), np.zeros(12)]),
-    #     [0,0,0,0, 0,0,0,0]
-    # ),
-    # lambda i:( # finish
-    #     XDes,
-    #     [1,125,1,150, 0,125,0,150]
-    # )
+    lambda i:( # lift
+        Xlift0,
+        [100,200,0,0,100,200,0,0]
+    ),
+    lambda i:( # fly
+        X0 + np.concatenate([np.array([0.5/50*i, 2*0.5/50*i*(0.5-0.5/50*i)]), np.zeros(12)]),
+        [0,0,0,0, 0,0,0,0]
+    ),
+    lambda i:( # finish
+        XDes,
+        [1,125,1,150, 0,125,0,150]
+    )
 ]
 
 stateFinalCons = [ # the constraints to enforce at the end of each state
     (lambda x,u: x[2], [0], [np.inf]), # lift up body
-    # (lambda x,u: ca.vertcat(x[7],x[8]), [0.5]*2, [np.inf]*2), # have positive velocity
-    # (lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1]), 
-    #                 [0]*2, [0]*2), # feet land
-    # (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
+    (lambda x,u: ca.vertcat(x[7],x[8]), [0.5]*2, [np.inf]*2), # have positive velocity
+    (lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1]), 
+                    [0]*2, [0]*2), # feet land
+    (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
 ]
 
 opt = ycyCollocation(14, 8, xlim, [-100, 100], dT)
@@ -124,25 +124,25 @@ if __name__ == "__main__" :
                 "Scheme":Scheme
             }, f)
 
-        print("x",opt.getSolX())
-        print("u", opt.getSolU())
-        print(opt.dynChecker(x0 = opt.getSolX()[:,0], x1 = opt.getSolX()[:,1],
-          u = opt.getSolU()[:,0]))
-        print(opt._dt,"VS",dT)
-        q0 = opt.getSolX()[:,0][:int(opt._xDim/2)]
-        dq0 = opt.getSolX()[:,0][int(opt._xDim/2):]
-        q1 = opt.getSolX()[:,1][:int(opt._xDim/2)]
-        dq1 = opt.getSolX()[:,1][int(opt._xDim/2):] 
-        ddq0 = (6 * q1 - 2*dq1*opt._dt - 6 * q0 - 4*dq0*opt._dt)/(opt._dt**2) # 6q1 - 2dq1dt - 6q0 - 4dq0dt
-        print("ddq0:",ddq0)
-        u_opt = opt.getSolU().T
-        x_opt = opt.getSolX().T
+        # print("x",opt.getSolX())
+        # print("u", opt.getSolU())
+        # print(opt.dynChecker(x0 = opt.getSolX()[:,0], x1 = opt.getSolX()[:,1],
+        #   u = opt.getSolU()[:,0]))
+        # print(opt._dt,"VS",dT)
+        # q0 = opt.getSolX()[:,0][:int(opt._xDim/2)]
+        # dq0 = opt.getSolX()[:,0][int(opt._xDim/2):]
+        # q1 = opt.getSolX()[:,1][:int(opt._xDim/2)]
+        # dq1 = opt.getSolX()[:,1][int(opt._xDim/2):] 
+        # ddq0 = (6 * q1 - 2*dq1*opt._dt - 6 * q0 - 4*dq0*opt._dt)/(opt._dt**2) # 6q1 - 2dq1dt - 6q0 - 4dq0dt
+        # print("ddq0:",ddq0)
+        # u_opt = opt.getSolU().T
+        # x_opt = opt.getSolX().T
 
-        ddq = (6 * x_opt[1][:7] - 2*x_opt[1][7:]*dT 
-            - 6 * x_opt[0][:7] - 4*x_opt[0][7:]*dT)/(dT**2)
-        print("ddq",ddq)
+        # ddq = (6 * x_opt[1][:7] - 2*x_opt[1][7:]*dT 
+        #     - 6 * x_opt[0][:7] - 4*x_opt[0][7:]*dT)/(dT**2)
+        # print("ddq",ddq)
 
-        print("EoMFunc",EoMFuncs[(1,1)](x_opt[0], u_opt[0][:4],u_opt[0][4:],ddq))
+        # print("EoMFunc",EoMFuncs[(1,1)](x_opt[0], u_opt[0][:4],u_opt[0][4:],ddq))
         ss.add_info("solutionPkl",dumpname)
         ss.add_info("Scheme",Scheme)
         ss.add_info("Note","I want to try ycycollocion algorithm")
