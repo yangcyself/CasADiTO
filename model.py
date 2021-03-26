@@ -152,7 +152,7 @@ Q = SX.sym("Q",7)
 EOM0 = jtimes(jacobian(L,dq).T, dq, ddq) - jacobian(L,q).T - Q # equation of motion
 EOM0 = simplify(EOM0)
 # print(EOM)
-EOM_func0 = Function("EOM0_func", [x, ddq, Q], [EOM0])
+EOM_func0 = Function("EOM0_func", [x, ddq, Q], [EOM0], ["x", "ddq", "Q"], ["EOM"])
 # print("EOM",EOM_func(x_val))
 
 MD = simplify(jacobian(jacobian(KE,dq)    ,dq))

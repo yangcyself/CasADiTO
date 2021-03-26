@@ -30,7 +30,14 @@ x_opt = opt.getSolX().T
 # x_opt = solraw["sol_x"].T
 # x_sim = x_opt
 
+print(u_opt[125])
+print(DynFuncs[(0,0)](x = x_opt[125],  u = u_opt[125]))
+print(model.EOM_func0(x = x_opt[125], 
+                ddq = DynFuncs[(0,0)](x = x_opt[125],  u = u_opt[125])["ddq"],
+                Q = model.MB @ u_opt[125]))
+
 x_sim = [x_opt[0]]
+phase = ["init"]
 print("u_optShape", u_opt.shape)
 print("x_optShape", x_opt.shape)
 
@@ -38,6 +45,7 @@ u_count = 0
 for cons, N, name in Scheme:
     dynF = DynFuncs[cons]
     for i in range(N):
+        phase.append(name)
         x_sim.append( np.array(rounge_Kutta(x_sim[-1], u_opt[u_count], 
             lambda x,u : dynF(x=x,u=u)["dx"])).reshape(-1))
         u_count += 1
@@ -61,10 +69,11 @@ fig, ax = plt.subplots()
 
 def animate(i):
     Total = len(x_sim)
-    xsim = x_sim[i%Total]
+    i = i%Total
+    xsim = x_sim[i]
 
     Total = len(x_opt)
-    xsol = x_opt[i%Total]
+    xsol = x_opt[i]
 
     # line.set_xdata(robotLines[i][:,0])  # update the data.
     # line.set_ydata(robotLines[i][:,1])  # update the data.
@@ -73,12 +82,13 @@ def animate(i):
     robotLinesol = vis.visFunc(xsol[:7])
     linesim, = ax.plot(robotLinesim[:,0], robotLinesim[:,1])
     linesol, = ax.plot(robotLinesol[:,0], robotLinesol[:,1])
+    til = ax.set_title(phase[i])
     ax.set_xlim(-1.5,3.5)
     ax.set_ylim(-0.5,4.5)
-    return linesim,linesol
+    return linesim,linesol,til
 
 ani = animation.FuncAnimation(
-    fig, animate, interval=200, blit=True, save_count=50)
+    fig, animate, interval=200, blit=False, save_count=50)
 
 # To save the animation, use e.g.
 #
