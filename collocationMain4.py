@@ -91,7 +91,7 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     EOMF = EoMFuncs[cons]
     for i in range(N):
         x_0, u_0 = R(i)
-        opt.step(lambda dx,x,u : (print("dx,x",dx,"\n",x) , EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"])[-1], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+        opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
                 np.array(u_0),x_0)
         opt.addCost(lambda x,u: 0.01*ca.dot(u[:4],u[:4]))
 

@@ -252,6 +252,7 @@ class ycyCollocation(TrajOptimizer):
         self._x_plot.append(Xk)
         self._lastStep = {
             "Xk": Xk,
+            "ddQk":None
         }
         
     """
@@ -277,7 +278,14 @@ class ycyCollocation(TrajOptimizer):
         q0 = Xk[:self._qDim]
         dq0 = Xk[self._qDim:]
         q1 = Xk_puls_1[:self._qDim]
-        dq1 = Xk_puls_1[self._qDim:] 
+        dq1 = Xk_puls_1[self._qDim:]
+        
+        # retrieve the param of a3t^3 + a2t^2 + a1t + a0 fitted by the q0 and q1
+        a0 = q0
+        a1 = dq0
+        a2 = -(3*(q0 - q1) + self._dt*(2*dq0 + dq1))/(self._dt**2)
+        a3 = (2*(q0 - q1) + self._dt*(dq0 + dq1))/(self._dt**3)
+
         ddq0 = (6 * q1 - 2*dq1*self._dt - 6 * q0 - 4*dq0*self._dt)/(self._dt**2) # 6q1 - 2dq1dt - 6q0 - 4dq0dt
                 # (6 * x_opt[1][:7] - 2*x_opt[1][7:]*dT - 6 * x_opt[0][:7] - 4*x_opt[0][7:]*dT)/dT**2
         # print("dq0:",dq0,dq0.size())
@@ -294,10 +302,20 @@ class ycyCollocation(TrajOptimizer):
         self._lbg.append([dynF_g_lim[0]]*g.size(1)) #size(1): the dim of axis0
         self._ubg.append([dynF_g_lim[1]]*g.size(1)) #size(1): the dim of axis0
 
+
+        # constraint the acceleration at the junction between two base polynomials to be equal
+        ddQK = self._lastStep["ddQk"]
+        if(ddQK is not None):
+            self._g.append(ddQK - ddq0)
+            self._lbg.append([0]*self._qDim) #size(1): the dim of axis0
+            self._ubg.append([0]*self._qDim) #size(1): the dim of axis0
+
+        ddq1 = 6 * a3 * self._dt + 2*a2
         self._stepCount += 1
         self._lastStep = {
             "Uk":Uk,
             "Xk": Xk_puls_1,
+            "ddQk":ddq1
         }
 
     # Add constriant of the state of last step
