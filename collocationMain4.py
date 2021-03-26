@@ -19,7 +19,7 @@ dT = 0.01
 X0 = np.array([0,0.25,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
-XDes = np.array([1, 0.25 ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+XDes = np.array([0, 0.25 ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
 xlim = [
@@ -66,7 +66,7 @@ References = [
         [100,200,0,0,100,200,0,0]
     ),
     lambda i:( # fly
-        X0 + np.concatenate([np.array([0.5/50*i, 2*0.5/50*i*(0.5-0.5/50*i)]), np.zeros(12)]),
+        X0 + np.concatenate([np.array([0/50*i, i*(50-i)/625]), np.zeros(12)]),
         [0,0,0,0, 0,0,0,0]
     ),
     lambda i:( # finish
@@ -76,14 +76,15 @@ References = [
 ]
 
 stateFinalCons = [ # the constraints to enforce at the end of each state
-    (lambda x,u: x[2], [0], [np.inf]), # lift up body
-    (lambda x,u: ca.vertcat(x[7],x[8]), [0.5]*2, [np.inf]*2), # have positive velocity
-    (lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1]), 
-                    [0]*2, [0]*2), # feet land
+    (lambda x,u: x[1], [0], [np.inf]), # lift up body
+    (lambda x,u: x[8], [0.5], [np.inf]), # have positive velocity
+    (lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1],
+                 model.JacFuncs["Jbtoe"](x)@x[7:], model.JacFuncs["Jbtoe"](x)@x[7:]), 
+                    [0]*6, [0]*6), # feet land
     (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
 ]
 
-opt = ycyCollocation(14, 8, xlim, [-100, 100], dT)
+opt = ycyCollocation(14, 8, xlim, [-150, 150], dT)
 
 opt.init(X0)
 
@@ -145,4 +146,4 @@ if __name__ == "__main__" :
         # print("EoMFunc",EoMFuncs[(1,1)](x_opt[0], u_opt[0][:4],u_opt[0][4:],ddq))
         ss.add_info("solutionPkl",dumpname)
         ss.add_info("Scheme",Scheme)
-        ss.add_info("Note","I want to try ycycollocion algorithm")
+        ss.add_info("Note","原地跳")
