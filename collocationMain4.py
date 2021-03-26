@@ -1,6 +1,7 @@
 from trajOptimizer import *
 import model, vis
 import pickle as pkl
+from trajOptimizerHelper import *
 
 
 from ExperimentSecretary.Core import Session
@@ -15,12 +16,15 @@ This file use dynamic constraint as dynamics, rather than dynF
 # input dims: [ux4,Fbx2,Ffx2]
 
 dT = 0.01
+distance = 0.5
 
 X0 = np.array([0,0.25,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
-XDes = np.array([0, 0.25 ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+XDes = np.array([distance, 0.25 ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
+
+
 
 xlim = [
     [-np.inf,np.inf],
@@ -50,7 +54,7 @@ Scheme = [ # list: (contact constaints, length)
     ((1,0), 50, "lift"),
     ((0,0), 50, "fly"),
     # # ([model.phbLeg2], 3, "land"),
-    ((1,1), 50, "finish")
+    # ((1,1), 50, "finish")
 ]
 
 Xlift0 = X0.copy()
@@ -59,32 +63,32 @@ Xlift0[2] = np.math.pi/6
 References = [
     lambda i:( # start
         X0,
-        [1,125,1,150,0,125,0,150]
+        [1,100,1,100,0,100,0,100]
     ),
     lambda i:( # lift
         Xlift0,
-        [100,200,0,0,100,200,0,0]
+        [0,100,0,0,0,100,0,0]
     ),
     lambda i:( # fly
-        X0 + np.concatenate([np.array([0/50*i, i*(50-i)/625]), np.zeros(12)]),
+        X0 + np.concatenate([np.array([distance/50*i, 0.2+i*(50-i)/625]), np.zeros(12)]),
         [0,0,0,0, 0,0,0,0]
     ),
-    lambda i:( # finish
-        XDes,
-        [1,125,1,150, 0,125,0,150]
-    )
+    # lambda i:( # finish
+    #     XDes,
+    #     [1,125,1,150, 0,125,0,150]
+    # )
 ]
 
 stateFinalCons = [ # the constraints to enforce at the end of each state
     (lambda x,u: x[1], [0], [np.inf]), # lift up body
     (lambda x,u: x[8], [0.5], [np.inf]), # have positive velocity
-    (lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1],
-                 model.JacFuncs["Jbtoe"](x)@x[7:], model.JacFuncs["Jbtoe"](x)@x[7:]), 
-                    [0]*6, [0]*6), # feet land
+    # (lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1],
+    #              model.JacFuncs["Jbtoe"](x)@x[7:], model.JacFuncs["Jbtoe"](x)@x[7:]), 
+    #                 [0]*6, [0]*6), # feet land
     (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
 ]
 
-opt = ycyCollocation(14, 8, xlim, [-150, 150], dT)
+opt = ycyCollocation(14, 8, xlim, [-100, 100], dT)
 
 opt.init(X0)
 
@@ -95,6 +99,8 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
                 np.array(u_0),x_0)
         opt.addCost(lambda x,u: 0.01*ca.dot(u[:4],u[:4]))
+
+        addAboveGoundConstraint(opt)
 
         def holoCons(x,u):
             MU = 0.4
@@ -108,6 +114,7 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         )
 
     opt.addConstraint(*FinalC)
+
 
 if __name__ == "__main__" :
 
@@ -125,25 +132,6 @@ if __name__ == "__main__" :
                 "Scheme":Scheme
             }, f)
 
-        # print("x",opt.getSolX())
-        # print("u", opt.getSolU())
-        # print(opt.dynChecker(x0 = opt.getSolX()[:,0], x1 = opt.getSolX()[:,1],
-        #   u = opt.getSolU()[:,0]))
-        # print(opt._dt,"VS",dT)
-        # q0 = opt.getSolX()[:,0][:int(opt._xDim/2)]
-        # dq0 = opt.getSolX()[:,0][int(opt._xDim/2):]
-        # q1 = opt.getSolX()[:,1][:int(opt._xDim/2)]
-        # dq1 = opt.getSolX()[:,1][int(opt._xDim/2):] 
-        # ddq0 = (6 * q1 - 2*dq1*opt._dt - 6 * q0 - 4*dq0*opt._dt)/(opt._dt**2) # 6q1 - 2dq1dt - 6q0 - 4dq0dt
-        # print("ddq0:",ddq0)
-        # u_opt = opt.getSolU().T
-        # x_opt = opt.getSolX().T
-
-        # ddq = (6 * x_opt[1][:7] - 2*x_opt[1][7:]*dT 
-        #     - 6 * x_opt[0][:7] - 4*x_opt[0][7:]*dT)/(dT**2)
-        # print("ddq",ddq)
-
-        # print("EoMFunc",EoMFuncs[(1,1)](x_opt[0], u_opt[0][:4],u_opt[0][4:],ddq))
         ss.add_info("solutionPkl",dumpname)
         ss.add_info("Scheme",Scheme)
         ss.add_info("Note","原地跳")

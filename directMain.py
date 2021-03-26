@@ -12,21 +12,7 @@ use direct scription method, use ronge kuta
 """
 
 dT = 0.01
-
-DynFuncs = {
-    (1,1): model.buildDynF([model.phbLeg2, model.phfLeg2],"all_leg", ["btoe","ftoe"]),
-    (1,0): model.buildDynF([model.phbLeg2],"back_leg", ["btoe"]),
-    (0,0): model.buildDynF([],"fly")
-}
-
-Scheme = [ # list: (contact constaints, length)
-    ((1,1), 50, "start"),
-    ((1,0), 50, "lift"),
-    ((0,0), 50, "fly"),
-    # ([model.phbLeg2], 3, "land"),
-    ((1,1), 50, "finish")
-]
-
+distance = 0.5
 # X0 = np.array([0,0.25,0,-np.math.pi/6,-np.math.pi*2/3, -np.math.pi/6,-np.math.pi*2/3,
 #          0,0,0,0,    0,    0,    0])
 
@@ -36,38 +22,10 @@ Scheme = [ # list: (contact constaints, length)
 X0 = np.array([0,0.25,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
-XDes = np.array([0.5,0.25,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+XDes = np.array([distance, 0.25 ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
-Xlift0 = X0.copy()
-Xlift0[2] = np.math.pi/6
 
-References = [
-    lambda i:( # start
-        X0,
-        [1,125,1,150]
-    ),
-    lambda i:( # lift
-        Xlift0,
-        [100,200,0,0]
-    ),
-    lambda i:( # fly
-        X0 + np.concatenate([np.array([0.5/50*i, 2*0.5/50*i*(0.5-0.5/50*i)]), np.zeros(12)]),
-        [0,0,0,0]
-    ),
-    lambda i:( # finish
-        XDes,
-        [1,125,1,150]
-    )
-]
-
-stateFinalCons = [ # the constraints to enforce at the end of each state
-    (lambda x,u: x[2], [0], [np.inf]), # lift up body
-    (lambda x,u: ca.vertcat(x[7],x[8]), [0.5]*2, [np.inf]*2), # have positive velocity
-    (lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1]), 
-                    [0]*2, [0]*2), # feet land
-    (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
-]
 
 xlim = [
     [-np.inf,np.inf],
@@ -86,8 +44,53 @@ xlim = [
     model.params["dq2Lim"]
 ]
 
+DynFuncs = {
+    (1,1): model.buildDynF([model.phbLeg2, model.phfLeg2],"all_leg", ["btoe","ftoe"]),
+    (1,0): model.buildDynF([model.phbLeg2],"back_leg", ["btoe"]),
+    (0,0): model.buildDynF([],"fly")
+}
+
+Scheme = [ # list: (contact constaints, length)
+    ((1,1), 50, "start"),
+    ((1,0), 50, "lift"),
+    ((0,0), 50, "fly"),
+    # ([model.phbLeg2], 3, "land"),
+    # ((1,1), 50, "finish")
+]
+
+Xlift0 = X0.copy()
+Xlift0[2] = np.math.pi/6
+
+References = [
+    lambda i:( # start
+        X0,
+        [1,125,1,150]
+    ),
+    lambda i:( # lift
+        Xlift0,
+        [100,200,0,0]
+    ),
+    lambda i:( # fly
+        X0 + np.concatenate([np.array([distance/50*i, 0.2+i*(50-i)/625]), np.zeros(12)]),
+        [0,0,0,0]
+    ),
+    # lambda i:( # finish
+    #     XDes,
+    #     [1,125,1,150]
+    # )
+]
+
+stateFinalCons = [ # the constraints to enforce at the end of each state
+    (lambda x,u: x[1], [0], [np.inf]), # lift up body
+    (lambda x,u: x[8], [0.5], [np.inf]), # have positive velocity
+    # (lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1]), 
+    #                 [0]*2, [0]*2), # feet land
+    (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
+]
+
+
 # input dims: [ux4,Fbx2,Ffx2]
-opt = DirectOptimizer(14, 4, xlim, [-200, 200], dT)
+opt = DirectOptimizer(14, 4, xlim, [-100, 100], dT)
 
 
 def rounge_Kutta(x,u,dynF):
@@ -112,9 +115,6 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         opt.addCost(lambda x,u: 0.001*ca.dot(u,u))
 
         addAboveGoundConstraint(opt)
-
-        if(sum(cons) == 0):
-            continue
 
         def holoCons(x,u):
             MU = 0.4
