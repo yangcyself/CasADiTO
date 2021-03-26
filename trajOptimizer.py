@@ -314,9 +314,11 @@ class ycyCollocation(TrajOptimizer):
         # constraint the acceleration at the junction between two base polynomials to be equal
         ddQK = self._lastStep["ddQk"]
         if(ddQK is not None):
-            self._g.append(ddQK - ddq0)
-            self._lbg.append([0]*self._qDim) #size(1): the dim of axis0
-            self._ubg.append([0]*self._qDim) #size(1): the dim of axis0
+            # self._g.append(ddQK - ddq0)
+            # self._lbg.append([0]*self._qDim) #size(1): the dim of axis0
+            # self._ubg.append([0]*self._qDim) #size(1): the dim of axis0
+            ## Use Slack for junction
+            self._J += 1e3 * ca.dot(ddQK - ddq0, ddQK - ddq0)
 
         ddq1 = 6 * a3 * self._dt + 2*a2
         self._stepCount += 1
@@ -352,8 +354,18 @@ class ycyCollocation(TrajOptimizer):
         # Create an NLP solver
         prob = {'f':self._J, 'x': w, 'g': g}
         print("begin setting up solver")
-        solver = ca.nlpsol('solver', solver, prob)
-
+        solver = ca.nlpsol('solver', solver, prob, 
+            {"calc_f" : True,
+            "calc_g" : True,
+            "calc_lam_x" : True,
+            "calc_multipliers" : True,
+            # "expand" : True,
+                "verbose_init":True,
+                # "jac_g": gjacFunc
+            "ipopt":{
+                "max_iter" : 10000, # unkown option
+                }
+            })
         print("Finished setting up solver")
 
         self._sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
