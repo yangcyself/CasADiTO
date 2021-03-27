@@ -269,11 +269,11 @@ class ycyCollocation(TrajOptimizer):
         self._w0.append(u0)
         self._u_plot.append(Uk)
 
-        if(self._lastStep["Uk"] is not None):
-            Uk0 = self._lastStep["Uk"]
-            self._g.append(Uk0 - Uk)
-            self._lbg.append([0]*self._uDim) #size(1): the dim of axis0
-            self._ubg.append([0]*self._uDim) #size(1): the dim of axis0
+        # if(self._lastStep["Uk"] is not None):
+        #     Uk0 = self._lastStep["Uk"]
+        #     self._g.append(Uk0 - Uk)
+        #     self._lbg.append([0]*self._uDim) #size(1): the dim of axis0
+        #     self._ubg.append([0]*self._uDim) #size(1): the dim of axis0
 
         Xk_puls_1 = ca.SX.sym('X_%d'%(self._stepCount+1), self._xDim)
         self._w.append(Xk_puls_1)
@@ -304,21 +304,27 @@ class ycyCollocation(TrajOptimizer):
         self._lbg.append([dynF_g_lim[0]]*g.size(1)) #size(1): the dim of axis0
         self._ubg.append([dynF_g_lim[1]]*g.size(1)) #size(1): the dim of axis0
 
-        qc = a0 + a1*(self._dt/2) + a2 * (self._dt/2)**2 + a3 * (self._dt/2)**3
-        dqc = a1 + 2 * a2 * (self._dt/2) + 3* a3 * (self._dt/2)**2
-        ddqc = 2 * a2 + 6 * a3 * (self._dt/2)
+        # qc = a0 + a1*(self._dt/2) + a2 * (self._dt/2)**2 + a3 * (self._dt/2)**3
+        # dqc = a1 + 2 * a2 * (self._dt/2) + 3* a3 * (self._dt/2)**2
+        # ddqc = 2 * a2 + 6 * a3 * (self._dt/2)
 
-        Ukc = ca.SX.sym('U_%dc'%(self._stepCount), self._uDim)
-        self._w.append(Ukc)
-        self._lbw.append(self._uLim[:,0])
-        self._ubw.append(self._uLim[:,1])
-        self._w0.append(u0)
-        # self._u_plot.append(Ukc)
+        # Ukc = ca.SX.sym('U_%dc'%(self._stepCount), self._uDim)
+        # self._w.append(Ukc)
+        # self._lbw.append(self._uLim[:,0])
+        # self._ubw.append(self._uLim[:,1])
+        # self._w0.append(u0)
+        # # self._u_plot.append(Ukc)
 
-        g = dynF(ca.vertcat(dqc,ddqc), ca.vertcat(qc, dqc), Ukc)
-        self._g.append(g)
-        self._lbg.append([dynF_g_lim[0]]*g.size(1)) #size(1): the dim of axis0
-        self._ubg.append([dynF_g_lim[1]]*g.size(1)) #size(1): the dim of axis0
+        # g = dynF(ca.vertcat(dqc,ddqc), ca.vertcat(qc, dqc), Ukc)
+        # self._g.append(g)
+        # self._lbg.append([dynF_g_lim[0]]*g.size(1)) #size(1): the dim of axis0
+        # self._ubg.append([dynF_g_lim[1]]*g.size(1)) #size(1): the dim of axis0
+
+        if(self._lastStep["ddQk"] is not None):
+            self._g.append(ddq0 - self._lastStep["ddQk"])
+            self._lbg.append([0]*self._qDim) 
+            self._ubg.append([0]*self._qDim)
+
 
         ddq1 = 6 * a3 * self._dt + 2*a2
         self._stepCount += 1
@@ -406,15 +412,25 @@ class DirectOptimizer(TrajOptimizer):
         return x_opt
     
             
-    def init(self, x0):
+    def init(self, u0, x0):
         Xk = ca.MX.sym('X0', self._xDim)
         self._w.append(Xk)
         self._lbw.append(x0)
         self._ubw.append(x0)
         self._w0.append(x0)
         self._x_plot.append(Xk)
+        
+        Uk = ca.MX.sym('U_%d'%(self._stepCount), self._uDim)
+        self._w.append(Uk)
+        self._lbw.append(self._uLim[:,0])
+        self._ubw.append(self._uLim[:,1])
+        self._w0.append(u0)
+        self._u_plot.append(Uk)
+        self._stepCount += 1
+        
         self._lastStep = {
             "Xk": Xk,
+            "Uk":Uk
         }
         
     """
@@ -422,15 +438,9 @@ class DirectOptimizer(TrajOptimizer):
     intF: (x, u, dynF) -> x
     """
     def step(self, dynF, intF, u0,x0):
-        Uk = ca.MX.sym('U_%d'%(self._stepCount), self._uDim)
-        self._w.append(Uk)
-        self._lbw.append(self._uLim[:,0])
-        self._ubw.append(self._uLim[:,1])
-        self._w0.append(u0)
-        self._u_plot.append(Uk)
-
 
         Xk = self._lastStep["Xk"]
+        Uk = self._lastStep["Uk"]
 
         Xnew = intF(Xk, Uk, dynF)
 
@@ -445,12 +455,18 @@ class DirectOptimizer(TrajOptimizer):
         self._lbg.append([0]*self._xDim) #size(1): the dim of axis0
         self._ubg.append([0]*self._xDim) #size(1): the dim of axis0
 
-
+        Uk_puls_1 = ca.MX.sym('U_%d'%(self._stepCount), self._uDim)
+        self._w.append(Uk_puls_1)
+        self._lbw.append(self._uLim[:,0])
+        self._ubw.append(self._uLim[:,1])
+        self._w0.append(u0)
+        self._u_plot.append(Uk_puls_1)
+        
         # Loop over collocation points
         self._stepCount += 1
         self._lastStep = {
-            "Uk":Uk,
-            "Xk": Xk_puls_1,
+            "Uk":Uk_puls_1,
+            "Xk": Xk_puls_1
         }
 
     # Add constriant of the state of last step

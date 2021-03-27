@@ -103,7 +103,7 @@ def rounge_Kutta(x,u,dynF):
     return x
 
 
-opt.init(X0)
+opt.init([1,125,1,150],X0)
 
 for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     dynF = DynFuncs[cons]
