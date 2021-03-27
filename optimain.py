@@ -55,11 +55,11 @@ DynFuncs = {
 Fs = {k:Runge_kutta_builder(f, 0.01) for k,f in DynFuncs.items()}
 
 Scheme = [ # list: (contact constaints, length)
-    ((1,1), 3, "start"),
-    ((1,0), 3, "lift"),
-    ((0,0), 3, "fly"),
-    # ([model.phbLeg2], 3, "land"),
-    ((1,1), 3, "finish")
+    ((1,1), 50, "start"),
+    ((1,0), 50, "lift"),
+    ((0,0), 50, "fly"),
+    # ([model.phbLeg2], 50, "land"),
+    ((1,1), 50, "finish")
 ]
 
 
