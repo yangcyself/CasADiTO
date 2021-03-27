@@ -14,7 +14,7 @@ This file use dynamic constraint as dynamics, rather than dynF
 # input dims: [ux4,Fbx2,Ffx2]
 
 dT = 0.01
-distance = 0.
+distance = 0.5
 
 X0 = np.array([0,0.25,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
@@ -49,8 +49,8 @@ EoMFuncs = {
 
 Scheme = [ # list: (contact constaints, length)
     ((1,1), 50, "start"),
-    # ((1,0), 50, "lift"),
-    # ((0,0), 50, "fly"),
+    ((1,0), 50, "lift"),
+    ((0,0), 50, "fly"),
     # ([model.phbLeg2], 3, "land"),
     # ((1,1), 50, "finish")
 ]
@@ -63,14 +63,14 @@ References = [
         X0,
         [1,125,1,125,0,100,0,100]
     ),
-    # lambda i:( # lift
-    #     Xlift0,
-    #     [0,100,0,0,0,100,0,0]
-    # ),
-    # lambda i:( # fly
-    #     X0 + np.concatenate([np.array([distance/50*i, 0.2+i*(50-i)/625]), np.zeros(12)]),
-    #     [0,0,0,0, 0,0,0,0]
-    # ),
+    lambda i:( # lift
+        Xlift0,
+        [0,100,0,0,0,100,0,0]
+    ),
+    lambda i:( # fly
+        X0 + np.concatenate([np.array([distance/50*i, 0.2+i*(50-i)/625]), np.zeros(12)]),
+        [0,0,0,0, 0,0,0,0]
+    ),
     # lambda i:( # finish
     #     XDes,
     #     [1,125,1,150, 0,125,0,150]
@@ -78,12 +78,12 @@ References = [
 ]
 
 stateFinalCons = [ # the constraints to enforce at the end of each state
-    # (lambda x,u: x[1], [0], [np.inf]), # lift up body
-    # (lambda x,u: x[8], [0.5], [np.inf]), # have positive velocity
-    # (lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1],
-    #              model.JacFuncs["Jbtoe"](x)@x[7:], model.JacFuncs["Jbtoe"](x)@x[7:]), 
-    #                 [0]*6, [0]*6), # feet land
-    (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
+    (lambda x,u: x[1], [0], [np.inf]), # lift up body
+    (lambda x,u: x[8], [0.5], [np.inf]), # have positive velocity
+    (lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1],
+                 model.JacFuncs["Jbtoe"](x)@x[7:], model.JacFuncs["Jbtoe"](x)@x[7:]), 
+                    [0]*6, [0]*6), # feet land
+    # (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
 ]
 
 opt = ycyCollocation(14, 8, xlim, [-150, 150], dT)
