@@ -88,7 +88,7 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
 
 opt = ycyCollocation(14, 8, xlim, [-150, 150], dT)
 
-opt.init(X0)
+opt.init([1,125,1,125,0,100,0,100], X0)
 
 for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     EOMF = EoMFuncs[cons]
