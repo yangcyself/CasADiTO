@@ -78,11 +78,11 @@ References = [
 ]
 
 stateFinalCons = [ # the constraints to enforce at the end of each state
-    (lambda x,u: x[1], [0], [np.inf]), # lift up body
-    (lambda x,u: x[8], [0.5], [np.inf]), # have positive velocity
-    (lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1],
-                 model.JacFuncs["Jbtoe"](x)@x[7:], model.JacFuncs["Jbtoe"](x)@x[7:]), 
-                    [0]*6, [0]*6), # feet land
+    None, #(lambda x,u: x[1], [0], [np.inf]), # lift up body
+    None, #(lambda x,u: x[8], [0.5], [np.inf]), # have positive velocity
+    None, #(lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1],
+                #  model.JacFuncs["Jbtoe"](x)@x[7:], model.JacFuncs["Jbtoe"](x)@x[7:]), 
+                #     [0]*6, [0]*6), # feet land
     # (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
 ]
 
@@ -110,8 +110,8 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         opt.addConstraint(
             holoCons, [0]*(sum(cons))*3, [np.inf]*(sum(cons))*3
         )
-
-    opt.addConstraint(*FinalC)
+    if(FinalC is not None):
+        opt.addConstraint(*FinalC)
 
 
 if __name__ == "__main__" :

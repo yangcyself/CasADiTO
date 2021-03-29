@@ -322,10 +322,12 @@ class ycyCollocation(TrajOptimizer):
         self._ubw.append(self._uLim[:,1])
         self._w0.append(u0)
 
-        self._g.append(ca.dot(Uk - Uk_puls_1, Uk - Uk_puls_1) - 
-                        ca.dot(2* Ukc - Uk - Uk_puls_1, 2* Ukc - Uk - Uk_puls_1))
-        self._lbg.append([0]) #size(1): the dim of axis0
-        self._ubg.append([np.inf]) #size(1): the dim of axis0
+        # self._g.append(ca.dot(Uk - Uk_puls_1, Uk - Uk_puls_1) - 
+        #                 ca.dot(2* Ukc - Uk - Uk_puls_1, 2* Ukc - Uk - Uk_puls_1))
+        self._g.append(2* Ukc - Uk - Uk_puls_1)
+
+        self._lbg.append(self._uLim[:,0]/self._dt*self._uDim)
+        self._ubg.append(self._uLim[:,1]/self._dt*self._uDim)
 
         g = dynF(ca.vertcat(dqc,ddqc), ca.vertcat(qc, dqc), Ukc)
         self._g.append(g)
@@ -473,7 +475,6 @@ class DirectOptimizer(TrajOptimizer):
         self._w0.append(u0)
         self._u_plot.append(Uk_puls_1)
         
-        # Loop over collocation points
         self._stepCount += 1
         self._lastStep = {
             "Uk":Uk_puls_1,
