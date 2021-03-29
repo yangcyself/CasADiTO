@@ -107,10 +107,10 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
 
         initSol = model.solveCons(EOMF, [("x",x_0, 1e6), ("ddq", np.zeros(7), 1e3)])
         opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-                ca.veccat(initSol["u"],initSol["F"]), x_0)
+                ca.veccat(initSol["u"],initSol["F"]).full().reshape(-1), x_0)
 
-        opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-                u_0, X0)
+        # opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+        #         u_0, X0)
 
         opt.addCost(lambda x,u: 0.001*ca.dot(u[:4],u[:4]))
         # opt.addCost(lambda x,u: ca.dot(x - X0,x - X0))

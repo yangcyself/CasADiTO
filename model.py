@@ -326,9 +326,6 @@ def solveCons(consFunc, targets, eps = 1e-6):
         targets ([tuples]): (name, value, factor)
         eps (float): the epsilon value for the other variables
     """
-    # print(consFunc.name_out)
-    # print(consFunc.name_out)
-    print()
     X_dict = {n: SX.sym(n,consFunc.size_in(n)) for n in consFunc.name_in()}
     X_vec = veccat(*list(X_dict.values()))
     f = 0
@@ -354,8 +351,6 @@ def solveCons(consFunc, targets, eps = 1e-6):
         }
     }
             )# , {'sparse':True})
-    solver.print_options()
-
     # Get the optimal solution
     sol = solver(lbx=[-np.inf] * X_vec.size(1), ubx=[np.inf] * X_vec.size(1), 
                  lbg=[0] * g.size(1), ubg=[0] * g.size(1))
