@@ -316,6 +316,9 @@ class ycyCollocation(TrajOptimizer):
         dqc = a1 + 2 * a2 * (self._dt/2) + 3* a3 * (self._dt/2)**2
         ddqc = 2 * a2 + 6 * a3 * (self._dt/2)
 
+        self.colloF = ca.Function("collo", [Xk,Xk_puls_1], [a0,a1,a2,a3,qc,dqc,ddqc], 
+                        ["Xk","Xk_puls_1"], ["a0","a1","a2","a3","qc","dqc","ddqc"])
+
         Ukc = ca.SX.sym('Uc_%d'%(self._stepCount), self._uDim)
         self._w.append(Ukc)
         self._lbw.append(self._uLim[:,0])
@@ -324,10 +327,14 @@ class ycyCollocation(TrajOptimizer):
 
         # self._g.append(ca.dot(Uk - Uk_puls_1, Uk - Uk_puls_1) - 
         #                 ca.dot(2* Ukc - Uk - Uk_puls_1, 2* Ukc - Uk - Uk_puls_1))
-        self._g.append(2* Ukc - Uk - Uk_puls_1)
+        # self._g.append(2* Ukc - Uk - Uk_puls_1)
+        # self._lbg.append(0*self._uLim[:,0]/self._dt*self._uDim)
+        # self._ubg.append(0*self._uLim[:,1]/self._dt*self._uDim)
 
-        self._lbg.append(self._uLim[:,0]/self._dt*self._uDim)
-        self._ubg.append(self._uLim[:,1]/self._dt*self._uDim)
+        # Ukc is in the middle. The have different sign
+        self._g.append( (Ukc - Uk) * (Ukc - Uk_puls_1))
+        self._lbg.append([-np.inf]*self._uDim)
+        self._ubg.append([0]*self._uDim)
 
         g = dynF(ca.vertcat(dqc,ddqc), ca.vertcat(qc, dqc), Ukc)
         self._g.append(g)
