@@ -83,7 +83,7 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
     #  #(lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1],
     #             #  model.JacFuncs["Jbtoe"](x)@x[7:], model.JacFuncs["Jbtoe"](x)@x[7:]), 
     #             #     [0]*6, [0]*6), # feet land
-    None, (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
+    (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
 ]
 
 opt = ycyCollocation(14, 8, xlim, [-200, 200], dT)
@@ -99,14 +99,18 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         x_0, u_0 = R(i)
 
         # forward simulation
-        Uk = np.array(u_0)[:4]
-        dynSol = DynF(x = x_val, u = Uk)
-        x_val += dT * dynSol["dx"]
-        opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-                list(Uk) + list(dynSol["F0"].full().reshape(-1))+ list(dynSol["F1"].full().reshape(-1)), x_val.full().reshape(-1))
-
+        # Uk = np.array(u_0)[:4]
+        # dynSol = DynF(x = x_val, u = Uk)
+        # x_val += dT * dynSol["dx"]
         # opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-        #         u_0, X0)
+        #         list(Uk) + list(dynSol["F0"].full().reshape(-1))+ list(dynSol["F1"].full().reshape(-1)), x_val.full().reshape(-1))
+
+        initSol = model.solveCons(EOMF, [("x",x_0, 1e6), ("ddq", np.zeros(7), 1e3)])
+        opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+                ca.veccat(initSol["u"],initSol["F"]), x_0)
+
+        opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+                u_0, X0)
 
         opt.addCost(lambda x,u: 0.001*ca.dot(u[:4],u[:4]))
         # opt.addCost(lambda x,u: ca.dot(x - X0,x - X0))
@@ -139,8 +143,8 @@ def rounge_Kutta(x,u,dynF):
 if __name__ == "__main__" :
 
     import matplotlib.pyplot as plt
-    # with Session(__file__,terminalLog = True) as ss:
-    if(True):
+    with Session(__file__,terminalLog = True) as ss:
+    # if(True):
         opt.startSolve()
         # DynF = model.buildDynF([model.phbLeg2, model.phfLeg2],"all_leg", ["btoe","ftoe"])
         # nextXk = None
@@ -186,4 +190,4 @@ if __name__ == "__main__" :
 
         ss.add_info("solutionPkl",dumpname)
         ss.add_info("Scheme",Scheme)
-        ss.add_info("Note","U为0， 测试动力学")
+        ss.add_info("Note","U为0， Better Init value")
