@@ -48,9 +48,9 @@ EoMFuncs = {
 }
 
 Scheme = [ # list: (contact constaints, length)
-    ((1,1), 50, "start"),
-    ((1,0), 50, "lift"),
-    ((0,0), 50, "fly"),
+    ((1,1), 100, "start"),
+    # ((1,0), 50, "lift"),
+    # ((0,0), 50, "fly"),
     # ([model.phbLeg2], 3, "land"),
     # ((1,1), 50, "finish")
 ]
@@ -63,14 +63,14 @@ References = [
         X0,
         [1,125,1,125,0,100,0,100]
     ),
-    lambda i:( # lift
-        Xlift0,
-        [0,100,0,0,0,100,0,0]
-    ),
-    lambda i:( # fly
-        X0 + np.concatenate([np.array([distance/50*i, 0.2+i*(50-i)/625]), np.zeros(12)]),
-        [0,0,0,0, 0,0,0,0]
-    ),
+    # lambda i:( # lift
+    #     Xlift0,
+    #     [0,100,0,0,0,100,0,0]
+    # ),
+    # lambda i:( # fly
+    #     X0 + np.concatenate([np.array([distance/50*i, 0.2+i*(50-i)/625]), np.zeros(12)]),
+    #     [0,0,0,0, 0,0,0,0]
+    # ),
     # lambda i:( # finish
     #     XDes,
     #     [1,125,1,150, 0,125,0,150]
@@ -79,11 +79,11 @@ References = [
 
 stateFinalCons = [ # the constraints to enforce at the end of each state
     None, #(lambda x,u: x[1], [0], [np.inf]), # lift up body
-    None, #(lambda x,u: x[8], [0.5], [np.inf]), # have positive velocity
-    None, #(lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1],
-                #  model.JacFuncs["Jbtoe"](x)@x[7:], model.JacFuncs["Jbtoe"](x)@x[7:]), 
-                #     [0]*6, [0]*6), # feet land
-    # (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
+    # None, #(lambda x,u: x[8], [0.5], [np.inf]), # have positive velocity
+    #  #(lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1],
+    #             #  model.JacFuncs["Jbtoe"](x)@x[7:], model.JacFuncs["Jbtoe"](x)@x[7:]), 
+    #             #     [0]*6, [0]*6), # feet land
+    # None, (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
 ]
 
 opt = ycyCollocation(14, 8, xlim, [-150, 150], dT)
@@ -95,21 +95,21 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     for i in range(N):
         x_0, u_0 = R(i)
         opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-                np.array(u_0),x_0)
+                np.array(u_0)*0,x_0)
         opt.addCost(lambda x,u: 0.001*ca.dot(u[:4],u[:4]))
 
-        addAboveGoundConstraint(opt)
+        # addAboveGoundConstraint(opt)
 
-        def holoCons(x,u):
-            MU = 0.4
-            return ca.vertcat(
-                *[MU * u[5+i*2] + u[4+i*2] for i in range(2) if cons[i]],
-                *[MU * u[5+i*2] - u[4+i*2] for i in range(2) if cons[i]],
-                *[u[5+i*2] - 10 for i in range(2) if cons[i]]
-            )
-        opt.addConstraint(
-            holoCons, [0]*(sum(cons))*3, [np.inf]*(sum(cons))*3
-        )
+        # def holoCons(x,u):
+        #     MU = 0.4
+        #     return ca.vertcat(
+        #         *[MU * u[5+i*2] + u[4+i*2] for i in range(2) if cons[i]],
+        #         *[MU * u[5+i*2] - u[4+i*2] for i in range(2) if cons[i]],
+        #         *[u[5+i*2] - 10 for i in range(2) if cons[i]]
+        #     )
+        # opt.addConstraint(
+        #     holoCons, [0]*(sum(cons))*3, [np.inf]*(sum(cons))*3
+        # )
     if(FinalC is not None):
         opt.addConstraint(*FinalC)
 

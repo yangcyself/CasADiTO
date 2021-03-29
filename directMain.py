@@ -90,7 +90,7 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
 
 
 # input dims: [ux4,Fbx2,Ffx2]
-opt = DirectOptimizer(14, 4, xlim, [-100, 100], dT)
+opt = DirectOptimizer(14, 4, xlim, [-200, 200], dT)
 
 
 def rounge_Kutta(x,u,dynF):
