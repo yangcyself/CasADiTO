@@ -3,6 +3,7 @@ import vis
 import pickle as pkl
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import pandas as pd
 
 import sys
 
@@ -25,6 +26,30 @@ opt.loadSol(sol)
 #     # # Plot the solution
 u_opt = opt.getSolU().T
 x_opt = opt.getSolX().T
+
+df_x = pd.DataFrame(x_opt, 
+    columns = ["x", "y", "r", "bh", "bt", "fh", "ft",
+            "dx", "dy", "dr", "dbh", "dbt", "dfh", "dft"], 
+    index = [dT * i for i in range(x_opt.shape[0])]
+)
+
+df_u = pd.DataFrame(u_opt, 
+    columns = ["ubh", "ubt", "ufh", "uft"], 
+    index = [dT * i for i in range(u_opt.shape[0])]
+)
+
+df = pd.concat([df_x,df_u],axis = 1)
+print(df.head())
+
+# Frame shift
+
+df["bh"] = df["bh"] + np.math.pi/2
+df["fh"] = df["fh"] + np.math.pi/2
+df.to_csv('TOoutput.csv', index_label = "t", 
+        columns = ["x", "y", "r", "bh", "bt", "fh", "ft", 
+        "dx", "dy", "dr", "dbh", "dbt", "dfh", "dft", 
+        "ubh", "ubt", "ufh", "uft"])
+
 
 # u_opt = solraw["sol_u"].T
 # x_opt = solraw["sol_x"].T
