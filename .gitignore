@@ -4,3 +4,5 @@ __pycache__
 .exps
 *.txt
 testES.py
+data/animation
+TOoutput.csv

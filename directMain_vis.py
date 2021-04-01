@@ -108,17 +108,17 @@ def animate(i):
     linesim, = ax.plot(robotLinesim[:,0], robotLinesim[:,1])
     linesol, = ax.plot(robotLinesol[:,0], robotLinesol[:,1])
     til = ax.set_title(phase[i])
-    ax.set_xlim(-1.5,3.5)
-    ax.set_ylim(-0.5,4.5)
+    ax.set_xlim(-0.5,1.5)
+    ax.set_ylim(-0.5,1.5)
     return linesim,linesol,til
 
 ani = animation.FuncAnimation(
-    fig, animate, interval=50, blit=False, save_count=50)
+    fig, animate, frames= 150, interval=25, blit=False, save_count=50)
 
 # To save the animation, use e.g.
 #
-# ani.save("movie.mp4")
-#
+ani.save("data/animation/transcription.mp4")
+
 # or
 #
 # writer = animation.FFMpegWriter(
