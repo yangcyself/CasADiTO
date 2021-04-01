@@ -129,6 +129,8 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     if(FinalC is not None):
         opt.addConstraint(*FinalC)
 
+opt.step(lambda dx,x,u : EoMFuncs[(0,0)](x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+            [0,0,0,0, 0,0,0,0], XDes)
 
 def rounge_Kutta(x,u,dynF):
     DT = dT

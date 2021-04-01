@@ -312,39 +312,43 @@ class ycyCollocation(TrajOptimizer):
         self._lbg.append([dynF_g_lim[0]]*g.size(1)) #size(1): the dim of axis0
         self._ubg.append([dynF_g_lim[1]]*g.size(1)) #size(1): the dim of axis0
 
-        qc = a0 + a1*(self._dt/2) + a2 * (self._dt/2)**2 + a3 * (self._dt/2)**3
-        dqc = a1 + 2 * a2 * (self._dt/2) + 3* a3 * (self._dt/2)**2
-        ddqc = 2 * a2 + 6 * a3 * (self._dt/2)
+        ######## CONSTRAINT ON QC: the collocation middle point #########
 
-        self.colloF = ca.Function("collo", [Xk,Xk_puls_1], [a0,a1,a2,a3,qc,dqc,ddqc], 
-                        ["Xk","Xk_puls_1"], ["a0","a1","a2","a3","qc","dqc","ddqc"])
+        # qc = a0 + a1*(self._dt/2) + a2 * (self._dt/2)**2 + a3 * (self._dt/2)**3
+        # dqc = a1 + 2 * a2 * (self._dt/2) + 3* a3 * (self._dt/2)**2
+        # ddqc = 2 * a2 + 6 * a3 * (self._dt/2)
 
-        Ukc = ca.SX.sym('Uc_%d'%(self._stepCount), self._uDim)
-        self._w.append(Ukc)
-        self._lbw.append(self._uLim[:,0])
-        self._ubw.append(self._uLim[:,1])
-        self._w0.append(u0)
+        # self.colloF = ca.Function("collo", [Xk,Xk_puls_1], [a0,a1,a2,a3,qc,dqc,ddqc], 
+        #                 ["Xk","Xk_puls_1"], ["a0","a1","a2","a3","qc","dqc","ddqc"])
 
-        # self._g.append(ca.dot(Uk - Uk_puls_1, Uk - Uk_puls_1) - 
-        #                 ca.dot(2* Ukc - Uk - Uk_puls_1, 2* Ukc - Uk - Uk_puls_1))
-        # self._g.append(2* Ukc - Uk - Uk_puls_1)
-        # self._lbg.append(0*self._uLim[:,0]/self._dt*self._uDim)
-        # self._ubg.append(0*self._uLim[:,1]/self._dt*self._uDim)
+        # Ukc = ca.SX.sym('Uc_%d'%(self._stepCount), self._uDim)
+        # self._w.append(Ukc)
+        # self._lbw.append(self._uLim[:,0])
+        # self._ubw.append(self._uLim[:,1])
+        # self._w0.append(u0)
 
-        # Ukc is in the middle. The have different sign
-        self._g.append( (Ukc - Uk) * (Ukc - Uk_puls_1))
-        self._lbg.append([-np.inf]*self._uDim)
-        self._ubg.append([0]*self._uDim)
+        # # self._g.append(ca.dot(Uk - Uk_puls_1, Uk - Uk_puls_1) - 
+        # #                 ca.dot(2* Ukc - Uk - Uk_puls_1, 2* Ukc - Uk - Uk_puls_1))
+        # # self._g.append(2* Ukc - Uk - Uk_puls_1)
+        # # self._lbg.append(0*self._uLim[:,0]/self._dt*self._uDim)
+        # # self._ubg.append(0*self._uLim[:,1]/self._dt*self._uDim)
 
-        g = dynF(ca.vertcat(dqc,ddqc), ca.vertcat(qc, dqc), Ukc)
-        self._g.append(g)
-        self._lbg.append([dynF_g_lim[0]]*g.size(1)) #size(1): the dim of axis0
-        self._ubg.append([dynF_g_lim[1]]*g.size(1)) #size(1): the dim of axis0
+        # # Ukc is in the middle. The have different sign
+        # self._g.append( (Ukc - Uk) * (Ukc - Uk_puls_1))
+        # self._lbg.append([-np.inf]*self._uDim)
+        # self._ubg.append([0]*self._uDim)
 
-        # if(self._lastStep["ddQk"] is not None):
-        #     self._g.append(ddq0 - self._lastStep["ddQk"])
-        #     self._lbg.append([0]*self._qDim) 
-        #     self._ubg.append([0]*self._qDim)
+        # g = dynF(ca.vertcat(dqc,ddqc), ca.vertcat(qc, dqc), Ukc)
+        # self._g.append(g)
+        # self._lbg.append([dynF_g_lim[0]]*g.size(1)) #size(1): the dim of axis0
+        # self._ubg.append([dynF_g_lim[1]]*g.size(1)) #size(1): the dim of axis0
+
+        ############# CONSTRAINT ON DDQK: FOLLOWING TOWR's PARAMETERIZATION #############
+
+        if(self._lastStep["ddQk"] is not None):
+            self._g.append(ddq0 - self._lastStep["ddQk"])
+            self._lbg.append([0]*self._qDim) 
+            self._ubg.append([0]*self._qDim)
 
         ddq1 = 6 * a3 * self._dt + 2*a2
         self._stepCount += 1
