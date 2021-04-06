@@ -3,7 +3,8 @@ from casadi import *
 import yaml
 
 
-ConfigFile = "data/robotConfigs/robot1.yaml"
+# ConfigFile = "data/robotConfigs/robot1.yaml"
+ConfigFile = "data/robotConfigs/JYminiLite.yaml"
 PI = np.math.pi
 
 with open(ConfigFile, 'r') as stream:
@@ -36,6 +37,7 @@ params = {
     "legLc1":robotParam["lc1"],
     "legLc2":robotParam["lc2"],
     "torL":robotParam["L"],
+    "torLL":robotParam["LL"],
     "legM1":0.1, #robotParam["m1"],
     "legM2":0.1, # robotParam["m2"],
     "torM": 10, #robotParam["M"],
@@ -56,41 +58,56 @@ u = SX.sym('u',4)
 
 # Build Model using the euler methods
 
-pMtor = vertcat(
-    px + params["torL"]/2 * cos(th),
-    py + params["torL"]/2 * sin(th),
-)#torsor center of position
+pMtor = vertcat(px, py) #torsor center of position
 
-pMbLeg1 = vertcat(
-    px + params["legLc1"] * cos(th+bq1),
-    py + params["legLc1"] * sin(th+bq1),
+prTor = pMtor -  1/2 * vertcat(
+    params["torL"] * cos(th),
+    params["torL"] * sin(th)) #rear of the torso of tigh
+    
+phTor = pMtor + 1/2 * vertcat(
+    params["torL"] * cos(th),
+    params["torL"] * sin(th)) #head of the torso of thigh
+
+pRTor = pMtor -  1/2 * vertcat(
+    params["torLL"] * cos(th),
+    params["torLL"] * sin(th)) #rear of the torso
+    
+pHTor = pMtor + 1/2 * vertcat(
+    params["torLL"] * cos(th),
+    params["torLL"] * sin(th)) #head of the torso
+
+
+pMbLeg1 = prTor + vertcat(
+    params["legLc1"] * cos(th+bq1),
+    params["legLc1"] * sin(th+bq1),
 )#back leg thigh center of position
 
-pMbLeg2 = vertcat(
-    px + params["legL1"] * cos(th+bq1) + params["legLc2"] * cos(th+bq1+bq2),
-    py + params["legL1"] * sin(th+bq1) + params["legLc1"] * sin(th+bq1+bq2),
+phbLeg1 = prTor + vertcat(params["legL1"] * cos(th+bq1),
+    params["legL1"] * sin(th+bq1)) #rear of the back leg thigh
+
+pMbLeg2 = phbLeg1 + vertcat(
+    params["legLc2"] * cos(th+bq1+bq2),
+    params["legLc1"] * sin(th+bq1+bq2),
 )#back leg center of position
 
-pMfLeg1 = vertcat(
-    px + params["torL"] * cos(th) + params["legLc1"] * cos(th+fq1),
-    py + params["torL"] * sin(th) + params["legLc1"] * sin(th+fq1),
+phbLeg2 = phbLeg1 + vertcat(params["legL2"] * cos(th+bq1+bq2),
+    params["legL2"] * sin(th+bq1+bq2),) #rear of the back leg 
+
+pMfLeg1 = phTor + vertcat(
+    params["legLc1"] * cos(th+fq1),
+    params["legLc1"] * sin(th+fq1),
 )#front leg thigh center of position
 
-pMfLeg2 = vertcat(
-    px + params["torL"] * cos(th) + params["legL1"] * cos(th+fq1) + params["legLc2"] * cos(th+fq1+fq2),
-    py + params["torL"] * sin(th) + params["legL1"] * sin(th+fq1) + params["legLc2"] * sin(th+fq1+fq2),
+phfLeg1 = phTor+ vertcat(params["legL1"] * cos(th+fq1),
+    params["legL1"] * sin(th+fq1))#front leg thigh center of position
+
+pMfLeg2 = phfLeg1 + vertcat(
+    params["legLc2"] * cos(th+fq1+fq2),
+    params["legLc2"] * sin(th+fq1+fq2),
 )#front leg center of position
 
-prTor = vertcat(px,py) #rear of the torso
-phTor = vertcat(px+params["torL"] * cos(th),py+params["torL"] * sin(th)) #head of the torso
-phbLeg1 = vertcat(px + params["legL1"] * cos(th+bq1),
-    py + params["legL1"] * sin(th+bq1)) #rear of the back leg thigh
-phbLeg2 = vertcat(px + params["legL1"] * cos(th+bq1) + params["legL2"] * cos(th+bq1+bq2),
-    py + params["legL1"] * sin(th+bq1) + params["legL2"] * sin(th+bq1+bq2),) #rear of the back leg 
-phfLeg1 = vertcat(px + params["torL"] * cos(th) + params["legL1"] * cos(th+fq1),
-    py + params["torL"] * sin(th) + params["legL1"] * sin(th+fq1))#front leg thigh center of position
-phfLeg2 = vertcat(px + params["torL"] * cos(th) + params["legL1"] * cos(th+fq1) + params["legL2"] * cos(th+fq1+fq2),
-    py + params["torL"] * sin(th) + params["legL1"] * sin(th+fq1) + params["legL2"] * sin(th+fq1+fq2))#front leg
+phfLeg2 = phfLeg1 + vertcat(params["legL2"] * cos(th+fq1+fq2),
+    params["legL2"] * sin(th+fq1+fq2))#front leg
 
 #jtimes: Jacobian-times-vector
 dpMtor = jtimes(pMtor, q, dq)
