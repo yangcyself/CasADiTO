@@ -17,39 +17,20 @@ solFile = sys.argv[1]
 with open(solFile, "rb") as f:
     solraw = pkl.load(f)
     sol = solraw["sol"]
+    sol_x=solraw['sol_x'].T
+    sol_u=solraw['sol_u'].T
+
 
 print(sol.keys())
 print(solraw.keys())
 
-opt.loadSol(sol)
+# opt.loadSol(sol)
 
 
 #     # # Plot the solution
-u_opt = opt.getSolU().T
-x_opt = opt.getSolX().T
+u_opt = sol_u
+x_opt = sol_x
 
-df_x = pd.DataFrame(x_opt, 
-    columns = ["x", "y", "r", "bh", "bt", "fh", "ft",
-            "dx", "dy", "dr", "dbh", "dbt", "dfh", "dft"], 
-    index = [dT * i for i in range(x_opt.shape[0])]
-)
-
-df_u = pd.DataFrame(u_opt, 
-    columns = ["ubh", "ubt", "ufh", "uft", "Fbx", "Fby", "Ffx", "Ffy"], 
-    index = [dT * i for i in range(u_opt.shape[0])]
-)
-
-df = pd.concat([df_x,df_u],axis = 1)
-print(df.head())
-
-# Frame shift
-
-df["bh"] = df["bh"] + np.math.pi/2
-df["fh"] = df["fh"] + np.math.pi/2
-df.to_csv('TOoutput.csv', index_label = "t", 
-        columns = ["x", "y", "r", "bh", "bt", "fh", "ft", 
-        "dx", "dy", "dr", "dbh", "dbt", "dfh", "dft", 
-        "ubh", "ubt", "ufh", "uft"])
 
 # exit()
 # u_opt = solraw["sol_u"].T

@@ -7,7 +7,7 @@ class ConstPDPolicy(TrajOptimizer):
         calculates the input u = kp(q_ref - q) + kd(dq_ref - dq) + FF
                 where kp, kd, and x_ref are variables.
     """
-    def __init__(self, xDim, uDim, xLim, uLim, dt):
+    def __init__(self, xDim, uDim, xLim, uLim, dt, kpd, Wkpd, Wxref, Wff):
         super().__init__(xDim, uDim, xLim, uLim, dt)
         
         self.Kp = None
@@ -15,6 +15,10 @@ class ConstPDPolicy(TrajOptimizer):
         self._FF_plot = []
         self._xref_plot = []
         self._qDim = int(self._xDim/2)
+        self._Wkpd = Wkpd
+        self._Wxref = Wxref
+        self._Wff = Wff
+        self._kpd0 = kpd
 
     def init(self):
         self.Kp = ca.SX.sym('Kp')
@@ -24,9 +28,9 @@ class ConstPDPolicy(TrajOptimizer):
         self._w.append(self.Kpd)
         self._lbw.append([0, 0])
         self._ubw.append([np.inf,np.inf])
-        self._w0.append([10,1])
+        self._w0.append(self._kpd0)
 
-        self._J += ca.dot(self.Kpd, self.Kpd)
+        self._J += ca.dot((self.Kpd - self._kpd0), self._Wkpd @ (self.Kpd - self._kpd0))
 
     def step(self, step, x, x_ref0, FF0):
         """define policy variable and return the control signals
@@ -66,6 +70,10 @@ class ConstPDPolicy(TrajOptimizer):
         self._ubw.append(self._uLim[4:,1])
         self._w0.append(FF0[4:])
 
+
+        self._J += ca.dot(Xrefk - x_ref0, self._Wxref @ Xrefk - x_ref0)
+        self._J += ca.dot(FFk[:4] - FF0[:4], self._Wff @ FFk[:4] - FF0[:4])
+
         return ca.veccat(u,F)
 
     def start(self):
@@ -82,9 +90,9 @@ class ycyConstPD(TrajOptimizer):
                 where kp, kd, and x_ref are variables.
         What's more, the forward simulation assumes a gausian noise term on the q and dq at each time step.
     """
-    def __init__(self, xDim, uDim, xLim, uLim,dt, sol_x, sol_u):
+    def __init__(self, xDim, uDim, xLim, uLim,dt, sol_x, sol_u,  kpd, Wkpd, Wxref, Wff):
         super().__init__(xDim, uDim, xLim, uLim, dt)
-        self.policy = ConstPDPolicy(xDim, uDim, xLim, uLim, dt)
+        self.policy = ConstPDPolicy(xDim, uDim, xLim, uLim, dt, kpd, Wkpd, Wxref, Wff)
         self._x_plot = []
         self._u_plot = []
         self._qDim = int(self._xDim/2)

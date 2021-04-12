@@ -93,51 +93,69 @@ with open(solFile, "rb") as f:
     sol_x=solraw['sol_x'].T
     sol_u=solraw['sol_u'].T
 
-opt = ycyConstPD(14, 8, xlim, [-200, 200], dT, sol_x=sol_x, sol_u=sol_u)
+def episode( x_ref, u_ref, kpd, eps):
+    Wkpd = eps * np.diag([1,10])
+    Wxref = eps * np.diag([0,0,0,1,1,1,1,
+                    0,0,0,1,1,1,1])
+    Wff = eps * np.diag([1,1,1,1])
 
-opt.init([1,125,1,125,0,100,0,100], X0)
+    opt = ycyConstPD(14, 8, xlim, [-200, 200], dT, sol_x=x_ref, sol_u=u_ref, kpd = kpd,
+                        Wkpd = Wkpd, 
+                        Wxref = Wxref,
+                        Wff = Wff)
 
-DynF = model.buildDynF([model.phbLeg2, model.phfLeg2],"all_leg", ["btoe","ftoe"])
+    opt.init([1,125,1,125,0,100,0,100], X0)
+    DynF = model.buildDynF([model.phbLeg2, model.phfLeg2],"all_leg", ["btoe","ftoe"])
 
-step = 0
-for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
-    EOMF = EoMFuncs[cons]
-    for i in range(N):
-        step += 1
+    step = 0
+    for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
+        EOMF = EoMFuncs[cons]
+        for i in range(N):
+            step += 1
 
-        opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-                sol_u[step], sol_x[step])
+            opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+                    sol_u[step], sol_x[step])
 
-        # opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-        #         u_0, X0)
+            # opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+            #         u_0, X0)
 
-        opt.addCost(lambda x,u: 0.001*ca.dot(u[:4],u[:4]))
-        # opt.addCost(lambda x,u: ca.dot(x - X0,x - X0))
-        addAboveGoundConstraint(opt)
+            opt.addCost(lambda x,u: 0.001*ca.dot(u[:4],u[:4]))
+            # opt.addCost(lambda x,u: ca.dot(x - X0,x - X0))
+            addAboveGoundConstraint(opt)
 
-        def holoCons(x,u):
-            MU = 0.4
-            return ca.vertcat(
-                *[MU * u[5+i*2] + u[4+i*2] for i in range(2) if cons[i]],
-                *[MU * u[5+i*2] - u[4+i*2] for i in range(2) if cons[i]],
-                *[u[5+i*2] - 0 for i in range(2) if cons[i]]
+            def holoCons(x,u):
+                MU = 0.4
+                return ca.vertcat(
+                    *[MU * u[5+i*2] + u[4+i*2] for i in range(2) if cons[i]],
+                    *[MU * u[5+i*2] - u[4+i*2] for i in range(2) if cons[i]],
+                    *[u[5+i*2] - 0 for i in range(2) if cons[i]]
+                )
+            opt.addConstraint(
+                holoCons, [0]*(sum(cons))*3, [np.inf]*(sum(cons))*3
             )
-        opt.addConstraint(
-            holoCons, [0]*(sum(cons))*3, [np.inf]*(sum(cons))*3
-        )
-    if(FinalC is not None):
-        opt.addConstraint(*FinalC)
+        if(FinalC is not None):
+            opt.addConstraint(*FinalC)
 
-opt.step(lambda dx,x,u : EoMFuncs[(0,0)](x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-            [0,0,0,0, 0,0,0,0], XDes)
-
+    opt.step(lambda dx,x,u : EoMFuncs[(0,0)](x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+                [0,0,0,0, 0,0,0,0], XDes)
+    opt.startSolve()
+    return opt.getSolX(), opt.getSolU(), opt.getSolPolicy()
 
 if __name__ == "__main__" :
 
     import matplotlib.pyplot as plt
-    with Session(__file__,terminalLog = True) as ss:
+    with Session(__file__,terminalLog = False) as ss:
+        x_ref = sol_x
+        u_ref = sol_u
+        Kpd = np.array([100,5])
+        for i in range(2):
+            xsol, usol, psol = episode(x_ref, u_ref, Kpd, i)
+            x_ref = np.concatenate([(xsol.T)[:,:3], (psol['xref'].full().T)[:,3:]], axis = 1)
+            u_ref = np.concatenate([psol['FF'].full().T, (usol.T)[:,4:]], axis = 1)
+            Kpd = np.array([float(psol['Kp'].full()), float(psol['Kd'].full())])
+
     # if(True):
-        opt.startSolve()
+        
         # DynF = model.buildDynF([model.phbLeg2, model.phfLeg2],"all_leg", ["btoe","ftoe"])
         # nextXk = None
         # lastXk = None
@@ -170,14 +188,13 @@ if __name__ == "__main__" :
         #     lastXk = Xk
 
         
-        dumpname = os.path.abspath(os.path.join("./data/nlpSol", "ycyCollo%d.pkl"%time.time()))
+        dumpname = os.path.abspath(os.path.join("./data/policyLn", "constPD%d.pkl"%time.time()))
 
         with open(dumpname, "wb") as f:
             pkl.dump({
-                "sol":opt._sol,
-                "sol_x":opt.getSolX(),
-                "sol_u":opt.getSolU(),
-                "sol_p":opt.getSolPolicy(),
+                "x_ref":x_ref,
+                "u_ref":u_ref,
+                "Kpd":Kpd,
                 "Scheme":Scheme
             }, f)
 
