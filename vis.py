@@ -1,7 +1,7 @@
 from model import *
 
 
-visFunc = Function('visFunc', [q], [vertcat(phbLeg2.T, phbLeg1.T, prTor.T, phTor.T, phfLeg1.T, phfLeg2.T )])
+visFunc = Function('visFunc', [q], [vertcat(phbLeg2.T, phbLeg1.T, prTor.T, pRTor.T, pHTor.T, phTor.T, phfLeg1.T, phfLeg2.T )])
 
 def visState(q):
     line = visFunc(q)
