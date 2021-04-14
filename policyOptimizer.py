@@ -194,7 +194,7 @@ class ycyConstPD(TrajOptimizer):
 
         ddq0 = 2*a2 # (6 * q1 - 2*dq1*self._dt - 6 * q0 - 4*dq0*self._dt)/(self._dt**2) # 6q1 - 2dq1dt - 6q0 - 4dq0dt
 
-        Xk += 0.001*np.random.random(self._xDim) - 0.001*np.random.random(self._xDim)
+        Xk += 0.01*np.random.random(self._xDim) - 0.01*np.random.random(self._xDim)
         g = dynF(ca.vertcat(dq0,ddq0),Xk, Uk) 
 
         self._g.append(g)

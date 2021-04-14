@@ -47,6 +47,7 @@ xlim = [
 DynFuncs = {
     (1,1): model.buildDynF([model.phbLeg2, model.phfLeg2],"all_leg", ["btoe","ftoe"]),
     (1,0): model.buildDynF([model.phbLeg2],"back_leg", ["btoe"]),
+    (0,1): model.buildDynF([model.phbLeg2],"back_leg", ["ftoe"]),
     (0,0): model.buildDynF([],"fly")
 }
 

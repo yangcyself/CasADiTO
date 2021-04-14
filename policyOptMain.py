@@ -134,7 +134,8 @@ def episode( x_ref, u_ref, kpd, eps):
                 holoCons, [0]*(sum(cons))*3, [np.inf]*(sum(cons))*3
             )
         if(FinalC is not None):
-            opt.addConstraint(*FinalC)
+            # opt.addConstraint(*FinalC)
+            opt.addCost(lambda x,u: 1e4 * ca.dot((x - XDes)[:7], (x - XDes)[:7]))
 
     opt.step(lambda dx,x,u : EoMFuncs[(0,0)](x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
                 [0,0,0,0, 0,0,0,0], XDes)
@@ -148,45 +149,18 @@ if __name__ == "__main__" :
         x_ref = sol_x
         u_ref = sol_u
         Kpd = np.array([100,5])
-        for i in range(2):
-            xsol, usol, psol = episode(x_ref, u_ref, Kpd, i)
+        for i in range(50):
+            xsol, usol, psol = episode(x_ref, u_ref, Kpd, 2**(i/5))
             x_ref = np.concatenate([(xsol.T)[:,:3], (psol['xref'].full().T)[:,3:]], axis = 1)
             u_ref = np.concatenate([psol['FF'].full().T, (usol.T)[:,4:]], axis = 1)
             Kpd = np.array([float(psol['Kp'].full()), float(psol['Kd'].full())])
-
-    # if(True):
-        
-        # DynF = model.buildDynF([model.phbLeg2, model.phfLeg2],"all_leg", ["btoe","ftoe"])
-        # nextXk = None
-        # lastXk = None
-        # for i,(Xk, Uk) in enumerate( zip(opt.getSolX().T,opt.getSolU().T)):
-        #     sol = DynF(x = Xk,u = Uk[:4])
-        #     # print(EOMF(x = x_val,u = u,F=np.concatenate([sol["F0"],np.array([0,0]).reshape(sol["F0"].size())]),ddq = sol["ddq"]))
-        #     eomf_check = EOMF(x = Xk,u = Uk[:4],F=Uk[4:],ddq = sol["ddq"])['EOM'].full()
-        #     # print(Uk[4:].reshape(-1) - np.concatenate([sol["F0"], sol["F1"]]).reshape(-1))
-        #     # print(eomf_check.reshape(-1))
-        #     # # assert()
-        #     # if(nextXk is not None):
-        #     #     print("diff next:", Xk - nextXk)
-        #     nextXk = rounge_Kutta(Xk,Uk[:4],lambda x,u : DynF(x=x,u=u)["dx"])
-
-        #     if(lastXk is not None):
-        #         print("laskXk:", lastXk)
-        #         print("Xk:", Xk)
-        #         clsol = opt.colloF(Xk = lastXk, Xk_puls_1 = Xk)
-        #         print("collo:",clsol)
-
-        #         if(i>-1 and not i%10):
-        #             plt.figure()
-        #             plotX = np.linspace(0,dT,100)
-        #             ind = int(np.random.random()*7)
-        #             plt.plot(plotX, (np.array(clsol["a3"])[ind,...]*plotX**3).T
-        #                             +(np.array(clsol["a2"])[ind,...]*plotX**2).T
-        #                             +(np.array(clsol["a1"])[ind,...]*plotX).T
-        #                             +(np.array(clsol["a0"]))[ind,...].T)
-        #             plt.show()
-        #     lastXk = Xk
-
+            if(not (i+1)%5):
+                with open("tmpdump%d.pkl"%i, "wb") as f:
+                    pkl.dump({
+                        "x_ref":x_ref,
+                        "u_ref":u_ref,
+                        "Kpd":Kpd,
+                    }, f)        
         
         dumpname = os.path.abspath(os.path.join("./data/policyLn", "constPD%d.pkl"%time.time()))
 

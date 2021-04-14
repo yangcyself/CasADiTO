@@ -1,4 +1,4 @@
-from collocationMain4 import *
+# from collocationMain4 import *
 from directMain import rounge_Kutta, DynFuncs
 import vis
 import pickle as pkl
@@ -7,22 +7,27 @@ import matplotlib.animation as animation
 
 import sys
 import pandas as pd
+import numpy as np
 
 if(len(sys.argv)<2):
     print("please input the solution file name")
     exit()
 
 solFile = sys.argv[1]
+dT = 0.01
 
 with open(solFile, "rb") as f:
     solraw = pkl.load(f)
     sol = solraw["sol"]
     sol_x=solraw['sol_x'].T
     sol_u=solraw['sol_u'].T
+    Scheme = solraw["Scheme"]
 
 
 print(sol.keys())
 print(solraw.keys())
+print(sol_u.shape)
+print(sol_x.shape)
 
 # opt.loadSol(sol)
 
@@ -47,7 +52,6 @@ ddq = (6 * x_opt[1][:7] - 2*x_opt[1][7:]*dT
             - 6 * x_opt[0][:7] - 4*x_opt[0][7:]*dT)/(dT**2)
 print("ddq0",ddq)
 print("U0F0",u_opt[0])
-print("EOMFfunction",EoMFuncs[(1,1)](x_opt[0], u_opt[0][:4],u_opt[0][4:],ddq))
 
 phase = ["init"]
 x_sim = [x_opt[0]]
@@ -65,12 +69,13 @@ for cons, N, name in Scheme:
 # Animate
 fig, ax = plt.subplots()
 # line, = ax.plot(robotLines[0][:,0], robotLines[0][:,1])
+print("len(phase)：",len(phase))
+print("len(x_sim)",len(x_sim))
+print("len(x_opt)",len(x_opt))
 
 def animate(i):
     Total = len(x_sim)
     xsim = x_sim[i%Total]
-
-    Total = len(x_opt)
     xsol = x_opt[i%Total]
 
     # line.set_xdata(robotLines[i][:,0])  # update the data.

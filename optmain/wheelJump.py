@@ -1,3 +1,6 @@
+import sys
+sys.path.append("/home/ami/ycy/JyTo")
+
 from trajOptimizer import *
 import model, vis
 import pickle as pkl
@@ -13,9 +16,9 @@ This file use dynamic constraint as dynamics, rather than dynF
 
 
 # input dims: [ux4,Fbx2,Ffx2]
-
+PI = np.math.pi
 dT = 0.01
-distance = 0.5
+distance = 0.1
 
 X0 = np.array([0,0.25,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
@@ -27,7 +30,7 @@ XDes = np.array([distance, 0.25 ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5
 xlim = [
     [-np.inf,np.inf],
     [0,np.inf],
-    [-model.PI, model.PI],
+    [-np.inf, np.inf],
     model.params["q1Lim"],
     model.params["q2Lim"],
     model.params["q1Lim"],
@@ -44,13 +47,17 @@ xlim = [
 EoMFuncs = {
     (1,1): model.buildEOMF((1,1)),
     (1,0): model.buildEOMF((1,0)),
+    (0,1): model.buildEOMF((0,1)),
     (0,0): model.buildEOMF((0,0))
 }
 
 Scheme = [ # list: (contact constaints, length)
-    ((1,1), 50, "start"),
-    ((1,0), 50, "lift"),
-    ((0,0), 50, "fly"),
+    ((1,1), 20, "start"),
+    ((1,0), 20, "lift"),
+    ((0,0), 20, "fly"),
+    ((0,1), 20, "step1"),
+    ((0,0), 30, "fly1"),
+    ((1,0), 20, "step2"),
     # ([model.phbLeg2], 3, "land"),
     # ((1,1), 50, "finish")
 ]
@@ -68,9 +75,22 @@ References = [
         [0,100,0,0,0,100,0,0]
     ),
     lambda i:( # fly
-        X0 + np.concatenate([np.array([distance/50*i, 0.2+i*(50-i)/625]), np.zeros(12)]),
+        X0 + np.concatenate([np.array([distance/20*i, 0.2+i*(20-i)/100, -2*PI/5/20*i]), np.zeros(11)]),
         [0,0,0,0, 0,0,0,0]
     ),
+    lambda i:( # step1
+        X0 + np.concatenate([np.array([distance, 0.2, -2*PI/5- PI/4/20*i]), np.zeros(11)]),
+        [0,0,0,0, 0,0,0,0]
+    ),
+    lambda i:( # fly1
+        X0 + np.concatenate([np.array([distance + distance/30*i, 0.2+i*(30-i)/100, -2*PI/5- PI/4-2*PI/3/30*i]), np.zeros(11)]),
+        [0,0,0,0, 0,0,0,0]
+    ),    
+    lambda i:( # step2
+        X0 + np.concatenate([np.array([distance + distance, 0.2, -2*PI/5- PI/ -2*PI/3]), np.zeros(11)]),
+        [0,0,0,0, 0,0,0,0]
+    ),
+
     # lambda i:( # finish
     #     XDes,
     #     [1,125,1,150, 0,125,0,150]
@@ -78,12 +98,13 @@ References = [
 ]
 
 stateFinalCons = [ # the constraints to enforce at the end of each state
-    None, #(lambda x,u: x[1], [0], [np.inf]), # lift up body
-    None, #(lambda x,u: x[8], [0.5], [np.inf]), # have positive velocity
-    #  #(lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1],
-    #             #  model.JacFuncs["Jbtoe"](x)@x[7:], model.JacFuncs["Jbtoe"](x)@x[7:]), 
-    #             #     [0]*6, [0]*6), # feet land
-    (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
+    None, #(lambda x,u: x[1], [0], [np.inf]), # lift up body # start
+    None, #(lambda x,u: x[8], [0.5], [np.inf]),  # lift
+    None, #(lambda x,u: x[8], [0.5], [np.inf]),  # fly
+    (lambda x,u: (x - PI/2)[2], [-np.inf], [0]), #(lambda x,u: x[8], [0.5], [np.inf]),  # step1
+    (lambda x,u: (x - PI)[2], [-np.inf], [0]),  # fly1
+    (lambda x,u: (x - 3*PI/2)[2], [-np.inf], [0]),  # step2
+    # (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
 ]
 
 opt = ycyCollocation(14, 8, xlim, [-200, 200], dT)
@@ -126,6 +147,13 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         opt.addConstraint(
             holoCons, [0]*(sum(cons))*3, [np.inf]*(sum(cons))*3
         )
+
+        if(i==0):
+            if(cons[0]):
+                opt.addConstraint(lambda x,u: model.pFuncs["phbLeg2"](x)[1], [0], [0])
+            if(cons[1]):
+                opt.addConstraint(lambda x,u: model.pFuncs["phfLeg2"](x)[1], [0], [0])
+
     if(FinalC is not None):
         opt.addConstraint(*FinalC)
 
@@ -148,38 +176,7 @@ if __name__ == "__main__" :
     with Session(__file__,terminalLog = True) as ss:
     # if(True):
         opt.startSolve()
-        # DynF = model.buildDynF([model.phbLeg2, model.phfLeg2],"all_leg", ["btoe","ftoe"])
-        # nextXk = None
-        # lastXk = None
-        # for i,(Xk, Uk) in enumerate( zip(opt.getSolX().T,opt.getSolU().T)):
-        #     sol = DynF(x = Xk,u = Uk[:4])
-        #     # print(EOMF(x = x_val,u = u,F=np.concatenate([sol["F0"],np.array([0,0]).reshape(sol["F0"].size())]),ddq = sol["ddq"]))
-        #     eomf_check = EOMF(x = Xk,u = Uk[:4],F=Uk[4:],ddq = sol["ddq"])['EOM'].full()
-        #     # print(Uk[4:].reshape(-1) - np.concatenate([sol["F0"], sol["F1"]]).reshape(-1))
-        #     # print(eomf_check.reshape(-1))
-        #     # # assert()
-        #     # if(nextXk is not None):
-        #     #     print("diff next:", Xk - nextXk)
-        #     nextXk = rounge_Kutta(Xk,Uk[:4],lambda x,u : DynF(x=x,u=u)["dx"])
 
-        #     if(lastXk is not None):
-        #         print("laskXk:", lastXk)
-        #         print("Xk:", Xk)
-        #         clsol = opt.colloF(Xk = lastXk, Xk_puls_1 = Xk)
-        #         print("collo:",clsol)
-
-        #         if(i>-1 and not i%10):
-        #             plt.figure()
-        #             plotX = np.linspace(0,dT,100)
-        #             ind = int(np.random.random()*7)
-        #             plt.plot(plotX, (np.array(clsol["a3"])[ind,...]*plotX**3).T
-        #                             +(np.array(clsol["a2"])[ind,...]*plotX**2).T
-        #                             +(np.array(clsol["a1"])[ind,...]*plotX).T
-        #                             +(np.array(clsol["a0"]))[ind,...].T)
-        #             plt.show()
-        #     lastXk = Xk
-
-        
         dumpname = os.path.abspath(os.path.join("./data/nlpSol", "ycyCollo%d.pkl"%time.time()))
 
         with open(dumpname, "wb") as f:
@@ -187,10 +184,9 @@ if __name__ == "__main__" :
                 "sol":opt._sol,
                 "sol_x":opt.getSolX(),
                 "sol_u":opt.getSolU(),
-                "Scheme":Scheme,
-                "dT":dT
+                "Scheme":Scheme
             }, f)
 
         ss.add_info("solutionPkl",dumpname)
         ss.add_info("Scheme",Scheme)
-        ss.add_info("Note","U为0， Better Init value")
+        ss.add_info("Note","Da Bai Lun")
