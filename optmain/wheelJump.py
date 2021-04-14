@@ -31,10 +31,10 @@ xlim = [
     [-np.inf,np.inf],
     [0,np.inf],
     [-np.inf, np.inf],
-    model.params["q1Lim"],
-    model.params["q2Lim"],
-    model.params["q1Lim"],
-    model.params["q2Lim"],
+    [-np.inf, np.inf],#model.params["q1Lim"],
+    [-np.inf, np.inf],#model.params["q2Lim"],
+    [-np.inf, np.inf],#model.params["q1Lim"],
+    [-np.inf, np.inf],#model.params["q2Lim"],
     [-100,100],
     [-100,100],
     [-100,100],
@@ -52,9 +52,9 @@ EoMFuncs = {
 }
 
 Scheme = [ # list: (contact constaints, length)
-    ((1,1), 20, "start"),
-    ((1,0), 20, "lift"),
-    ((0,0), 20, "fly"),
+    ((1,1), 30, "start"),
+    # ((1,0), 20, "lift"),
+    # ((0,0), 20, "fly"),
     ((0,1), 20, "step1"),
     ((0,0), 30, "fly1"),
     ((1,0), 20, "step2"),
@@ -70,24 +70,24 @@ References = [
         X0,
         [1,125,1,125,0,100,0,100]
     ),
-    lambda i:( # lift
-        Xlift0,
-        [0,100,0,0,0,100,0,0]
-    ),
-    lambda i:( # fly
-        X0 + np.concatenate([np.array([distance/20*i, 0.2+i*(20-i)/100, -2*PI/5/20*i]), np.zeros(11)]),
-        [0,0,0,0, 0,0,0,0]
-    ),
+    # lambda i:( # lift
+    #     Xlift0,
+    #     [0,100,0,0,0,100,0,0]
+    # ),
+    # lambda i:( # fly
+    #     X0 + np.concatenate([np.array([distance/20*i, 0.2+i*(20-i)/100, -2*PI/5/20*i]), np.zeros(11)]),
+    #     [0,0,0,0, 0,0,0,0]
+    # ),
     lambda i:( # step1
-        X0 + np.concatenate([np.array([distance, 0.2, -2*PI/5- PI/4/20*i]), np.zeros(11)]),
+        X0 + np.concatenate([np.array([distance, 0.2, -PI*3/5/100*(30+i)]), np.zeros(11)]),
         [0,0,0,0, 0,0,0,0]
     ),
     lambda i:( # fly1
-        X0 + np.concatenate([np.array([distance + distance/30*i, 0.2+i*(30-i)/100, -2*PI/5- PI/4-2*PI/3/30*i]), np.zeros(11)]),
+        X0 + np.concatenate([np.array([distance + distance/30*i, 0.2+0.2*i*(30-i)/100,  -PI*3/5/100*(50+i)]), np.zeros(11)]),
         [0,0,0,0, 0,0,0,0]
     ),    
     lambda i:( # step2
-        X0 + np.concatenate([np.array([distance + distance, 0.2, -2*PI/5- PI/ -2*PI/3]), np.zeros(11)]),
+        X0 + np.concatenate([np.array([distance + distance, 0.2, -PI*3/5/100*(80+i)]), np.zeros(11)]),
         [0,0,0,0, 0,0,0,0]
     ),
 
@@ -99,8 +99,8 @@ References = [
 
 stateFinalCons = [ # the constraints to enforce at the end of each state
     None, #(lambda x,u: x[1], [0], [np.inf]), # lift up body # start
-    None, #(lambda x,u: x[8], [0.5], [np.inf]),  # lift
-    None, #(lambda x,u: x[8], [0.5], [np.inf]),  # fly
+    # None, #(lambda x,u: x[8], [0.5], [np.inf]),  # lift
+    # None, #(lambda x,u: x[8], [0.5], [np.inf]),  # fly
     (lambda x,u: (x - PI/2)[2], [-np.inf], [0]), #(lambda x,u: x[8], [0.5], [np.inf]),  # step1
     (lambda x,u: (x - PI)[2], [-np.inf], [0]),  # fly1
     (lambda x,u: (x - 3*PI/2)[2], [-np.inf], [0]),  # step2
@@ -114,6 +114,7 @@ opt.init([1,125,1,125,0,100,0,100], X0)
 DynF = model.buildDynF([model.phbLeg2, model.phfLeg2],"all_leg", ["btoe","ftoe"])
 
 x_val = X0
+x_init = [X0]
 for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     EOMF = EoMFuncs[cons]
     for i in range(N):
@@ -129,6 +130,7 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         initSol = model.solveCons(EOMF, [("x",x_0, 1e6), ("ddq", np.zeros(7), 1e3)])
         opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
                 ca.veccat(initSol["u"],initSol["F"]).full().reshape(-1), x_0)
+        x_init.append(x_0)
 
         # opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
         #         u_0, X0)
@@ -184,7 +186,8 @@ if __name__ == "__main__" :
                 "sol":opt._sol,
                 "sol_x":opt.getSolX(),
                 "sol_u":opt.getSolU(),
-                "Scheme":Scheme
+                "Scheme":Scheme,
+                "x_init":x_init
             }, f)
 
         ss.add_info("solutionPkl",dumpname)

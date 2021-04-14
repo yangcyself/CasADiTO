@@ -22,6 +22,7 @@ with open(solFile, "rb") as f:
     sol_x=solraw['sol_x'].T
     sol_u=solraw['sol_u'].T
     Scheme = solraw["Scheme"]
+    x_init = solraw["x_init"]
 
 
 print(sol.keys())
@@ -77,19 +78,22 @@ def animate(i):
     Total = len(x_sim)
     xsim = x_sim[i%Total]
     xsol = x_opt[i%Total]
+    xini = x_init[i%Total]
 
     # line.set_xdata(robotLines[i][:,0])  # update the data.
     # line.set_ydata(robotLines[i][:,1])  # update the data.
     ax.clear()
     # robotLinesim = vis.visFunc(xsim[:7])
     robotLinesol = vis.visFunc(xsol[:7])
+    robotLineini = vis.visFunc(xini[:7])
     # linesim, = ax.plot(robotLinesim[:,0], robotLinesim[:,1])
     linesol, = ax.plot(robotLinesol[:,0], robotLinesol[:,1])
+    lineini, = ax.plot(robotLineini[:,0], robotLineini[:,1])
     til = ax.set_title(phase[i%Total])
-    til = ax.set_title(phase[i%Total])
+    # til = ax.set_title(phase[i%Total])
     ax.set_xlim(-0.5,1.5)
     ax.set_ylim(-0.5,1.5)
-    return linesol,til
+    return linesol,lineini,til
     # return linesim,linesol
 
 ani = animation.FuncAnimation(
