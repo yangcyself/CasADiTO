@@ -97,7 +97,7 @@ def animate(i):
     # return linesim,linesol
 
 ani = animation.FuncAnimation(
-    fig, animate, frames= 150, interval=25, blit=True, save_count=50)
+    fig, animate, frames= len(x_sim), interval=25, blit=True, save_count=50)
 
 # To save the animation, use e.g.
 #

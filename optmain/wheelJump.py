@@ -79,15 +79,15 @@ References = [
     #     [0,0,0,0, 0,0,0,0]
     # ),
     lambda i:( # step1
-        X0 + np.concatenate([np.array([distance, 0.2, -PI*3/5/100*(30+i)]), np.zeros(11)]),
+        X0 + np.concatenate([np.array([distance, 0.2, -PI*5/3/100*(30+i)]), np.zeros(11)]),
         [0,0,0,0, 0,0,0,0]
     ),
     lambda i:( # fly1
-        X0 + np.concatenate([np.array([distance + distance/30*i, 0.2+0.2*i*(30-i)/100,  -PI*3/5/100*(50+i)]), np.zeros(11)]),
+        X0 + np.concatenate([np.array([distance + distance/30*i, 0.2+0.2*i*(30-i)/100,  -PI*5/3/100*(50+i)]), np.zeros(11)]),
         [0,0,0,0, 0,0,0,0]
     ),    
     lambda i:( # step2
-        X0 + np.concatenate([np.array([distance + distance, 0.2, -PI*3/5/100*(80+i)]), np.zeros(11)]),
+        X0 + np.concatenate([np.array([distance + distance, 0.2, -PI*5/3/100*(80+i)]), np.zeros(11)]),
         [0,0,0,0, 0,0,0,0]
     ),
 
