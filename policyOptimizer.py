@@ -154,12 +154,7 @@ class VariableTiming(TrajOptimizer):
         self.curent_dt = None
         
     def init(self, **kwargs):
-        T = ca.SX.sym('dT%d'%0, 1)
-        self._w.append(T)
-        self._lbw.append([self.tLim[0]])
-        self._ubw.append([self.tLim[1]])
-        self._w0.append(self.DT)
-        self.curent_dt = T
+        pass
 
     def chStat(self, **kwargs):
         """[summary] Change the inner state of the object
@@ -169,7 +164,7 @@ class VariableTiming(TrajOptimizer):
         self._w.append(T)
         self._lbw.append([self.tLim[0]])
         self._ubw.append([self.tLim[1]])
-        self._w0.append(self.DT)
+        self._w0.append([self.DT])
         self.curent_dt = T
 
 
@@ -182,7 +177,7 @@ class VariableTiming(TrajOptimizer):
 
     def start(self):
         self._parseSol = ca.Function('timingParse', [ca.vertcat(*self._w)], 
-                    [ca.vertcat(*self._dt_plot),  ca.cumsum(0,ca.vertcat(*self._dt_plot),0), ca.vertcat(*self._w)], 
+                    [ca.vertcat(*self._dt_plot),  ca.cumsum(ca.vertcat(0, *self._dt_plot),0), ca.vertcat(*self._w)], 
                     ['w'], ['dt', 't' ,'T'])
 
 class ycyConstPD(TrajOptimizer):
@@ -390,7 +385,7 @@ class TimingCollocation(TrajOptimizer):
                                  [ca.horzcat(*self._x_plot), ca.horzcat(*self._u_plot)],
                                   ['w'], ['x', 'u'])
 
-        x_opt, u_opt = self._parseSol(self._sol['x'])
+        x_opt, u_opt, t_opt = self._parseSol(self._sol['x'])
         u_opt = u_opt.full() # to numpy array
         return u_opt
 
@@ -402,13 +397,13 @@ class TimingCollocation(TrajOptimizer):
                                  [ca.horzcat(*self._x_plot), ca.horzcat(*self._u_plot)],
                                   ['w'], ['x', 'u'])
 
-        x_opt, u_opt = self._parseSol(self._sol['x'])
+        x_opt, u_opt, t_opt = self._parseSol(self._sol['x'])
         x_opt = x_opt.full() # to numpy array
         return x_opt
     
     def getSolT(self):
         x_opt, u_opt, t_opt = self._parseSol(self._sol['x'])
-        return self.timingGen(w = t_opt)
+        return self.timingGen._parseSol(w = t_opt)
     
 
     def init(self, u0, x0):
@@ -490,7 +485,8 @@ class TimingCollocation(TrajOptimizer):
         self._lastStep = {
             "Uk": Uk_puls_1, # assume the U is first order spline
             "Xk": Xk_puls_1,
-            "ddQk":ddq1
+            "ddQk":ddq1,
+            "dt":dt
         }
 
     # Add constriant of the state of last step
@@ -503,14 +499,14 @@ class TimingCollocation(TrajOptimizer):
     
     # Add constriant of the state of last step
     def addCost(self,func):
-        self._J += func(self._lastStep["Xk"], self._lastStep["Uk"])
+        self._J += func(self._lastStep["Xk"], self._lastStep["Uk"]) * self._lastStep["dt"]
 
 
     def startSolve(self, solver = 'ipopt'):
         w = ca.vertcat(*self._w, *self.timingGen._w)
         g = ca.vertcat(*self._g, *self.timingGen._g)
-        x_plot = ca.horzcat(*self._x_plot, *self.timingGen._x_plot)
-        u_plot = ca.horzcat(*self._u_plot, *self.timingGen._u_plot)
+        x_plot = ca.horzcat(*self._x_plot)
+        u_plot = ca.horzcat(*self._u_plot)
         w0 = np.concatenate(self._w0 + self.timingGen._w0)
         lbw = np.concatenate(self._lbw + self.timingGen._lbw)
         ubw = np.concatenate(self._ubw + self.timingGen._ubw)

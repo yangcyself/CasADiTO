@@ -87,8 +87,8 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
     (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
 ]
 
-opt = TimingCollocation(14, 8, xlim, [-200, 200], dT0)
-timG = VariableTiming(14, 8, xlim, [-200, 200], dT0, [dT0/100,dT0*2])
+opt = TimingCollocation(14, 8, xlim, [-80, 80], dT0)
+timG = VariableTiming(14, 8, xlim, [-100, 100], dT0, [dT0/100,dT0*2])
 opt.timingGen = timG
 
 opt.init([1,125,1,125,0,100,0,100], X0)
@@ -96,6 +96,7 @@ opt.init([1,125,1,125,0,100,0,100], X0)
 DynF = model.buildDynF([model.phbLeg2, model.phfLeg2],"all_leg", ["btoe","ftoe"])
 
 x_val = X0
+x_init = [X0]
 for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     EOMF = EoMFuncs[cons]
     opt.timingGen.chStat(name = name)
@@ -112,6 +113,7 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         initSol = model.solveCons(EOMF, [("x",x_0, 1e6), ("ddq", np.zeros(7), 1e3)])
         opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
                 ca.veccat(initSol["u"],initSol["F"]).full().reshape(-1), x_0)
+        x_init.append(x_0)
 
         # opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
         #         u_0, X0)
@@ -129,6 +131,11 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
             )
         opt.addConstraint(
             holoCons, [0]*(sum(cons))*3, [np.inf]*(sum(cons))*3
+        )
+
+        # Avoid the front leg collide with back leg
+        opt.addConstraint(
+            lambda x,u: x[5]+x[6], [-np.math.pi*5/6], [np.inf]
         )
     if(FinalC is not None):
         opt.addConstraint(*FinalC)
@@ -152,9 +159,10 @@ if __name__ == "__main__" :
                 "sol_x":opt.getSolX(),
                 "sol_u":opt.getSolU(),
                 "Scheme":Scheme,
-                "dT": opt.getSolT()
+                "dT": opt.getSolT(),
+                "x_init":x_init
             }, f)
 
         ss.add_info("solutionPkl",dumpname)
         ss.add_info("Scheme",Scheme)
-        ss.add_info("Note","Variable timing")
+        ss.add_info("Note","Variable timing, avoid leg collision, stricter torque constraint")

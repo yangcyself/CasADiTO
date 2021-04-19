@@ -23,6 +23,7 @@ with open(solFile, "rb") as f:
     sol_u=solraw['sol_u'].T
     Scheme = solraw["Scheme"]
     x_init = solraw["x_init"]
+    timeStamps = solraw["dT"]["t"].full()
 
 
 print(sol.keys())
@@ -75,10 +76,13 @@ print("len(x_sim)",len(x_sim))
 print("len(x_opt)",len(x_opt))
 
 def animate(i):
-    Total = len(x_sim)
-    xsim = x_sim[i%Total]
-    xsol = x_opt[i%Total]
-    xini = x_init[i%Total]
+    t = (i*0.01) % timeStamps[-1]
+    ind = 0
+    while(ind<len(timeStamps) and timeStamps[ind]<t ):
+        ind+=1
+    xsim = x_sim[ind]
+    xsol = x_opt[ind]
+    xini = x_init[ind]
 
     # line.set_xdata(robotLines[i][:,0])  # update the data.
     # line.set_ydata(robotLines[i][:,1])  # update the data.
@@ -89,7 +93,7 @@ def animate(i):
     # linesim, = ax.plot(robotLinesim[:,0], robotLinesim[:,1])
     linesol, = ax.plot(robotLinesol[:,0], robotLinesol[:,1])
     lineini, = ax.plot(robotLineini[:,0], robotLineini[:,1])
-    til = ax.set_title(phase[i%Total])
+    til = ax.set_title(phase[ind])
     # til = ax.set_title(phase[i%Total])
     ax.set_xlim(-0.5,1.5)
     ax.set_ylim(-0.5,1.5)
