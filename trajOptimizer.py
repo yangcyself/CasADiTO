@@ -22,7 +22,7 @@ class TrajOptimizer:
         self._sol = None
         self._stepCount = 0
         self._lastStep = {}
-        self._dt = dt
+        self._dt = dt # deprecated
     
     def getSolU(self):
         raise NotImplementedError

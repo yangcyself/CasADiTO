@@ -1,4 +1,5 @@
 from trajOptimizer import *
+from policyOptimizer import *
 import model, vis
 import pickle as pkl
 from trajOptimizerHelper import *
@@ -14,7 +15,7 @@ This file use dynamic constraint as dynamics, rather than dynF
 
 # input dims: [ux4,Fbx2,Ffx2]
 
-dT = 0.01
+dT0 = 0.01
 distance = 0.5
 
 X0 = np.array([0,0.25,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
@@ -86,7 +87,9 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
     (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
 ]
 
-opt = ycyCollocation(14, 8, xlim, [-200, 200], dT)
+opt = TimingCollocation(14, 8, xlim, [-200, 200], dT0)
+timG = VariableTiming(14, 8, xlim, [-200, 200], dT0, [dT0/100,dT0*2])
+opt.timingGen = timG
 
 opt.init([1,125,1,125,0,100,0,100], X0)
 
@@ -95,6 +98,7 @@ DynF = model.buildDynF([model.phbLeg2, model.phfLeg2],"all_leg", ["btoe","ftoe"]
 x_val = X0
 for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     EOMF = EoMFuncs[cons]
+    opt.timingGen.chStat(name = name)
     for i in range(N):
         x_0, u_0 = R(i)
 
@@ -132,15 +136,6 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
 opt.step(lambda dx,x,u : EoMFuncs[(0,0)](x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
             [0,0,0,0, 0,0,0,0], XDes)
 
-def rounge_Kutta(x,u,dynF):
-    DT = dT
-    k1 = dynF(x, u)
-    k2 = dynF(x + DT/2 * k1, u)
-    k3 = dynF(x + DT/2 * k2, u)
-    k4 = dynF(x + DT * k3, u)
-    x=x+DT/6*(k1 +2*k2 +2*k3 +k4)
-    return x
-
 
 if __name__ == "__main__" :
 
@@ -148,38 +143,7 @@ if __name__ == "__main__" :
     with Session(__file__,terminalLog = True) as ss:
     # if(True):
         opt.startSolve()
-        # DynF = model.buildDynF([model.phbLeg2, model.phfLeg2],"all_leg", ["btoe","ftoe"])
-        # nextXk = None
-        # lastXk = None
-        # for i,(Xk, Uk) in enumerate( zip(opt.getSolX().T,opt.getSolU().T)):
-        #     sol = DynF(x = Xk,u = Uk[:4])
-        #     # print(EOMF(x = x_val,u = u,F=np.concatenate([sol["F0"],np.array([0,0]).reshape(sol["F0"].size())]),ddq = sol["ddq"]))
-        #     eomf_check = EOMF(x = Xk,u = Uk[:4],F=Uk[4:],ddq = sol["ddq"])['EOM'].full()
-        #     # print(Uk[4:].reshape(-1) - np.concatenate([sol["F0"], sol["F1"]]).reshape(-1))
-        #     # print(eomf_check.reshape(-1))
-        #     # # assert()
-        #     # if(nextXk is not None):
-        #     #     print("diff next:", Xk - nextXk)
-        #     nextXk = rounge_Kutta(Xk,Uk[:4],lambda x,u : DynF(x=x,u=u)["dx"])
 
-        #     if(lastXk is not None):
-        #         print("laskXk:", lastXk)
-        #         print("Xk:", Xk)
-        #         clsol = opt.colloF(Xk = lastXk, Xk_puls_1 = Xk)
-        #         print("collo:",clsol)
-
-        #         if(i>-1 and not i%10):
-        #             plt.figure()
-        #             plotX = np.linspace(0,dT,100)
-        #             ind = int(np.random.random()*7)
-        #             plt.plot(plotX, (np.array(clsol["a3"])[ind,...]*plotX**3).T
-        #                             +(np.array(clsol["a2"])[ind,...]*plotX**2).T
-        #                             +(np.array(clsol["a1"])[ind,...]*plotX).T
-        #                             +(np.array(clsol["a0"]))[ind,...].T)
-        #             plt.show()
-        #     lastXk = Xk
-
-        
         dumpname = os.path.abspath(os.path.join("./data/nlpSol", "ycyCollo%d.pkl"%time.time()))
 
         with open(dumpname, "wb") as f:
@@ -188,9 +152,9 @@ if __name__ == "__main__" :
                 "sol_x":opt.getSolX(),
                 "sol_u":opt.getSolU(),
                 "Scheme":Scheme,
-                "dT":dT
+                "dT": opt.getSolT()
             }, f)
 
         ss.add_info("solutionPkl",dumpname)
         ss.add_info("Scheme",Scheme)
-        ss.add_info("Note","U为0， Better Init value")
+        ss.add_info("Note","Variable timing")
