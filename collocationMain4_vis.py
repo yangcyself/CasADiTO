@@ -19,11 +19,11 @@ dT = 0.01
 with open(solFile, "rb") as f:
     solraw = pkl.load(f)
     sol = solraw["sol"]
-    sol_x=solraw['sol_x'].T
-    sol_u=solraw['sol_u'].T
+    sol_x= sol['Xgen']['x_plot'].full().T
+    sol_u= sol['Ugen']['u_plot'].full().T
     Scheme = solraw["Scheme"]
     x_init = solraw["x_init"]
-    timeStamps = solraw["dT"]["t"].full()
+    timeStamps = sol['dTgen']['t_plot'].full()
 
 
 print(sol.keys())
@@ -77,7 +77,7 @@ print("len(x_opt)",len(x_opt))
 print("len(timestamp)",len(timeStamps))
 
 def animate(i):
-    t = (i*0.01) % timeStamps[-1]
+    t = (i*0.1) % timeStamps[-1]
     ind = 0
     while(ind<len(timeStamps)-2 and timeStamps[ind]<t-1e-9 ):
         ind+=1
@@ -102,7 +102,7 @@ def animate(i):
     # return linesim,linesol
 
 ani = animation.FuncAnimation(
-    fig, animate, frames= len(x_sim), interval=25, blit=True, save_count=50)
+    fig, animate, frames= int(timeStamps[-1]/0.1), interval=25, blit=True, save_count=50)
 
 # To save the animation, use e.g.
 #

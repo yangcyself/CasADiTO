@@ -88,23 +88,22 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
     (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
 ]
 
-# opt = TimingCollocation(14, 8, xlim, [[-100,100]]*4 + [[-200, 200]]*4, dT0) # robot jumps on four
-# opt = TimingCollocation(14, 8, xlim, [[-200,200]]*4 + [[-200, 200]]*4, dT0) # robot jumps on two
+
 opt = TowrCollocationVTiming(14, 4, 4, xlim, [[-200,200]]*4, [[-200, 200]]*4, dT0, [0.0001, 0.2]) # robot jumps on two
 
-opt.begin(x0=X0, u0=[1,125,1,125], f0=[0,100,0,100])
+opt.begin(x0=X0, u0=[1,125,1,125], F0=[0,100,0,100])
 
 x_val = X0
 x_init = [X0]
 for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     EOMF = EoMFuncs[cons]
-    opt.timingGen.chStat(name = name)
+    opt.dTgen.chMod(modName = name)
     for i in range(N):
         x_0, u_0 = R(i)
 
         initSol = model.solveCons(EOMF, [("x",x_0, 1e6), ("ddq", np.zeros(7), 1e3)])
         opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-                x0 = x_0, u0 = initSol["u"].full(),f0 = initSol["F"].full())
+                x0 = x_0, u0 = initSol["u"].full(),F0 = initSol["F"].full())
         x_init.append(x_0)
 
         # opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
@@ -114,12 +113,12 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         # opt.addCost(lambda x,u: ca.dot(x - X0,x - X0))
         addAboveGoundConstraint(opt)
 
-        def holoCons(x,u):
+        def holoCons(x,u,F):
             MU = 0.4
             return ca.vertcat(
-                *[MU * u[5+i*2] + u[4+i*2] for i in range(2) if cons[i]],
-                *[MU * u[5+i*2] - u[4+i*2] for i in range(2) if cons[i]],
-                *[u[5+i*2] - 0 for i in range(2) if cons[i]]
+                *[MU * F[1+i*2] + F[0+i*2] for i in range(2) if cons[i]],
+                *[MU * F[1+i*2] - F[0+i*2] for i in range(2) if cons[i]],
+                *[F[1+i*2] - 0 for i in range(2) if cons[i]]
             )
         opt.addConstraint(
             holoCons, [0]*(sum(cons))*3, [np.inf]*(sum(cons))*3
@@ -129,11 +128,15 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         opt.addConstraint(
             lambda x,u: x[5]+x[6], [-np.math.pi*5/6], [np.inf]
         )
+
+        opt.addConstraint(
+            lambda x,u: x[1], [-np.inf], [0.5]
+        )
     if(FinalC is not None):
         opt.addConstraint(*FinalC)
 
 opt.step(lambda dx,x,u : EoMFuncs[(0,0)](x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-            [0,0,0,0, 0,0,0,0], XDes)
+        x0 = XDes, u0 = [0,0,0,0], F0=[0,0,0,0])
 
 
 if __name__ == "__main__" :
@@ -141,7 +144,18 @@ if __name__ == "__main__" :
     import matplotlib.pyplot as plt
     with Session(__file__,terminalLog = True) as ss:
     # if(True):
-        res = opt.solve()
+        res = opt.solve(options=
+            {"calc_f" : True,
+            "calc_g" : True,
+            "calc_lam_x" : True,
+            "calc_multipliers" : True,
+            # "expand" : True,
+                "verbose_init":True,
+                # "jac_g": gjacFunc
+            "ipopt":{
+                "max_iter" : 10000, # unkown option
+                }
+            })
 
         dumpname = os.path.abspath(os.path.join("./data/nlpSol", "ycyCollo%d.pkl"%time.time()))
 

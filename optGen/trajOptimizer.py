@@ -26,7 +26,7 @@ class TowrCollocation(optGen):
 
         self._xDim = self.Xgen._xDim
         self._uDim = self.Ugen._uDim
-        self._fDim = self.Fgen._fDim
+        self._FDim = self.Fgen._FDim
         self._qDim = int(self._xDim/2)
 
         self._child.update({
@@ -37,14 +37,14 @@ class TowrCollocation(optGen):
         })
         self._sc = 0 # step count
 
-    def _begin(self, x0, u0, f0, **kwargs):
+    def _begin(self, x0, u0, F0, **kwargs):
         """Set up the first step
-           calls Xgen, Ugen, Fgen with x0, xk, u0, f0
+           calls Xgen, Ugen, Fgen with x0, xk, u0, F0
         """
         self._sc = 0
         Xk = self.Xgen.step(step = self._sc, x0 = x0, **kwargs)
         Uk = self.Ugen.step(step = self._sc, u0 = u0, xk = Xk, **kwargs)
-        Fk = self.Fgen.step(step = self._sc, f0 = f0, **kwargs)
+        Fk = self.Fgen.step(step = self._sc, F0 = F0, **kwargs)
         
         self._state.update({
             "x": Xk,        # x at step K
@@ -53,17 +53,17 @@ class TowrCollocation(optGen):
             "ddq1":None     # ddq at step K+1, fitted by Xs at step K and K+1
         })
     
-    def step(self, dynF, x0, u0, f0, **kwargs):
+    def step(self, dynF, x0, u0, F0, **kwargs):
         self._sc += 1
         Xk_puls_1 = self.Xgen.step(step = self._sc, x0 = x0, **kwargs)
         Uk_puls_1 = self.Ugen.step(step = self._sc, u0 = u0, xk = Xk_puls_1, **kwargs)
-        Fk_puls_1 = self.Fgen.step(step = self._sc, f0 = f0, **kwargs)
+        Fk_puls_1 = self.Fgen.step(step = self._sc, F0 = F0, **kwargs)
 
         dt = self.dTgen.step(step = self._sc)
 
         Xk = self._state["x"]
         Uk = self._state["u"]
-        Fk = self._state["f"]
+        Fk = self._state["F"]
 
         q0 = Xk[:self._qDim]
         dq0 = Xk[self._qDim:]
@@ -196,14 +196,14 @@ class dTGenDefault(optGen):
 class dTGenVariable(dTGenDefault):
     def __init__(self, dT, dtLim):
         super().__init__(dT)
-        self.dtLim = dtLim
+        self._dtLim = dtLim
         self.curent_dt = None
     
     def chMod(self, modName, *args, **kwargs):
         T = ca.SX.sym('dT_%s'%modName, 1)
         self._w.append(T)
-        self._lbw.append([self.tLim[0]])
-        self._ubw.append([self.tLim[1]])
+        self._lbw.append([self._dtLim[0]])
+        self._ubw.append([self._dtLim[1]])
         self._w0.append([self._dT])
         self.curent_dt = T
 
@@ -214,16 +214,16 @@ class dTGenVariable(dTGenDefault):
 
 def TowrCollocationDefault(xDim, uDim, FDim, xLim, uLim, FLim, dt):
     return TowrCollocation(
-        Xgen = xGenDefault(xDim, xLim),
-        Ugen = uGenDefault(uDim, uLim),
-        Fgen = FGenDefault(FDim, FLim),
+        Xgen = xGenDefault(xDim, np.array(xLim)),
+        Ugen = uGenDefault(uDim, np.array(uLim)),
+        Fgen = FGenDefault(FDim, np.array(FLim)),
         dTgen= dTGenDefault(dt)
     )
 
 def TowrCollocationVTiming(xDim, uDim, FDim, xLim, uLim, FLim, dt, dtLim):
     return TowrCollocation(
-        Xgen = xGenDefault(xDim, xLim),
-        Ugen = uGenDefault(uDim, uLim),
-        Fgen = FGenDefault(FDim, FLim),
-        dTgen= dTGenVariable(dt, dtLim)
+        Xgen = xGenDefault(xDim, np.array(xLim)),
+        Ugen = uGenDefault(uDim, np.array(uLim)),
+        Fgen = FGenDefault(FDim, np.array(FLim)),
+        dTgen= dTGenVariable(dt, np.array(dtLim))
     )

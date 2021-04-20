@@ -84,19 +84,22 @@ class optGen:
     @property
     def w0(self):
         """narray: the init value of w"""
-        return np.concatenate([np.array(a).reshape(-1) for a in self._w0]
+        return np.concatenate([np.array([])]
+            + [np.array(a).reshape(-1) for a in self._w0]
             + [c.w0 for c in self._child.values()])
 
     @property
     def lbw(self):
         """narray: the lower bound of w"""
-        return np.concatenate([np.array(a).reshape(-1) for a in self._lbw]
+        return np.concatenate([np.array([])]
+            + [np.array(a).reshape(-1) for a in self._lbw]
             + [c.lbw for c in self._child.values()])
 
     @property
     def ubw(self):
         """narray: the upper bound of w"""
-        return np.concatenate([np.array(a).reshape(-1) for a in self._ubw]
+        return np.concatenate([np.array([])]
+            + [np.array(a).reshape(-1) for a in self._ubw]
             + [c.ubw for c in self._child.values()])
 
     @property
@@ -108,13 +111,15 @@ class optGen:
     @property
     def lbg(self):
         """narray: the lower bound of g"""
-        return np.concatenate([np.array(a).reshape(-1) for a in self._lbg]
+        return np.concatenate([np.array([])]
+            + [np.array(a).reshape(-1) for a in self._lbg]
             + [c.lbg for c in self._child.values()])
 
     @property
     def ubg(self):
         """narray: the upper bound of g"""
-        return np.concatenate([np.array(a).reshape(-1) for a in self._ubg]
+        return np.concatenate([np.array([])]
+            + [np.array(a).reshape(-1) for a in self._ubg]
             + [c.ubg for c in self._child.values()])
 
     @property
@@ -137,7 +142,7 @@ class optGen:
         return { k: 
                 v if k not in self._child.keys()
                   else self._child[k].parseSol({'x':v})
-            for k,v in self._parseSol(w=sol['x'])
+            for k,v in self._parseSol(w=sol['x']).items()
             }
     
     def buildSolver(self, solver = "ipopt", options = None):
