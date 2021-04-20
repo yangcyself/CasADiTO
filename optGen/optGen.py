@@ -1,4 +1,4 @@
-from optGen.util import LazyFunc
+from optGen.util import LazyFunc, kwargFunc
 import casadi as ca
 import numpy as np
 
@@ -14,7 +14,6 @@ Each derived class needs to define all the following:
     - `step`
     - `chMod`
 
-
 Two steps for building an opt problem:
     - `begin`
     - `step`
@@ -23,7 +22,10 @@ Two steps for building an opt problem:
 
 `addConstraint` and `addCost` acts on the current state. 
     These two methods call a factory function with `_state` and get returned J or g
-    There is a decorator `kwargFunc` in util helps the building of factory function
+    Note: the calling of the factory func depends on argument names of the func, rather than its order
+        e.g. if _state has keys x,u,F. 
+            Then the function with argument (x,F,u) or (u) are all valid, 
+            but ones with argument (x0, u) is not valid
 """
 class optGen:
     def __init__(self):
@@ -58,7 +60,11 @@ class optGen:
                 as the class is only complete once the problem is built
                 e.g. x_plot and u_plot
         """
-        self._parse = {}
+        self._parse = {
+            "_w": lambda: ca.vertcat(*self._w),
+            "_g": lambda: ca.vertcat(*self._g),
+            "_J": lambda: self._J
+        }
 
         """_parseSol: the solution parser
         should have the signature
@@ -154,13 +160,13 @@ class optGen:
 
     # Add constriant of the state of last step
     def addConstraint(self, func, lb, ub):
-        self._g.append(func(**self._state))
+        self._g.append( kwargFunc(func)(**self._state) )
         self._lbg.append(lb)
         self._ubg.append(ub)
     
     # Add constriant of the state of last step
     def addCost(self, func):
-        self._J += func(**self._state)
+        self._J += kwargFunc(func)(**self._state)
 
     def _begin(self,**kwargs):
         raise NotImplementedError

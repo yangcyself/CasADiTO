@@ -1,5 +1,6 @@
-from trajOptimizer import *
-from policyOptimizer import *
+# from trajOptimizer import *
+# from policyOptimizer import *
+from optGen.trajOptimizer import *
 import model, vis
 import pickle as pkl
 from trajOptimizerHelper import *
@@ -88,13 +89,10 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
 ]
 
 # opt = TimingCollocation(14, 8, xlim, [[-100,100]]*4 + [[-200, 200]]*4, dT0) # robot jumps on four
-opt = TimingCollocation(14, 8, xlim, [[-200,200]]*4 + [[-200, 200]]*4, dT0) # robot jumps on two
-timG = VariableTiming(14, 8, xlim, [-100, 100], dT0, [dT0/100,dT0*2])
-opt.timingGen = timG
+# opt = TimingCollocation(14, 8, xlim, [[-200,200]]*4 + [[-200, 200]]*4, dT0) # robot jumps on two
+opt = TowrCollocationVTiming(14, 4, 4, xlim, [[-200,200]]*4, [[-200, 200]]*4, dT0, [0.0001, 0.2]) # robot jumps on two
 
-opt.init([1,125,1,125,0,100,0,100], X0)
-
-DynF = model.buildDynF([model.phbLeg2, model.phfLeg2],"all_leg", ["btoe","ftoe"])
+opt.begin(x0=X0, u0=[1,125,1,125], f0=[0,100,0,100])
 
 x_val = X0
 x_init = [X0]
@@ -104,16 +102,9 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     for i in range(N):
         x_0, u_0 = R(i)
 
-        # forward simulation
-        # Uk = np.array(u_0)[:4]
-        # dynSol = DynF(x = x_val, u = Uk)
-        # x_val += dT * dynSol["dx"]
-        # opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-        #         list(Uk) + list(dynSol["F0"].full().reshape(-1))+ list(dynSol["F1"].full().reshape(-1)), x_val.full().reshape(-1))
-
         initSol = model.solveCons(EOMF, [("x",x_0, 1e6), ("ddq", np.zeros(7), 1e3)])
         opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-                ca.veccat(initSol["u"],initSol["F"]).full().reshape(-1), x_0)
+                x0 = x_0, u0 = initSol["u"].full(),f0 = initSol["F"].full())
         x_init.append(x_0)
 
         # opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
@@ -150,20 +141,17 @@ if __name__ == "__main__" :
     import matplotlib.pyplot as plt
     with Session(__file__,terminalLog = True) as ss:
     # if(True):
-        opt.startSolve()
+        res = opt.solve()
 
         dumpname = os.path.abspath(os.path.join("./data/nlpSol", "ycyCollo%d.pkl"%time.time()))
 
         with open(dumpname, "wb") as f:
             pkl.dump({
-                "sol":opt._sol,
-                "sol_x":opt.getSolX(),
-                "sol_u":opt.getSolU(),
+                "sol":res,
                 "Scheme":Scheme,
-                "dT": opt.getSolT(),
                 "x_init":x_init
             }, f)
 
         ss.add_info("solutionPkl",dumpname)
         ss.add_info("Scheme",Scheme)
-        ss.add_info("Note","Variable timing, avoid leg collision, stricter torque constraint")
+        ss.add_info("Note","Try the new trajOptimizer")

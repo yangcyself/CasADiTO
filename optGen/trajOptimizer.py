@@ -47,10 +47,10 @@ class TowrCollocation(optGen):
         Fk = self.Fgen.step(step = self._sc, f0 = f0, **kwargs)
         
         self._state.update({
-            "Xk": Xk,
-            "ddQk":None,
-            "Uk" : Uk,
-            "Fk" : Fk
+            "x": Xk,        # x at step K
+            "u" : Uk,       # u at step K
+            "F" : Fk,       # F at step K
+            "ddq1":None     # ddq at step K+1, fitted by Xs at step K and K+1
         })
     
     def step(self, dynF, x0, u0, f0, **kwargs):
@@ -61,9 +61,9 @@ class TowrCollocation(optGen):
 
         dt = self.dTgen.step(step = self._sc)
 
-        Xk = self._state["Xk"]
-        Uk = self._state["Uk"]
-        Fk = self._state["Fk"]
+        Xk = self._state["x"]
+        Uk = self._state["u"]
+        Fk = self._state["f"]
 
         q0 = Xk[:self._qDim]
         dq0 = Xk[self._qDim:]
@@ -84,17 +84,17 @@ class TowrCollocation(optGen):
         self._ubg.append([0]*g.size(1)) #size(1): the dim of axis0
 
         # smooth constraint
-        if(self._state["ddQk"] is not None):
-            self._g.append(ddq0 - self._state["ddQk"])
+        if(self._state["ddq1"] is not None):
+            self._g.append(ddq0 - self._state["ddq1"])
             self._lbg.append([0]*self._qDim) 
             self._ubg.append([0]*self._qDim)
         
         ddq1 = 6 * a3 * dt + 2*a2
         self._state.update({
-            "Xk": Xk_puls_1,
-            "Uk" : Uk_puls_1,
-            "Fk" : Fk_puls_1,
-            "ddQk":ddq1
+            "x": Xk_puls_1,
+            "u" : Uk_puls_1,
+            "F" : Fk_puls_1,
+            "ddq1":ddq1
         })
 
 

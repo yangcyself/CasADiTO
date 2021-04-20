@@ -35,9 +35,3 @@ def kwargFunc(f):
         return f(**{k:kwargs[k] for k in sig[0]})
     return func
 
-if __name__ == "__main__":
-    @kwargFunc
-    def foo(a,b,c):
-        print("a:", a, "b", b, "c", c)
-    values = {"a":1,"b":[2,3],"c": "haah", "d": [1,2]}
-    foo(**values)
