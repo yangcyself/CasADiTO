@@ -5,4 +5,4 @@ __pycache__
 *.txt
 testES.py
 data/animation
-TOoutput.csv
+*.csv

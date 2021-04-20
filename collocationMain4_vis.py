@@ -74,11 +74,12 @@ fig, ax = plt.subplots()
 print("len(phase)：",len(phase))
 print("len(x_sim)",len(x_sim))
 print("len(x_opt)",len(x_opt))
+print("len(timestamp)",len(timeStamps))
 
 def animate(i):
     t = (i*0.01) % timeStamps[-1]
     ind = 0
-    while(ind<len(timeStamps) and timeStamps[ind]<t ):
+    while(ind<len(timeStamps)-2 and timeStamps[ind]<t-1e-9 ):
         ind+=1
     xsim = x_sim[ind]
     xsol = x_opt[ind]

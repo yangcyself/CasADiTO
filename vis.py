@@ -11,16 +11,16 @@ def visState(q):
     plt.show()
     
 
-def saveSolution(filename, x_opt, u_opt, dT):
+def saveSolution(filename, x_opt, u_opt, t):
     df_x = pd.DataFrame(x_opt, 
         columns = ["x", "y", "r", "bh", "bt", "fh", "ft",
                 "dx", "dy", "dr", "dbh", "dbt", "dfh", "dft"], 
-        index = [dT * i for i in range(x_opt.shape[0])]
+        index = t
     )
 
     df_u = pd.DataFrame(u_opt, 
         columns = ["ubh", "ubt", "ufh", "uft", "Fbx", "Fby", "Ffx", "Ffy"], 
-        index = [dT * i for i in range(u_opt.shape[0])]
+        index = t
     )
 
     df = pd.concat([df_x,df_u],axis = 1)

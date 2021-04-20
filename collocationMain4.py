@@ -87,7 +87,8 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
     (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
 ]
 
-opt = TimingCollocation(14, 8, xlim, [-80, 80], dT0)
+# opt = TimingCollocation(14, 8, xlim, [[-100,100]]*4 + [[-200, 200]]*4, dT0) # robot jumps on four
+opt = TimingCollocation(14, 8, xlim, [[-200,200]]*4 + [[-200, 200]]*4, dT0) # robot jumps on two
 timG = VariableTiming(14, 8, xlim, [-100, 100], dT0, [dT0/100,dT0*2])
 opt.timingGen = timG
 
