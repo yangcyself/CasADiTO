@@ -89,7 +89,7 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
 ]
 
 
-opt = TowrCollocationVTiming(14, 4, 4, xlim, [[-200,200]]*4, [[-200, 200]]*4, dT0, [0.0001, 0.2]) # robot jumps on two
+opt = TowrCollocationVTiming(14, 4, 4, xlim, [[-100,100]]*4, [[-200, 200]]*4, dT0, [0.0001, 0.02]) # robot jumps on two
 
 opt.begin(x0=X0, u0=[1,125,1,125], F0=[0,100,0,100])
 
@@ -129,9 +129,6 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
             lambda x,u: x[5]+x[6], [-np.math.pi*5/6], [np.inf]
         )
 
-        opt.addConstraint(
-            lambda x,u: x[1], [-np.inf], [0.5]
-        )
     if(FinalC is not None):
         opt.addConstraint(*FinalC)
 

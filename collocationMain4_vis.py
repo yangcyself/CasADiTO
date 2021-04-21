@@ -75,9 +75,12 @@ print("len(phase)：",len(phase))
 print("len(x_sim)",len(x_sim))
 print("len(x_opt)",len(x_opt))
 print("len(timestamp)",len(timeStamps))
+print("TIME STEP LENGTH of EACH PHASE:")
+for dt, (c,n,m) in zip(sol['dTgen']['_w'].full(), Scheme):
+    print(m, "\tContact: ", c, "\tN: ",n, "\tdT:", dt )
 
 def animate(i):
-    t = (i*0.1) % timeStamps[-1]
+    t = (i*0.01) % timeStamps[-1]
     ind = 0
     while(ind<len(timeStamps)-2 and timeStamps[ind]<t-1e-9 ):
         ind+=1
@@ -102,7 +105,7 @@ def animate(i):
     # return linesim,linesol
 
 ani = animation.FuncAnimation(
-    fig, animate, frames= int(timeStamps[-1]/0.1), interval=25, blit=True, save_count=50)
+    fig, animate, frames= int(timeStamps[-1]/0.01), interval=25, blit=True, save_count=50)
 
 # To save the animation, use e.g.
 #
