@@ -19,7 +19,7 @@ def saveSolution(filename, x_opt, u_opt, t):
     )
 
     df_u = pd.DataFrame(u_opt, 
-        columns = ["ubh", "ubt", "ufh", "uft", "Fbx", "Fby", "Ffx", "Ffy"], 
+        columns = ["ubh", "ubt", "ufh", "uft"], 
         index = t
     )
 

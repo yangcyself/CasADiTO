@@ -18,11 +18,12 @@ This file use dynamic constraint as dynamics, rather than dynF
 
 dT0 = 0.01
 distance = 0.5
+legLength = model.params["legL2"]
 
-X0 = np.array([0,0.25,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+X0 = np.array([0,legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
-XDes = np.array([distance, 0.25 ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+XDes = np.array([distance, legLength ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
 
@@ -41,6 +42,13 @@ xlim = [
     model.params["dq2Lim"],
     model.params["dq1Lim"],
     model.params["dq2Lim"]
+]
+
+ulim = [
+    [-28, 28],
+    [-46, 46],
+    [-28, 28],
+    [-46, 46]
 ]
 
 EoMFuncs = {
@@ -89,7 +97,8 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
 ]
 
 
-opt = TowrCollocationVTiming(14, 4, 4, xlim, [[-100,100]]*4, [[-200, 200]]*4, dT0, [0.0001, 0.02]) # robot jumps on two
+opt = TowrCollocationVTiming(14, 4, 4, xlim, ulim, [[-200, 200]]*4, dT0, [0.0001, 0.01])
+# opt = TowrCollocationDefault(14, 4, 4, xlim, [[-100,100]]*4, [[-200, 200]]*4, dT0)
 
 opt.begin(x0=X0, u0=[1,125,1,125], F0=[0,100,0,100])
 
@@ -116,17 +125,18 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         def holoCons(x,u,F):
             MU = 0.4
             return ca.vertcat(
+                *[model.pFuncs[n](x)[1] - 0.01*i*(N-i)*4/N**2 for j,n in enumerate(['phbLeg2', 'phfLeg2']) if not cons[j]],
                 *[MU * F[1+i*2] + F[0+i*2] for i in range(2) if cons[i]],
                 *[MU * F[1+i*2] - F[0+i*2] for i in range(2) if cons[i]],
                 *[F[1+i*2] - 0 for i in range(2) if cons[i]]
             )
         opt.addConstraint(
-            holoCons, [0]*(sum(cons))*3, [np.inf]*(sum(cons))*3
+            holoCons, [0]*(2 + sum(cons)*2), [np.inf]*(2+sum(cons)*2)
         )
 
         # Avoid the front leg collide with back leg
         opt.addConstraint(
-            lambda x,u: x[5]+x[6], [-np.math.pi*5/6], [np.inf]
+            lambda x,u: x[5]+x[6], [-np.math.pi*1/2], [np.inf]
         )
 
     if(FinalC is not None):
