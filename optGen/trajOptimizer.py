@@ -19,10 +19,10 @@ class TowrCollocation(optGen):
     def __init__(self, Xgen, Ugen, Fgen, dTgen):
         super().__init__()
         
-        self.Xgen = Xgen
-        self.Ugen = Ugen
-        self.Fgen = Fgen
-        self.dTgen = dTgen
+        self._Xgen = Xgen
+        self._Ugen = Ugen
+        self._Fgen = Fgen
+        self._dTgen = dTgen
 
         self._xDim = self.Xgen._xDim
         self._uDim = self.Ugen._uDim
@@ -30,21 +30,52 @@ class TowrCollocation(optGen):
         self._qDim = int(self._xDim/2)
 
         self._child.update({
-            "Xgen": self.Xgen,
-            "Ugen": self.Ugen,
-            "Fgen": self.Fgen,
-            "dTgen": self.dTgen
+            "Xgen": self._Xgen,
+            "Ugen": self._Ugen,
+            "Fgen": self._Fgen,
+            "dTgen": self._dTgen
         })
         self._sc = 0 # step count
+
+    @property
+    def Xgen(self):
+        return self._Xgen
+    @property
+    def Ugen(self):
+        return self._Ugen
+    @property
+    def Fgen(self):
+        return self._Fgen
+    @property
+    def dTgen(self):
+        return self._dTgen
+    
+    @Xgen.setter
+    def Xgen(self, xg):
+        self._Xgen = xg
+        self._child["Xgen"] = xg    
+    @Ugen.setter
+    def Ugen(self, ug):
+        self._Ugen = ug
+        self._child["Ugen"] = ug
+    @Fgen.setter
+    def Fgen(self, Fg):
+        self._Fgen = Fg
+        self._child["Fgen"] = Fg
+    @dTgen.setter
+    def dTgen(self, dtg):
+        self._dTgen = dtg
+        self._child["dTgen"] = dtg
+
 
     def _begin(self, x0, u0, F0, **kwargs):
         """Set up the first step
            calls Xgen, Ugen, Fgen with x0, xk, u0, F0
         """
         self._sc = 0
-        Xk = self.Xgen.step(step = self._sc, x0 = x0, **kwargs)
-        Uk = self.Ugen.step(step = self._sc, u0 = u0, xk = Xk, **kwargs)
-        Fk = self.Fgen.step(step = self._sc, F0 = F0, **kwargs)
+        Xk = self._Xgen.step(step = self._sc, x0 = x0, **kwargs)
+        Uk = self._Ugen.step(step = self._sc, u0 = u0, xk = Xk, **kwargs)
+        Fk = self._Fgen.step(step = self._sc, F0 = F0, **kwargs)
         
         self._state.update({
             "x": Xk,        # x at step K
@@ -55,11 +86,11 @@ class TowrCollocation(optGen):
     
     def step(self, dynF, x0, u0, F0, **kwargs):
         self._sc += 1
-        Xk_puls_1 = self.Xgen.step(step = self._sc, x0 = x0, **kwargs)
-        Uk_puls_1 = self.Ugen.step(step = self._sc, u0 = u0, xk = Xk_puls_1, **kwargs)
-        Fk_puls_1 = self.Fgen.step(step = self._sc, F0 = F0, **kwargs)
+        Xk_puls_1 = self._Xgen.step(step = self._sc, x0 = x0, **kwargs)
+        Uk_puls_1 = self._Ugen.step(step = self._sc, u0 = u0, xk = Xk_puls_1, **kwargs)
+        Fk_puls_1 = self._Fgen.step(step = self._sc, F0 = F0, **kwargs)
 
-        dt = self.dTgen.step(step = self._sc)
+        dt = self._dTgen.step(step = self._sc)
 
         Xk = self._state["x"]
         Uk = self._state["u"]
@@ -123,6 +154,33 @@ class xGenDefault(optGen):
             self._ubw.append(self._xLim[:,1])
         self._w0.append(x0)
         self._x_plot.append(Xk)
+        return Xk
+
+
+class xGenTerrianHoloCons(xGenDefault):
+    def __init__(self, xDim, xLim, ptrFuncs, terrian):
+        """xGen that adds the terrian constraints of points
+
+        Args:
+            ptrFuncs ([(x)=> p]): list of functions that calculates interested points given current state
+            terrian ([g(p)]): the constraint function on points, the constraint is: g(p)>0
+        """
+        super().__init__(xDim, xLim)
+        self.ptrFuncs = ptrFuncs
+        self.terrain = terrian
+    
+    def _begin(self, **kwargs):
+        pass
+    
+    def step(self, step, x0, **kwargs):
+        Xk = super().step(step,x0,**kwargs)
+
+        for pF in self.ptrFuncs:
+            g = self.terrain( pF(Xk) )
+            self._g.append(g)
+            self._lbg.append([0]*g.size(1)) #size(1): the dim of axis0
+            self._ubg.append([np.infty]*g.size(1)) #size(1): the dim of axis0
+
         return Xk
 
 

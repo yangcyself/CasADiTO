@@ -17,10 +17,10 @@ This file use dynamic constraint as dynamics, rather than dynF
 # input dims: [ux4,Fbx2,Ffx2]
 
 dT0 = 0.01
-distance = 0.5
+distance = model.params["torLL"] * 1.5
 legLength = model.params["legL2"]
 
-X0 = np.array([0,legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+X0 = np.array([0,0.3 + legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
 XDes = np.array([distance, legLength ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
@@ -44,11 +44,13 @@ xlim = [
     model.params["dq2Lim"]
 ]
 
+
+
 ulim = [
-    [-28, 28],
-    [-46, 46],
-    [-28, 28],
-    [-46, 46]
+    np.array([-1, 1])*model.params["tau2lim"],
+    np.array([-1, 1])*model.params["tau3lim"],
+    np.array([-1, 1])*model.params["tau2lim"],
+    np.array([-1, 1])*model.params["tau3lim"]
 ]
 
 EoMFuncs = {
@@ -98,6 +100,7 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
 
 
 opt = TowrCollocationVTiming(14, 4, 4, xlim, ulim, [[-200, 200]]*4, dT0, [0.0001, 0.01])
+opt.Xgen = xGenTerrianHoloCons(14, np.array(xlim), model.pFuncs.values(), lambda p: ca.if_else(p[0]>0.35, p[1],p[1] - 0.3))
 # opt = TowrCollocationDefault(14, 4, 4, xlim, [[-100,100]]*4, [[-200, 200]]*4, dT0)
 
 opt.begin(x0=X0, u0=[1,125,1,125], F0=[0,100,0,100])
@@ -120,12 +123,12 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
 
         opt.addCost(lambda x,u: 0.001*ca.dot(u[:4],u[:4]))
         # opt.addCost(lambda x,u: ca.dot(x - X0,x - X0))
-        addAboveGoundConstraint(opt)
+        # addAboveGoundConstraint(opt)
 
         def holoCons(x,u,F):
             MU = 0.4
             return ca.vertcat(
-                *[model.pFuncs[n](x)[1] - 0.01*i*(N-i)*4/N**2 for j,n in enumerate(['phbLeg2', 'phfLeg2']) if not cons[j]],
+                *[model.pFuncs[n](x)[1] +0.005 - 0.03*i*(N-i)*4/N**2 for j,n in enumerate(['phbLeg2', 'phfLeg2']) if not cons[j]],
                 *[MU * F[1+i*2] + F[0+i*2] for i in range(2) if cons[i]],
                 *[MU * F[1+i*2] - F[0+i*2] for i in range(2) if cons[i]],
                 *[F[1+i*2] - 0 for i in range(2) if cons[i]]
