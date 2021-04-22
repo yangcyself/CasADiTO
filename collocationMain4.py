@@ -122,7 +122,8 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         #         u_0, X0)
 
         opt.addCost(lambda x,u: 0.01*ca.dot(u[:4],u[:4]))
-        opt.addCost(lambda ddq1: 0.001 * ca.dot(ddq1[-4:],ddq1[-4:]))
+        opt.addCost(lambda ddq1: 0.0001 * ca.dot(ddq1[-4:],ddq1[-4:]))
+        opt.addCost(lambda x: 0.1 * ca.dot((x - X0)[2:],(x - X0)[2:]))
         # opt.addCost(lambda x,u: 0.005*ca.dot(x[-4:],x[-4:]))
 
         # opt.addCost(lambda x,u: ca.dot(x - X0,x - X0))

@@ -1,0 +1,33 @@
+# Body config, x,y Which at the center of two hips and torso head and tail
+
+M : 16.703
+L : 0.462
+LL : 0.7
+J : 0.21164617 # 0.053164 + 0.15848217 (0.15848 = 4×0.7425×0.231^2)
+
+m1 : 2.8378 # 1.4189*2
+l1 : 0.25
+lc1 : 0.028209 # norm([0.0215,0.0166])
+j1 : 0.0031754
+
+m2 : 0.36 # 0.18*2
+l2 : 0.25
+lc2 : 0.15776
+j2 : 0.001232
+
+tau1lim : 51
+tau2lim : 102 # 51
+tau3lim : 102 # 51
+
+ang1max : 2.76 ## 158/180*pi
+ang1min : -0.49 ## -28/180*pi
+ang2min : -2.84 ## -163/180*pi
+ang2max : -0.66 ## -38/180*pi
+
+dang1lim : 19
+dang2lim : 19
+
+param.fContact : 1
+param.bContact : 1
+
+
