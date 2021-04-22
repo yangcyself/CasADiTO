@@ -10,8 +10,8 @@ class Body:
         self.parent = None
 
     def fix(self, q = None, dq = None):
-        q = ca.DM.zeros(self._q.size()) if q is None else q
-        dq = ca.DM.zeros(self._dq.size()) if dq is None else dq
+        q = ca.DM.zeros(self._q.size()) if q is None else ca.DM(q)
+        dq = ca.DM.zeros(self._dq.size()) if dq is None else ca.DM(dq)
         if(not (q.size() == self._q.size() and dq.size()==self._dq.size()) ):
             raise ValueError("The size of q and dq should be equal to the original")
         self._q = q
@@ -51,11 +51,11 @@ class Body:
 
     @property
     def KE(self):
-        return ca.sum1(ca.vertcat(self._KE(), *[c._KE for c in self.child]))
+        return ca.sum1(ca.vertcat(self._KE(), *[c.KE for c in self.child]))
 
     @property
     def PE(self):
-        return ca.sum1(ca.vertcat(self._PE(), *[c._PE for c in self.child]))
+        return ca.sum1(ca.vertcat(self._PE(), *[c.PE for c in self.child]))
 
 class Body2D(Body):
     defaultG = ca.vertcat(0, -9.81)
@@ -80,7 +80,9 @@ class Body2D(Body):
         raise NotImplementedError
 
     def _Mdp(self):
-        ca.jtimes(self.Mp, self.q, self.dq)
+        if(self.q.size(1)==0):
+            return ca.DM.zeros(3)
+        return ca.jtimes(self.Mp, self.q, self.dq)
 
     @property
     def Mp(self):
@@ -145,7 +147,7 @@ class Body2D(Body):
             return self._visFunc_cache(xv).full()
 
 
-class FreeBase2D(Body2D):
+class Base2D(Body2D):
     def __init__(self, name, M, I, g = None):
         super().__init__(name, 3, M, I,  g = g)
 
@@ -159,9 +161,18 @@ class FreeBase2D(Body2D):
     def addChild(self, ChildType, **kwargs):
         return super().addChild(ChildType, Fp= self.Bp, **kwargs)
     
+    @staticmethod
+    def Freebase(name, M, I, g = None):
+        return Base2D(M, I, g)
+    
+    @staticmethod
+    def FixedBase(name, q = None, dq = None, g = None):
+        b = Base2D(name, 0,0,g)
+        b.fix(q, dq)
+        return b
+        
     def _visFunc(self, xr):
         return ca.Function("basePoints", [xr], [self._Mp[:2].T], "x", "ps" )
-        
 
 class Link2D(Body2D):
 
@@ -317,7 +328,7 @@ class ArticulateSystem:
     
 if __name__ == "__main__":
     Body2D.defaultG = ca.vertcat(0,-9.888)
-    fb = FreeBase2D("fb", 2, 0.5)
+    fb = Base2D.FreeBase("fb", 2, 0.5)
     print(fb.g)
 
     print(fb.KE)
