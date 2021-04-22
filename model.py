@@ -3,8 +3,8 @@ from casadi import *
 import yaml
 
 
-# ConfigFile = "data/robotConfigs/robot1.yaml"
-ConfigFile = "data/robotConfigs/JYminiLite.yaml"
+ConfigFile = "data/robotConfigs/JYMv2.yaml"
+# ConfigFile = "data/robotConfigs/JYminiLite.yaml"
 PI = np.math.pi
 
 with open(ConfigFile, 'r') as stream:
@@ -48,6 +48,9 @@ params = {
     "q2Lim": [-robotParam["ang2max"], -robotParam["ang2min"]],
     "dq1Lim": [-robotParam["dang1lim"], robotParam["dang1lim"]],
     "dq2Lim": [-robotParam["dang2lim"], robotParam["dang2lim"]],
+    "tau1lim": robotParam["tau1lim"],
+    "tau2lim": robotParam["tau2lim"],
+    "tau3lim": robotParam["tau3lim"],
     "G":9.81,
 }
 

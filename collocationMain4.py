@@ -99,7 +99,7 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
 ]
 
 
-opt = TowrCollocationVTiming(14, 4, 4, xlim, ulim, [[-200, 200]]*4, dT0, [0.0001, 0.01])
+opt = TowrCollocationVTiming(14, 4, 4, xlim, ulim, [[-200, 200]]*4, dT0, [dT0/100, dT0])
 opt.Xgen = xGenTerrianHoloCons(14, np.array(xlim), model.pFuncs.values(), lambda p: ca.if_else(p[0]>0.35, p[1],p[1] - 0.3))
 # opt = TowrCollocationDefault(14, 4, 4, xlim, [[-100,100]]*4, [[-200, 200]]*4, dT0)
 
@@ -121,7 +121,10 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         # opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
         #         u_0, X0)
 
-        opt.addCost(lambda x,u: 0.001*ca.dot(u[:4],u[:4]))
+        opt.addCost(lambda x,u: 0.01*ca.dot(u[:4],u[:4]))
+        opt.addCost(lambda ddq1: 0.001 * ca.dot(ddq1[-4:],ddq1[-4:]))
+        # opt.addCost(lambda x,u: 0.005*ca.dot(x[-4:],x[-4:]))
+
         # opt.addCost(lambda x,u: ca.dot(x - X0,x - X0))
         # addAboveGoundConstraint(opt)
 
