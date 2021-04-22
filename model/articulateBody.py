@@ -8,7 +8,17 @@ class Body:
         self._dq = ca.SX.sym("%s_dq"%name,freeD)
         self.child = []
         self.parent = None
-    
+
+    def fix(self, q = None, dq = None):
+        q = ca.DM.zeros(self._q.size()) if q is None else q
+        dq = ca.DM.zeros(self._dq.size()) if dq is None else dq
+        if(not (q.size() == self._q.size() and dq.size()==self._dq.size()) ):
+            raise ValueError("The size of q and dq should be equal to the original")
+        self._q = q
+        self._dq = dq
+        self.freeD = 0
+
+
     def _KE(self):
         raise NotImplementedError
 
@@ -17,23 +27,27 @@ class Body:
 
     @property
     def q(self):
-        return (ca.vertcat(self._q) if self.parent is None 
-                    else ca.vertcat(self._q, self.parent.q))
+        q = ca.DM([]) if not self.freeD else self._q
+        return (q if self.parent is None 
+                    else ca.vertcat(self.parent.q,  q))
 
     @property
     def dq(self):
-        return (ca.vertcat(self._dq) if self.parent is None 
-                    else ca.vertcat(self._dq, self.parent.dq))
+        dq = ca.DM([]) if not self.freeD else self._dq
+        return (dq if self.parent is None 
+                    else ca.vertcat(self.parent.dq,  dq))
 
     @property
     def x(self):
         """The pos of the whole system, including all the children"""
-        return ca.vertcat(self._q, *[c.x for c in self.child])
+        q = ca.DM([]) if not self.freeD else self._q
+        return ca.vertcat(q, *[c.x for c in self.child])
 
     @property
     def dx(self):
         """The vel of the whole system, including all the children"""
-        return ca.vertcat(self._dq, *[c.dx for c in self.child])
+        dq = ca.DM([]) if not self.freeD else self._dq
+        return ca.vertcat(dq, *[c.dx for c in self.child])
 
     @property
     def KE(self):
@@ -137,7 +151,6 @@ class Link2D(Body2D):
         Ax = ca.vertcat(1,0,0)
         return Link2D(name, Fp, lc, la, lb, M, I, Ax, g)
 
-
     def __init__(self, name, Fp, lc, la, lb, M, I, Ax, g = None):
         """Link2D: 2D link. The pos direction of the direction of it's angle
 
@@ -196,7 +209,7 @@ class Link2D(Body2D):
             [type]: [description]
         """
         rB = self.Bp[2]
-        return super().addChild(ChildType, Fp = move_X_p(lp), **kwargs)
+        return super().addChild(ChildType, Fp = self.move_X_p(lp), **kwargs)
 
 
 class ArticulateSystem:
@@ -207,6 +220,11 @@ class ArticulateSystem:
             root (Body): The Root Body of the system (have no parents)
         """
         self.root = root
+    
+    @property
+    def x(self):
+        """the q and dq of the system"""
+        return ca.vertcat(self.root.x, self.root.dx)
     
     @property
     def L(self):
