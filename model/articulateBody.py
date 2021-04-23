@@ -123,6 +123,27 @@ class Body2D(Body):
         c.parent = self
         return c
 
+    def _visFunc(self, xr):
+        """ ca.Function: build an function for visPoints"""
+        raise NotImplementedError
+
+    @property
+    def visPoints(self, xr, xv):
+        """return the points for visulization. The xr is often the state of root, 
+
+        Args:
+            xr (ca.SX): root state the symbol of the xv passed in.
+            xv (narray/DM): the value of the xr
+
+        Returns:
+            [ptrs][nx2]: list of points for used for visulization
+        """
+        try:
+            return self._visFunc_cache(xv).full()
+        except AttributeError:
+            self._visFunc_cache = self._visFunc(xr)
+            return self._visFunc_cache(xv).full()
+
 
 class FreeBase2D(Body2D):
     def __init__(self, name, M, I, g = None):
@@ -137,6 +158,9 @@ class FreeBase2D(Body2D):
 
     def addChild(self, ChildType, **kwargs):
         return super().addChild(ChildType, Fp= self.Bp, **kwargs)
+    
+    def _visFunc(self, xr):
+        return ca.Function("basePoints", [xr], [self._Mp[:2].T], "x", "ps" )
         
 
 class Link2D(Body2D):
@@ -210,6 +234,13 @@ class Link2D(Body2D):
         """
         rB = self.Bp[2]
         return super().addChild(ChildType, Fp = self.move_X_p(lp), **kwargs)
+
+    def _visFunc(self, xr):
+        return ca.Function("%sPoints"%self.name, [xr], 
+            [ca.vertcat(self.points["a"][:2].T,
+                        self.points["b"][:2].T)], "x", "ps" )
+        
+
 
 
 class ArticulateSystem:

@@ -2,7 +2,7 @@ from articulateBody import *
 
 class LeggedRobot2D(ArticulateSystem):
     def __init__(self, params):
-        root = FreeBase2D("Base", 0, 0)
+        root = Base2D.freeBase("Base", 0, 0)
         super().__init__(root) # this will set self.root
 
         self.torso = root.addChild(
@@ -37,3 +37,4 @@ class LeggedRobot2D(ArticulateSystem):
             la = 0, lb = params["legL2"], lc = params["legLc2"],
             M = params["legI2"], I = params["legI2"]
         )# front leg 2
+
