@@ -10,6 +10,4 @@ ground = world.addGround()
 server = raisim.RaisimServer(world)
 server.launchServer(8080)
 
-
-
 server.killServer()
