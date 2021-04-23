@@ -129,7 +129,6 @@ class Body2D(Body):
         """ ca.Function: build an function for visPoints"""
         raise NotImplementedError
 
-    @property
     def visPoints(self, xr, xv):
         """return the points for visulization. The xr is often the state of root, 
 
@@ -209,6 +208,7 @@ class Link2D(Body2D):
         self.points = {
             "a": self.move_X_p(self.la),
             "b": self.move_X_p(self.lb),
+            "f": self.Fp[:2],
             "c": self.move_X_p(self.lc) # the center of mass
         }
 
@@ -249,10 +249,8 @@ class Link2D(Body2D):
     def _visFunc(self, xr):
         return ca.Function("%sPoints"%self.name, [xr], 
             [ca.vertcat(self.points["a"][:2].T,
-                        self.points["b"][:2].T)], "x", "ps" )
+                        self.points["b"][:2].T)], ["x"], ["ps"] )
         
-
-
 
 class ArticulateSystem:
     def __init__(self, root):
