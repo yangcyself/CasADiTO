@@ -222,3 +222,58 @@ class optGen:
         """
         raise NotImplementedError
 
+    def cppGen(self, cppname):
+        C = ca.CodeGenerator(cppname, {"cpp": True, "with_header": True})
+        
+        glen = self.g.size(1)
+        jacJ = ca.jacobian(self.g, self.w)
+        lams = ca.SX.sym("lambda", self.g.size(1))
+        hLs = [ca.hessian(self.g[i], self.w ) for i in range(glen)] # the result contains hessian and gradient of each g
+    
+        hessL = ca.hessian(self.J, self.w)[0] + sum([lams[i] * H for i, (H,j) in enumerate(hLs)])
+
+        nlp_info = ca.Function("nlp_info",[],
+        [ca.DM(self.w.size(1)),        # Storage for the number of variables x
+         ca.DM(self.g.size(1)),        # Storage for the number of constraints g(x)
+         ca.DM(len(jacJ.nonzeros())),    # Storage for the number of nonzero entries in the Jacobian
+         ca.DM(len(hessL.sparsity().get_lower()))], # Storage for the number of nonzero entries in the Hessian
+        [],["n", "m", "nnz_jac_g", "nnz_h_lag"])
+
+        C.add(nlp_info)
+
+
+        bounds_info = ca.Function("bounds_info",list(self.hyperParams.keys()),
+        [self.lbw,        # the lower bounds xL for the variables  x
+         self.ubw,        # the upper bounds xU for the variables 
+         self.lbg,    # the lower bounds gL for the constraints
+         self.ubg], # the upper bounds gU for the constraints 
+        [k.name() for k in self.hyperParams.keys()],["x_l", "x_u", "g_l", "g_u"]
+        )
+
+        C.add(bounds_info)
+
+        starting_point = ca.Function("starting_point", list(self.hyperParams.keys()),
+        [self.w0],	#the initial values for the primal variables x
+        [k.name() for k in self.hyperParams.keys()],["x"]
+        )
+
+        C.add(starting_point)
+
+        hyperAndWsym = list(self.hyperParams.keys()) + [ self.w ]
+        hyperAndWname = [k.name() for k in self.hyperParams.keys()]+["x"]
+        
+        eval_f = ca.Function("eval_f", hyperAndWsym,
+        [self.J],
+        hyperAndWname, ["f"])
+        
+        C.add(eval_f)
+
+
+        eval_grad_f = ca.Function("eval_grad_f", hyperAndWsym,
+        [ca.gradient(self.J, self.w)],
+        hyperAndWname, ["grad_f"])
+                
+        C.add(eval_grad_f)
+        
+
+        C.generate()
