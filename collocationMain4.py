@@ -9,6 +9,8 @@ from ExperimentSecretary.Core import Session
 import os
 import time
 
+from optGen.util import caSubsti
+
 """
 This file use dynamic constraint as dynamics, rather than dynF
 """
@@ -17,8 +19,11 @@ This file use dynamic constraint as dynamics, rather than dynF
 # input dims: [ux4,Fbx2,Ffx2]
 
 dT0 = 0.01
-distance = model.params["torLL"] * 1.5
+# distance = model.params["torLL"] * 1.5
 legLength = model.params["legL2"]
+
+distance = ca.SX.sym("distance",1)
+# distance = 0.5
 
 X0 = np.array([0,0.3 + legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
@@ -101,6 +106,7 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
 
 opt = TowrCollocationVTiming(14, 4, 4, xlim, ulim, [[-200, 200]]*4, dT0, [dT0/100, dT0])
 opt.Xgen = xGenTerrianHoloCons(14, np.array(xlim), model.pFuncs.values(), lambda p: ca.if_else(p[0]>0.35, p[1],p[1] - 0.3))
+opt.hyperParams = {distance: 0.5}
 # opt = TowrCollocationDefault(14, 4, 4, xlim, [[-100,100]]*4, [[-200, 200]]*4, dT0)
 
 opt.begin(x0=X0, u0=[1,125,1,125], F0=[0,100,0,100])
@@ -112,6 +118,7 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     opt.dTgen.chMod(modName = name)
     for i in range(N):
         x_0, u_0 = R(i)
+        x_0 = caSubsti(x_0, opt.hyperParams.keys(), opt.hyperParams.values())
 
         initSol = model.solveCons(EOMF, [("x",x_0, 1e6), ("ddq", np.zeros(7), 1e3)])
         opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 

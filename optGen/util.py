@@ -1,3 +1,4 @@
+import casadi as ca
 
 def notImplementedFunc():
     raise NotImplementedError
@@ -35,3 +36,15 @@ def kwargFunc(f):
         return f(**{k:kwargs[k] for k in sig[0]})
     return func
 
+def caSubsti(a, sym, val):
+    """Substitute the symbols by values and calculate the value of a
+
+    Args:
+        a (MX/SX): The target to calculate
+        sym ([MX/SX]): The symbols to be substituded
+        val (DM/narray): The value of the substituded symbol
+    """
+    if(len(sym) == 0 or isinstance(a, ca.DM)):
+        return a
+    res = ca.substitute([a], sym, val)[0]
+    return ca.DM(res) if res.is_constant() else res

@@ -1,4 +1,4 @@
-from optGen.util import LazyFunc, kwargFunc
+from optGen.util import LazyFunc, kwargFunc, caSubsti
 import casadi as ca
 import numpy as np
 
@@ -26,6 +26,9 @@ Two steps for building an opt problem:
         e.g. if _state has keys x,u,F. 
             Then the function with argument (x,F,u) or (u) are all valid, 
             but ones with argument (x0, u) is not valid
+
+hyperParams (dict): e.g. the distance for the robot to jump is a user defined value, but 
+    appears in w0 and g as a free MX symbol. The setting of this hyperparameter is setted here
 """
 class optGen:
     def __init__(self):
@@ -72,9 +75,17 @@ class optGen:
         """
         self._parseSol = LazyFunc(
             lambda: ca.Function('%sParse'%self.__class__.__name__, 
-                [self.w], [c() for c in self._parse.values()] + [c.w for c in self._child.values()], 
-                ['w'], [n for n in self._parse.keys()] + [n for n in self._child.keys()])
+                [self.w]+list(self.hyperParams.keys()), 
+                    [c() for c in self._parse.values()] + [c.w for c in self._child.values()], 
+                ['w']+[k.name() for k in self.hyperParams.keys()], 
+                    [n for n in self._parse.keys()] + [n for n in self._child.keys()])
         )
+
+        """_hyperParams:  free variables and their values. Defaults to None.
+            Those free variables might involves building the w0 or the cost function etc.
+            {SX: val}
+        """
+        self._hyperParams = {}
 
     @property
     def w(self):
@@ -84,48 +95,61 @@ class optGen:
     @property
     def w0(self):
         """narray: the init value of w"""
-        return np.concatenate([np.array([])]
-            + [np.array(a).reshape(-1) for a in self._w0]
-            + [c.w0 for c in self._child.values()])
+
+        return self.substHyperParam(ca.vertcat(
+                *self._w0, 
+                *[c.w0 for c in self._child.values()]))
 
     @property
     def lbw(self):
         """narray: the lower bound of w"""
-        return np.concatenate([np.array([])]
-            + [np.array(a).reshape(-1) for a in self._lbw]
-            + [c.lbw for c in self._child.values()])
+        return self.substHyperParam(ca.vertcat(
+                *self._lbw,
+                *[c.lbw for c in self._child.values()]))
 
     @property
     def ubw(self):
         """narray: the upper bound of w"""
-        return np.concatenate([np.array([])]
-            + [np.array(a).reshape(-1) for a in self._ubw]
-            + [c.ubw for c in self._child.values()])
+        return self.substHyperParam(ca.vertcat(
+            *self._ubw,
+            *[c.ubw for c in self._child.values()]))
 
     @property
     def g(self):
         """[MX,SX]: the variables of this and child"""
-        return ca.vertcat(*self._g, *[c.g for c in self._child.values()])
+        return self.substHyperParam(ca.vertcat(
+                *self._g, *[c.g for c in self._child.values()]))
 
 
     @property
     def lbg(self):
         """narray: the lower bound of g"""
-        return np.concatenate([np.array([])]
-            + [np.array(a).reshape(-1) for a in self._lbg]
-            + [c.lbg for c in self._child.values()])
+        return self.substHyperParam(ca.vertcat(
+                *self._lbg,
+                *[c.lbg for c in self._child.values()]))
 
     @property
     def ubg(self):
         """narray: the upper bound of g"""
-        return np.concatenate([np.array([])]
-            + [np.array(a).reshape(-1) for a in self._ubg]
-            + [c.ubg for c in self._child.values()])
+        return self.substHyperParam(ca.vertcat(
+                *self._ubg,
+                *[c.ubg for c in self._child.values()]))
 
     @property
     def J(self):
         """[SX,MX]: the cost function"""
         return ca.sum1(ca.vertcat(self._J, *[c.J for c in self._child.values()]))
+
+    @property
+    def hyperParams(self):
+        return {**self._hyperParams}
+    
+    @hyperParams.setter
+    def hyperParams(self, d):
+        self._hyperParams.update(d)
+
+    def substHyperParam(self, target):
+        return caSubsti(target, self._hyperParams.keys(), self._hyperParams.values())
 
     def loadSol(self, sol):
         """[loadSol]: load the solution and pass the corresponding 
@@ -134,7 +158,7 @@ class optGen:
             sol ([narray, MX]): the solution of the optimization problem
         """
         self._sol = sol
-        parseRes = self._parseSol(w = sol['x'])
+        parseRes = self._parseSol(w = sol['x'], **{k.name():v for k,v in self._hyperParams.items()})
         for n,c in self._child.items():
             c.loadSol({'x':parseRes[n]})
     
@@ -142,10 +166,19 @@ class optGen:
         return { k: 
                 v if k not in self._child.keys()
                   else self._child[k].parseSol({'x':v})
-            for k,v in self._parseSol(w=sol['x']).items()
+            for k,v in self._parseSol(w=sol['x'], **{k.name():v for k,v in self._hyperParams.items()}).items()
             }
     
     def buildSolver(self, solver = "ipopt", options = None):
+        """build the nlp solver for solving the problem
+
+        Args:
+            solver (str, optional): the algorithm to use. Defaults to "ipopt".
+            options (dict, optional): the options for the nlp solver.
+
+        Returns:
+            ca.Function: the solver function
+        """
         options = {} if options is None else options
         prob = {'f':self.J, 'x': self.w, 'g': self.g}
         solver = ca.nlpsol('solver', solver, prob, options)
