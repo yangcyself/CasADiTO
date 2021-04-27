@@ -81,7 +81,7 @@ class Body2D(Body):
 
     def _Mdp(self):
         if(self.q.size(1)==0):
-            return ca.DM.zeros(3)
+            return ca.DM.zeros(3) if self.parent is None else self.parent.Mdp
         return ca.jtimes(self.Mp, self.q, self.dq)
 
     @property
@@ -140,10 +140,10 @@ class Body2D(Body):
             [ptrs][nx2]: list of points for used for visulization
         """
         try:
-            return self._visFunc_cache(xv).full()
+            return self._visFunc_cache(xv)
         except AttributeError:
             self._visFunc_cache = self._visFunc(xr)
-            return self._visFunc_cache(xv).full()
+            return self._visFunc_cache(xv)
 
 
 class Base2D(Body2D):
@@ -280,10 +280,11 @@ class ArticulateSystem:
         """The Equation of Motion (x, dx, ddx, Q)
         """
         L = self.L
-        ddq = ca.SX.sym("ddq",7)
+        d = self.dim
+        ddq = ca.SX.sym("ddq",d)
         dq = self.root.dx
         q = self.root.x
-        Q = ca.SX.sym("Q",7)
+        Q = ca.SX.sym("Q",d)
         EOM = (ca.jtimes(ca.jacobian(L,dq).T, dq, ddq) 
             + ca.jtimes(ca.jacobian(L,dq).T, q, dq) 
             - ca.jacobian(L,q).T - Q) # equation of motion

@@ -223,6 +223,8 @@ class FGenDefault(optGen):
         pass
     
     def step(self, step, F0, **kwargs):
+        if(not self._FDim):
+            return []
         Fk = ca.SX.sym('F%d'%step, self._FDim)
         self._w.append(Fk)
         self._lbw.append(self._FLim[:,0])

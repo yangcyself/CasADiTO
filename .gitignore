@@ -6,3 +6,4 @@ __pycache__
 testES.py
 data/animation
 *.csv
+*.mp4
