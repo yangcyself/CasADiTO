@@ -226,16 +226,17 @@ class optGen:
         C = ca.CodeGenerator(cppname, {"cpp": True, "with_header": True})
         
         glen = self.g.size(1)
-        jacJ = ca.jacobian(self.g, self.w)
+        jacg = ca.jacobian(self.g, self.w)
         lams = ca.SX.sym("lambda", self.g.size(1))
+        sigm = ca.SX.sym("sigma_f") # the objective factor for calculating the hessian of the lagrange
         hLs = [ca.hessian(self.g[i], self.w ) for i in range(glen)] # the result contains hessian and gradient of each g
     
-        hessL = ca.hessian(self.J, self.w)[0] + sum([lams[i] * H for i, (H,j) in enumerate(hLs)])
+        hessL = sigm * ca.hessian(self.J, self.w)[0] + sum([lams[i] * H for i, (H,j) in enumerate(hLs)])
 
         nlp_info = ca.Function("nlp_info",[],
         [ca.DM(self.w.size(1)),        # Storage for the number of variables x
          ca.DM(self.g.size(1)),        # Storage for the number of constraints g(x)
-         ca.DM(len(jacJ.nonzeros())),    # Storage for the number of nonzero entries in the Jacobian
+         ca.DM(len(jacg.nonzeros())),    # Storage for the number of nonzero entries in the Jacobian
          ca.DM(len(hessL.sparsity().get_lower()))], # Storage for the number of nonzero entries in the Hessian
         [],["n", "m", "nnz_jac_g", "nnz_h_lag"])
 
@@ -275,5 +276,26 @@ class optGen:
                 
         C.add(eval_grad_f)
         
+
+        eval_g = ca.Function("eval_g", hyperAndWsym,
+        [self.g],
+        hyperAndWname, ["g"])
+
+        C.add(eval_g)
+
+
+        eval_jac_g = ca.Function("eval_grad_g", hyperAndWsym, # note: this method only return the Jg
+        [jacg],
+        hyperAndWname, ["grad_g"])
+
+        C.add(eval_jac_g)
+
+
+        eval_h = ca.Function("eval_h", hyperAndWsym+[sigm, lams], # note: this method only return the Jg
+        [hessL],
+        hyperAndWname+["ms", "ml"], ["h"])
+
+        C.add(eval_h)
+
 
         C.generate()
