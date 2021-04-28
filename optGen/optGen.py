@@ -260,6 +260,8 @@ class optGen:
 
         C.add(starting_point)
 
+        # The parameter conversion is hyper parameter first, and the interface parameter follows
+        # So that feeding the hyper parameters makes in becomes a interface method for IPOPT
         hyperAndWsym = list(self.hyperParams.keys()) + [ self.w ]
         hyperAndWname = [k.name() for k in self.hyperParams.keys()]+["x"]
         
