@@ -3,8 +3,8 @@ from casadi import *
 import yaml
 
 
-ConfigFile = "data/robotConfigs/JYMv2.yaml"
-# ConfigFile = "data/robotConfigs/JYminiLite.yaml"
+# ConfigFile = "data/robotConfigs/JYMv2.yaml"
+ConfigFile = "data/robotConfigs/JYminiLite.yaml"
 PI = np.math.pi
 
 with open(ConfigFile, 'r') as stream:

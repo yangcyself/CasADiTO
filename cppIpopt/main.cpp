@@ -2,8 +2,12 @@
 #include "tonlp.h"
 
 #include <iostream>
+#include <fstream>
 
 using namespace Ipopt;
+
+const static Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
+
 
 int main(
    int    /*argv*/,
@@ -61,6 +65,15 @@ int main(
    std::cout << "********* T out **********"<<std::endl;
    std::cout << T <<std::endl;
    
+   std::ofstream fox("X_out.csv");
+   fox << X.transpose().format(CSVFormat);
+
+   std::ofstream fou("U_out.csv");
+   fou << U.transpose().format(CSVFormat);
+
+   std::ofstream fot("T_out.csv");
+   fot << T.transpose().format(CSVFormat);
+
    // As the SmartPtrs go out of scope, the reference count
    // will be decremented and the objects will automatically
    // be deleted.

@@ -19,10 +19,10 @@ This file use dynamic constraint as dynamics, rather than dynF
 # input dims: [ux4,Fbx2,Ffx2]
 
 dT0 = 0.01
-# distance = model.params["torLL"] * 1.5
+distance = model.params["torLL"] * 1.5
 legLength = model.params["legL2"]
 
-distance = ca.SX.sym("distance",1)
+# distance = ca.SX.sym("distance",1)
 # distance = 0.5
 
 X0 = np.array([0,0.3 + legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
@@ -106,7 +106,7 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
 
 opt = TowrCollocationVTiming(14, 4, 4, xlim, ulim, [[-200, 200]]*4, dT0, [dT0/100, dT0])
 opt.Xgen = xGenTerrianHoloCons(14, np.array(xlim), model.pFuncs.values(), lambda p: ca.if_else(p[0]>0.35, p[1],p[1] - 0.3))
-opt.hyperParams = {distance: 0.5}
+# opt.hyperParams = {distance: 0.5}
 # opt = TowrCollocationDefault(14, 4, 4, xlim, [[-100,100]]*4, [[-200, 200]]*4, dT0)
 
 opt.begin(x0=X0, u0=[1,125,1,125], F0=[0,100,0,100])
@@ -162,6 +162,8 @@ opt.step(lambda dx,x,u : EoMFuncs[(0,0)](x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"
 
 if __name__ == "__main__" :
 
+    opt.cppGen("nlpGen.cpp")
+    exit()
     import matplotlib.pyplot as plt
     with Session(__file__,terminalLog = True) as ss:
     # if(True):
@@ -189,4 +191,4 @@ if __name__ == "__main__" :
 
         ss.add_info("solutionPkl",dumpname)
         ss.add_info("Scheme",Scheme)
-        ss.add_info("Note","Try the new trajOptimizer")
+        ss.add_info("Note","Generate CPP and Compare the Result!")
