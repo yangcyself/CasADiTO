@@ -9,15 +9,19 @@ class LazyFunc:
     """
     def __init__(self, funcGen = lambda: notImplementedFunc):
         self.funcGen = funcGen
-    def __call__(self, *args, **kwargs):
+
+    @property
+    def func(self):
         try:
-            return self.func(*args, **kwargs)
+            return self._func
         except AttributeError:
-            self.func = self.funcGen()
+            self._func = self.funcGen()
+        return self._func
+        
+    def __call__(self, *args, **kwargs):
         return self.func(*args, **kwargs)
 
 import inspect
-
 
 def kwargFunc(f):
     """Decorator: Make the f accepts only kwarg,

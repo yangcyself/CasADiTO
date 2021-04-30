@@ -224,7 +224,7 @@ class optGen:
 
     def cppGen(self, cppname):
         C = ca.CodeGenerator(cppname, {"cpp": True, "with_header": True})
-        
+
         glen = self.g.size(1)
         jacg = ca.jacobian(self.g, self.w)
         lams = ca.SX.sym("lambda", self.g.size(1))
@@ -265,36 +265,36 @@ class optGen:
         hyperAndWsym = list(self.hyperParams.keys()) + [ self.w ]
         hyperAndWname = [k.name() for k in self.hyperParams.keys()]+["x"]
         
-        eval_f = ca.Function("eval_f", hyperAndWsym,
+        eval_f = ca.Function("nlp_f", hyperAndWsym,
         [self.J],
         hyperAndWname, ["f"])
         
         C.add(eval_f)
 
 
-        eval_grad_f = ca.Function("eval_grad_f", hyperAndWsym,
+        eval_grad_f = ca.Function("nlp_grad_f", hyperAndWsym,
         [ca.gradient(self.J, self.w)],
         hyperAndWname, ["grad_f"])
                 
         C.add(eval_grad_f)
         
 
-        eval_g = ca.Function("eval_g", hyperAndWsym,
+        eval_g = ca.Function("nlp_g", hyperAndWsym,
         [self.g],
         hyperAndWname, ["g"])
 
         C.add(eval_g)
 
 
-        eval_jac_g = ca.Function("eval_grad_g", hyperAndWsym, # note: this method only return the Jg
+        eval_jac_g = ca.Function("nlp_grad_g", hyperAndWsym, # note: this method only return the Jg
         [jacg],
         hyperAndWname, ["grad_g"])
 
         C.add(eval_jac_g)
 
-
-        eval_h = ca.Function("eval_h", hyperAndWsym+[sigm, lams], # note: this method only return the Jg
-        [hessL],
+        maskLower = ca.DM.ones(ca.Sparsity.lower(hessL.size(1)))
+        eval_h = ca.Function("nlp_h", hyperAndWsym+[sigm, lams], # note: this method only return the h
+        [hessL * maskLower],
         hyperAndWname+["ms", "ml"], ["h"])
 
         C.add(eval_h)
