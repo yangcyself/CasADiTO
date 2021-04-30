@@ -143,6 +143,10 @@ class optGen:
     @property
     def hyperParams(self):
         return {**self._hyperParams}
+
+    @property
+    def allSolutionParse(self):
+        return [self._parseSol.func] + [f for c in self._child.values() for f in c.allSolutionParse]
     
     @hyperParams.setter
     def hyperParams(self, d):
@@ -299,5 +303,7 @@ class optGen:
 
         C.add(eval_h)
 
+        for f in self.allSolutionParse:
+            C.add(f)
 
         C.generate()

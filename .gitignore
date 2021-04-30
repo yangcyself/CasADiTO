@@ -7,3 +7,5 @@ testES.py
 data/animation
 *.csv
 *.mp4
+nlpGen*
+cppIpopt/build
