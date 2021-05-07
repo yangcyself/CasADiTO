@@ -1,6 +1,8 @@
 from optGen.util import LazyFunc, kwargFunc, caSubsti
 import casadi as ca
 import numpy as np
+import os
+import shutil
 
 """[optGen]: optimization problem generator
 Contains cost, variable, and constraints. 
@@ -153,6 +155,8 @@ class optGen:
         self._hyperParams.update(d)
 
     def substHyperParam(self, target):
+        target = ca.DM(target) if isinstance(target, np.ndarray) else target
+        target = ca.DM(target) if isinstance(target, ca.SX) and target.is_constant() else target
         return caSubsti(target, self._hyperParams.keys(), self._hyperParams.values())
 
     def loadSol(self, sol):
@@ -226,13 +230,38 @@ class optGen:
         """
         raise NotImplementedError
 
-    def cppGen(self, cppname):
-        C = ca.CodeGenerator(cppname, {"cpp": True, "with_header": True})
-
+    def cppGen(self, cppname, genFolder = True):
+        cppOptions = {"cpp": True, "with_header": True,"verbose":False}
+        
+        # Build different policies according to whether to generate the functions in 
+        # a single file or in a folder
+        if(not genFolder):
+            C = ca.CodeGenerator(cppname, cppOptions) # comments in the generated file
+            def addFunction(f):
+                C.add(f)
+            def outputFile():
+                C.generate()
+        else:
+            hfiles = []
+            try:
+                os.makedirs(cppname)
+            except FileExistsError:
+                pass
+            def addFunction(f):
+                f.generate(f.name(), cppOptions)# casadi seems like not able to generate in subdir
+                shutil.move("%s.cpp"%f.name(), os.path.join(cppname, "%s.cpp"%f.name())) # this will overwrite if exist
+                shutil.move("%s.h"%f.name(), os.path.join(cppname, "%s.h"%f.name()))
+                os.path.join(cppname, f.name())
+                hfiles.append("%s.h"%f.name())
+            def outputFile():
+                with open(os.path.join(cppname, "interface.h"), "w") as f:
+                    for h in hfiles:
+                        f.write('#include "%s"\n'%h)
+            
         glen = self.g.size(1)
         jacg = ca.jacobian(self.g, self.w)
-        lams = ca.SX.sym("lambda", self.g.size(1))
-        sigm = ca.SX.sym("sigma_f") # the objective factor for calculating the hessian of the lagrange
+        lams = type(self.w).sym("lambda", self.g.size(1))
+        sigm = type(self.w).sym("sigma_f") # the objective factor for calculating the hessian of the lagrange
         hLs = [ca.hessian(self.g[i], self.w ) for i in range(glen)] # the result contains hessian and gradient of each g
     
         hessL = sigm * ca.hessian(self.J, self.w)[0] + sum([lams[i] * H for i, (H,j) in enumerate(hLs)])
@@ -240,12 +269,14 @@ class optGen:
         nlp_info = ca.Function("nlp_info",[],
         [ca.DM(self.w.size(1)),        # Storage for the number of variables x
          ca.DM(self.g.size(1)),        # Storage for the number of constraints g(x)
-         ca.DM(len(jacg.nonzeros())),    # Storage for the number of nonzero entries in the Jacobian
-         ca.DM(len(hessL.sparsity().get_lower()))], # Storage for the number of nonzero entries in the Hessian
+        #  ca.DM(len(jacg.nonzeros())),    # Storage for the number of nonzero entries in the Jacobian
+        #  ca.DM(len(hessL.sparsity().get_lower()))], # Storage for the number of nonzero entries in the Hessian
+         ca.DM(jacg.sparsity().nnz()),    # Storage for the number of nonzero entries in the Jacobian
+         ca.DM(hessL.sparsity().nnz_lower())], # Storage for the number of nonzero entries in the Hessian
+
         [],["n", "m", "nnz_jac_g", "nnz_h_lag"])
 
-        C.add(nlp_info)
-
+        addFunction(nlp_info)
 
         bounds_info = ca.Function("bounds_info",list(self.hyperParams.keys()),
         [self.lbw,        # the lower bounds xL for the variables  x
@@ -255,14 +286,14 @@ class optGen:
         [k.name() for k in self.hyperParams.keys()],["x_l", "x_u", "g_l", "g_u"]
         )
 
-        C.add(bounds_info)
+        addFunction(bounds_info)
 
         starting_point = ca.Function("starting_point", list(self.hyperParams.keys()),
         [self.w0],	#the initial values for the primal variables x
         [k.name() for k in self.hyperParams.keys()],["x"]
         )
 
-        C.add(starting_point)
+        addFunction(starting_point)
 
         # The parameter conversion is hyper parameter first, and the interface parameter follows
         # So that feeding the hyper parameters makes in becomes a interface method for IPOPT
@@ -273,37 +304,37 @@ class optGen:
         [self.J],
         hyperAndWname, ["f"])
         
-        C.add(eval_f)
+        addFunction(eval_f)
 
 
         eval_grad_f = ca.Function("nlp_grad_f", hyperAndWsym,
         [ca.gradient(self.J, self.w)],
         hyperAndWname, ["grad_f"])
                 
-        C.add(eval_grad_f)
+        addFunction(eval_grad_f)
         
 
         eval_g = ca.Function("nlp_g", hyperAndWsym,
         [self.g],
         hyperAndWname, ["g"])
 
-        C.add(eval_g)
+        addFunction(eval_g)
 
 
         eval_jac_g = ca.Function("nlp_grad_g", hyperAndWsym, # note: this method only return the Jg
         [jacg],
         hyperAndWname, ["grad_g"])
 
-        C.add(eval_jac_g)
+        addFunction(eval_jac_g)
 
         maskLower = ca.DM.ones(ca.Sparsity.lower(hessL.size(1)))
         eval_h = ca.Function("nlp_h", hyperAndWsym+[sigm, lams], # note: this method only return the h
         [hessL * maskLower],
         hyperAndWname+["ms", "ml"], ["h"])
 
-        C.add(eval_h)
+        addFunction(eval_h)
 
         for f in self.allSolutionParse:
-            C.add(f)
+            addFunction(f)
 
-        C.generate()
+        outputFile()
