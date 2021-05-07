@@ -1,7 +1,9 @@
 # from trajOptimizer import *
 # from policyOptimizer import *
 from optGen.trajOptimizer import *
-import model, vis
+# import model, vis
+from model.leggedRobot2D import LeggedRobot2D
+from mathUtil import solveLinearCons
 import pickle as pkl
 from trajOptimizerHelper import *
 
@@ -9,15 +11,14 @@ from ExperimentSecretary.Core import Session
 import os
 import time
 
-from optGen.util import caSubsti
+from optGen.util import caSubsti, caFuncSubsti
 
 """
 This file use dynamic constraint as dynamics, rather than dynF
 """
 
-
+model = LeggedRobot2D.fromYaml("data/robotConfigs/JYminiLite.yaml")
 # input dims: [ux4,Fbx2,Ffx2]
-
 dT0 = 0.01
 distance = model.params["torLL"] * 1.5
 legLength = model.params["legL2"]
@@ -35,7 +36,7 @@ XDes = np.array([distance, legLength ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math
 xlim = [
     [-np.inf,np.inf],
     [0,np.inf],
-    [-model.PI, model.PI],
+    [-ca.pi, ca.pi],
     model.params["q1Lim"],
     model.params["q2Lim"],
     model.params["q1Lim"],
@@ -120,9 +121,9 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         x_0, u_0 = R(i)
         x_0 = caSubsti(x_0, opt.hyperParams.keys(), opt.hyperParams.values())
 
-        initSol = model.solveCons(EOMF, [("x",x_0, 1e6), ("ddq", np.zeros(7), 1e3)])
+        initSol = solveLinearCons(caFuncSubsti(EOMF, {"x":x_0}), [("ddq", np.zeros(7), 1e3)])
         opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-                x0 = x_0, u0 = initSol["u"].full(),F0 = initSol["F"].full())
+                x0 = x_0, u0 = initSol["u"],F0 = initSol["F"])
         x_init.append(x_0)
 
         # opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
@@ -162,8 +163,8 @@ opt.step(lambda dx,x,u : EoMFuncs[(0,0)](x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"
 
 if __name__ == "__main__" :
 
-    opt.cppGen("nlpGen.cpp")
-    exit()
+    # opt.cppGen("cppIpopt/nlpGen")
+    # exit()
     import matplotlib.pyplot as plt
     with Session(__file__,terminalLog = True) as ss:
     # if(True):
@@ -172,7 +173,7 @@ if __name__ == "__main__" :
             "calc_g" : True,
             "calc_lam_x" : True,
             "calc_multipliers" : True,
-            # "expand" : True,
+            "expand" : True,
                 "verbose_init":True,
                 # "jac_g": gjacFunc
             "ipopt":{

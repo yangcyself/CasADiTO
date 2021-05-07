@@ -49,14 +49,14 @@ opt.step(lambda dx,x,u : dynf(x,u) - dx[mDim:], # EOMfunc:  [x,u,F,ddq]=>[EOM])
 if __name__ == "__main__" :
 
     import matplotlib.pyplot as plt
-    with Session(__file__,terminalLog = True) as ss:
-    # if(True):
+    # with Session(__file__,terminalLog = True) as ss:
+    if(True):
         res = opt.solve(options=
             {"calc_f" : True,
             "calc_g" : True,
             "calc_lam_x" : True,
             "calc_multipliers" : True,
-            # "expand" : True,
+            "expand" : True,
                 "verbose_init":True,
                 # "jac_g": gjacFunc
             "ipopt":{
@@ -85,7 +85,7 @@ if __name__ == "__main__" :
         ani = animation.FuncAnimation(
             fig, animate, interval=100, blit=True, save_count=5000)
         plt.show()
-        ani.save("penduMovie2.mp4")
+        # ani.save("penduMovie2.mp4")
 
         fig, ax = plt.subplots()
         plt.plot(x_plot[:-1,:2])

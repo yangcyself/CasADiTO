@@ -162,7 +162,7 @@ class Base2D(Body2D):
     
     @staticmethod
     def Freebase(name, M, I, g = None):
-        return Base2D(M, I, g)
+        return Base2D(name, M, I, g)
     
     @staticmethod
     def FixedBase(name, q = None, dq = None, g = None):
@@ -176,16 +176,16 @@ class Base2D(Body2D):
 class Link2D(Body2D):
 
     @staticmethod
-    def Rot(name, Fp, lc, la, lb, M, I, g = None):
+    def Rot(name, Fp, lc, la, lb, M, I, fix = False, g = None):
         Ax = ca.vertcat(0,0,1)
-        return Link2D(name, Fp, lc, la, lb, M, I, Ax, g)
+        return Link2D(name, Fp, lc, la, lb, M, I, Ax, fix, g)
 
     @staticmethod
-    def Prisma(name, Fp, lc, la, lb, M, I, g = None):
+    def Prisma(name, Fp, lc, la, lb, M, I, fix = False, g = None):
         Ax = ca.vertcat(1,0,0)
-        return Link2D(name, Fp, lc, la, lb, M, I, Ax, g)
+        return Link2D(name, Fp, lc, la, lb, M, I, Ax, fix, g)
 
-    def __init__(self, name, Fp, lc, la, lb, M, I, Ax, g = None):
+    def __init__(self, name, Fp, lc, la, lb, M, I, Ax, fix = False, g = None):
         """Link2D: 2D link. The pos direction of the direction of it's angle
 
         Args:
@@ -203,8 +203,11 @@ class Link2D(Body2D):
         self.lc = lc
         self.la = la
         self.lb = lb
-        self.Ax = Ax * self._q
 
+        if(fix):
+            self.fix()
+
+        self.Ax = Ax * self._q
         self.points = {
             "a": self.move_X_p(self.la),
             "b": self.move_X_p(self.lb),
@@ -262,9 +265,17 @@ class ArticulateSystem:
         self.root = root
     
     @property
+    def q(self):
+        return self.root.x
+    
+    @property
+    def dq(self):
+        return self.root.dx
+
+    @property
     def x(self):
         """the q and dq of the system"""
-        return ca.vertcat(self.root.x, self.root.dx)
+        return ca.vertcat(self.q, self.dq)
     
     @property
     def L(self):
@@ -282,8 +293,8 @@ class ArticulateSystem:
         L = self.L
         d = self.dim
         ddq = ca.SX.sym("ddq",d)
-        dq = self.root.dx
-        q = self.root.x
+        dq = self.dq
+        q = self.q
         Q = ca.SX.sym("Q",d)
         EOM = (ca.jtimes(ca.jacobian(L,dq).T, dq, ddq) 
             + ca.jtimes(ca.jacobian(L,dq).T, q, dq) 
@@ -295,20 +306,20 @@ class ArticulateSystem:
     @property
     def D(self):
         KE = self.root.KE
-        dq = self.root.dx
+        dq = self.dq
         return ca.simplify(ca.jacobian(ca.jacobian(KE,dq)    ,dq))
 
     @property
     def C(self):
         L = self.L
-        dq = self.root.dx
-        q = self.root.x
+        dq = self.dq
+        q = self.q
         return ca.simplify(ca.jacobian(ca.jacobian(L,dq).T, q))
 
     @property
     def G(self):
         PE = self.root.PE
-        q = self.root.x
+        q = self.q
         return ca.simplify(ca.jacobian(PE,q)).T
     
     @property
@@ -320,8 +331,8 @@ class ArticulateSystem:
         """C+G, models the nonlinearity and gravity together
         """
         L = self.L
-        dq = self.root.dx
-        q = self.root.x
+        dq = self.dq
+        q = self.q
         return ca.jtimes(ca.jacobian(L,dq).T, q, dq) - ca.jacobian(L,q).T
 
     

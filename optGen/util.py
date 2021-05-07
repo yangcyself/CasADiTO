@@ -52,3 +52,22 @@ def caSubsti(a, sym, val):
         return a
     res = ca.substitute([a], sym, val)[0]
     return ca.DM(res) if res.is_constant() else res
+
+def caFuncSubsti(f, kwargs):
+    """Substitute the symbols by values and calculate the value of a
+
+    Args:
+        a (MX/SX): The target to calculate
+        kwargs {name, val} the name and value to substitute in the function
+    """
+    X_dict = {n: ca.SX.sym(n,f.size_in(n)) 
+        for n in f.name_in() if n not in kwargs.keys()
+    }
+    fres = f(**X_dict, **kwargs)
+    return ca.Function(
+        f.name(),
+        list(X_dict.values()),
+        list(fres.values()),
+        list(X_dict.keys()),
+        list(fres.keys())
+    )
