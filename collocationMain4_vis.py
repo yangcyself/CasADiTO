@@ -1,5 +1,5 @@
 # from collocationMain4 import *
-from directMain import rounge_Kutta, DynFuncs
+# from directMain import rounge_Kutta, DynFuncs
 import vis
 import pickle as pkl
 import matplotlib.pyplot as plt
@@ -59,12 +59,12 @@ phase = ["init"]
 x_sim = [x_opt[0]]
 u_count = 0
 for cons, N, name in Scheme:
-    dynF = DynFuncs[cons]
+    # dynF = DynFuncs[cons]
     for i in range(N):
         phase.append(name)
-        x_sim.append( np.array(rounge_Kutta(x_sim[-1], u_opt[u_count][:4], 
-            lambda x,u : dynF(x=x,u=u)["dx"])).reshape(-1))
-        u_count += 1
+        # x_sim.append( np.array(rounge_Kutta(x_sim[-1], u_opt[u_count][:4], 
+        #     lambda x,u : dynF(x=x,u=u)["dx"])).reshape(-1))
+        # u_count += 1
         
 
 
@@ -84,7 +84,7 @@ def animate(i):
     ind = 0
     while(ind<len(timeStamps)-2 and timeStamps[ind]<t-1e-9 ):
         ind+=1
-    xsim = x_sim[ind]
+    # xsim = x_sim[ind]
     xsol = x_opt[ind]
     xini = x_init[ind]
 

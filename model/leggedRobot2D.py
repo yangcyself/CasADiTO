@@ -34,7 +34,7 @@ class LeggedRobot2D(ArticulateSystem):
         self.f2 = self.f1.addChild(
             Link2D.Rot, params["legL1"], name = "Fshank",
             la = 0, lb = params["legL2"], lc = params["legLc2"],
-            M = params["legI2"], I = params["legI2"]
+            M = params["legM2"], I = params["legI2"]
         )# front leg 2
 
     @property
@@ -59,7 +59,7 @@ class LeggedRobot2D(ArticulateSystem):
             "phfLeg1" : ca.Function("phfLeg1", [self.x], [self.f1.points["b"]]),
             "phfLeg2" : ca.Function("phfLeg2", [self.x], [self.f2.points["b"]])
         }
-    
+
     def buildEOMF(self, consMap, name=""):
         """Build the equation of Motion and constraint. Return g(x,u,F,ddq)
 
@@ -75,7 +75,7 @@ class LeggedRobot2D(ArticulateSystem):
         F = ca.SX.sym("F",self.F_dim) #Fb, Ff
         u = ca.SX.sym("u", self.u_dim)
 
-        cons = [self.b2.points["b"][:2], self.f2.points["b"][:2]]
+        cons = [self.b2.points["b"], self.f2.points["b"]]
         consJ = [ca.jacobian(c,self.q) for c in cons]
         toeJac = ca.vertcat(*consJ)
 
@@ -83,6 +83,7 @@ class LeggedRobot2D(ArticulateSystem):
         g = self.EOM_func(self.q, self.dq, ddq, self.B @ u+toeJac.T @ F) # the EOM
         g = ca.vertcat(g, *[ cJ @ ddq + ca.jtimes(cJ,self.q,self.dq)@self.dq for cJ,cm in zip(consJ,consMap) if cm])
         g = ca.vertcat(g, *[ F[i*2:i*2+2] for i,cm in enumerate(consMap) if not cm])
+        g = ca.simplify(g)
         return ca.Function("%sEOMF"%name, [self.x,u,F,ddq], [g], ["x","u","F","ddq"], ["%sEOM"%name])
     
 
@@ -93,14 +94,14 @@ class LeggedRobot2D(ArticulateSystem):
             # np.concatenate([c.visPoints(self.root.x, x) for c in [self.cart] + self.links])
         except AttributeError:
             xsym = ca.SX.sym("xsym", len(x))
-            linkLine = ca.vertcat(self.b2.points["b"][:2], 
-                                 self.b1.points["b"][:2],
-                                 self.b1.points["a"][:2],
-                                 self.torso.points["a"][:2],
-                                 self.torso.points["b"][:2],
-                                 self.f1.points["a"][:2], 
-                                 self.f1.points["b"][:2],
-                                 self.f2.points["b"][:2])
+            linkLine = ca.vertcat(self.b2.points["b"], 
+                                 self.b1.points["b"],
+                                 self.b1.points["a"],
+                                 self.torso.points["a"],
+                                 self.torso.points["b"],
+                                 self.f1.points["a"], 
+                                 self.f1.points["b"],
+                                 self.f2.points["b"])
             self.linkLine_func_cache = ca.Function("linkLine_func", [xsym], [linkLine], ["xsym"], ["linkLine"])
             linkLine = self.linkLine_func_cache(x)
 

@@ -109,7 +109,7 @@ class Body2D(Body):
                 + 0.5*self.I*self.Mdp[2]**2) # rotation
     
     def _PE(self):
-        return - ca.dot(self.g, self.Mp[:2])
+        return - self.M * ca.dot(self.g, self.Mp[:2])
 
 
     def addChild(self, ChildType, **kwargs):
@@ -189,6 +189,7 @@ class Link2D(Body2D):
         """Link2D: 2D link. The pos direction of the direction of it's angle
 
         Args:
+            Fp: parent's frame point
             g ([SX[2x1]], optional): Gravity accleration. Defaults to (0, -9.81).
             lc (double): the length from the frame to the CoM
             la (double): the length from the frame to one of the end point 
@@ -209,10 +210,10 @@ class Link2D(Body2D):
 
         self.Ax = Ax * self._q
         self.points = {
-            "a": self.move_X_p(self.la),
-            "b": self.move_X_p(self.lb),
+            "a": self.move_X_p(self.la)[:2],
+            "b": self.move_X_p(self.lb)[:2],
             "f": self.Fp[:2],
-            "c": self.move_X_p(self.lc) # the center of mass
+            "c": self.move_X_p(self.lc)[:2] # the center of mass
         }
 
     def move_X_p(self, l):
