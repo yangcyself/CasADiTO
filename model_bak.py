@@ -157,6 +157,7 @@ KEfLeg1 = 0.5*params["legM1"] * dot(dpMfLeg1, dpMfLeg1) + 0.5*params["legI1"]*(d
 KEfLeg2 = 0.5*params["legM2"] * dot(dpMfLeg2, dpMfLeg2) + 0.5*params["legI2"]*(dth+dfq1+dfq2)**2
 KE = KEtor + KEbLeg1 + KEbLeg2 + KEfLeg1 + KEfLeg2
 
+
 # Potential energy
 PEtor = params["G"] * params["torM"] * pMtor[1]
 PEbLeg1 = params["G"] * params["legM1"] * pMbLeg1[1]
@@ -166,6 +167,18 @@ PEfLeg2 = params["G"] * params["legM2"] * pMfLeg2[1]
 PE = PEtor + PEbLeg1 + PEbLeg2 + PEfLeg1 + PEfLeg2
 
 L = KE - PE #ycytmp I think this should be plus, but in ME192 it is -
+
+KEFuncs = {
+    "KEtor" : Function("KEtor", [x], [KEtor]),
+    "KEbLeg1" : Function("KEbLeg1", [x], [KEbLeg1]),
+    "KEbLeg2" : Function("KEbLeg2", [x], [KEbLeg2]),
+    "KEfLeg1" : Function("KEfLeg1", [x], [KEfLeg1]),
+    "KEfLeg2" : Function("KEfLeg2", [x], [KEfLeg2]),
+    "KE" : Function("KE", [x], [KE]),
+    "PE" : Function("PE", [x], [PE]),
+    "L" : Function("L", [x], [L]),
+}
+
 
 ddq = SX.sym("ddq",7)
 Q = SX.sym("Q",7)
@@ -337,46 +350,6 @@ def buildEOMF(consMap,name = "EOM"):
     g = vertcat(g, *[ cJ @ ddq + jtimes(cJ,q,dq)@dq for cJ,cm in zip(consJ,consMap) if cm])
     g = vertcat(g, *[ F[i*2:i*2+2] for i,cm in enumerate(consMap) if not cm])
     return Function("%sF"%name, [x,u,F,ddq], [g], ["x","u","F","ddq"], [name])
-
-def solveCons(consFunc, targets, eps = 1e-6):
-    """Use QP to find the most proximate value meeting a constraint
-
-    Args:
-        consFunc ([Function]): Calculates a constraint given several variables(needs to be all vectors)
-        targets ([tuples]): (name, value, factor)
-        eps (float): the epsilon value for the other variables
-    """
-    X_dict = {n: SX.sym(n,consFunc.size_in(n)) for n in consFunc.name_in()}
-    X_vec = veccat(*list(X_dict.values()))
-    f = 0
-    for tn, tv, tf in targets:
-        f += tf * dot(X_dict[tn] - tv, X_dict[tn] - tv)
-
-    for x in X_dict.values():
-        f += eps * dot(x,x)
-    # print(X_dict)
-    g = consFunc(**X_dict)[consFunc.name_out()[0]]
-
-    solParse = Function("parse", [X_vec], list(X_dict.values()), ["sol"], list(X_dict.keys()))
-
-    qp = {'x':X_vec, 'f':f, 'g':g}
-
-    solver = nlpsol('solver', 'ipopt', qp, {"verbose" : False ,"print_time": False,"verbose_init":False,
-        "ipopt":{
-            "print_level": 0
-            # "verbose":False,
-            # "print_header": False,
-            # "print_iteration": False,
-            # "print_status": False,
-        }
-    }
-            )# , {'sparse':True})
-    # Get the optimal solution
-    sol = solver(lbx=[-np.inf] * X_vec.size(1), ubx=[np.inf] * X_vec.size(1), 
-                 lbg=[0] * g.size(1), ubg=[0] * g.size(1))
-    
-    return solParse(sol = sol["x"])
-
 
 x_val = np.array([0,0,0,-0.3,-2.5, -0.3, -2.5,
                   0,0,0,0,    0,    0,    0])

@@ -1,4 +1,4 @@
-from model import *
+from model_bak import *
 import pandas as pd
 
 visFunc = Function('visFunc', [q], [vertcat(phbLeg2.T, phbLeg1.T, prTor.T, pRTor.T, pHTor.T, phTor.T, phfLeg1.T, phfLeg2.T )])

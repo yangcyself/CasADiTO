@@ -1,7 +1,8 @@
 // Author:  Chenyu Yang     YSC    2021-04-28
 
 #include "tonlp.h"
-#include "nlpGen.h"
+// #include "nlpGen.h"
+#include "nlpGen/interface.h"
 #include <cmath>
 
 #include <cassert>
