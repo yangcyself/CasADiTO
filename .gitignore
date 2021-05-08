@@ -3,7 +3,6 @@ __pycache__
 *.ipynb
 .exps
 *.txt
-testES.py
 data/animation
 *.csv
 *.mp4
