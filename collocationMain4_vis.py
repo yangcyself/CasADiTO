@@ -9,6 +9,10 @@ import sys
 import pandas as pd
 import numpy as np
 
+from model.leggedRobot2D import LeggedRobot2D
+model = LeggedRobot2D.fromYaml("data/robotConfigs/JYminiLite.yaml")
+
+
 if(len(sys.argv)<2):
     print("please input the solution file name")
     exit()
@@ -91,12 +95,16 @@ def animate(i):
     # line.set_xdata(robotLines[i][:,0])  # update the data.
     # line.set_ydata(robotLines[i][:,1])  # update the data.
     ax.clear()
-    # robotLinesim = vis.visFunc(xsim[:7])
-    robotLinesol = vis.visFunc(xsol[:7])
-    robotLineini = vis.visFunc(xini[:7])
-    # linesim, = ax.plot(robotLinesim[:,0], robotLinesim[:,1])
-    linesol, = ax.plot(robotLinesol[:,0], robotLinesol[:,1])
-    lineini, = ax.plot(robotLineini[:,0], robotLineini[:,1])
+    # # robotLinesim = vis.visFunc(xsim[:7])
+    # robotLinesol = vis.visFunc(xsol[:7])
+    # robotLineini = vis.visFunc(xini[:7])
+    # # linesim, = ax.plot(robotLinesim[:,0], robotLinesim[:,1])
+    # linesol, = ax.plot(robotLinesol[:,0], robotLinesol[:,1])
+    # lineini, = ax.plot(robotLineini[:,0], robotLineini[:,1])
+    
+    linesol = model.visulize(xsol)
+    lineini = model.visulize(xini)
+
     til = ax.set_title(phase[ind])
     # til = ax.set_title(phase[i%Total])
     ax.set_xlim(-0.5,1.5)

@@ -1,5 +1,6 @@
 from model.articulateBody import *
 import yaml
+import matplotlib.pyplot as plt
 class LeggedRobot2D(ArticulateSystem):
     def __init__(self, params):
         self.params = params
@@ -9,7 +10,7 @@ class LeggedRobot2D(ArticulateSystem):
 
         self.torso = root.addChild(
             Link2D.Rot, name = "Torso",
-            la = - params["torLL"]/2, lb = - params["torLL"]/2, lc = 0,
+            la = - params["torLL"]/2, lb = params["torLL"]/2, lc = 0,
             M = params["torM"], I = params["torI"], fix = True
         )
 
@@ -93,19 +94,18 @@ class LeggedRobot2D(ArticulateSystem):
             linkLine = self.linkLine_func_cache(x)
             # np.concatenate([c.visPoints(self.root.x, x) for c in [self.cart] + self.links])
         except AttributeError:
-            xsym = ca.SX.sym("xsym", len(x))
-            linkLine = ca.vertcat(self.b2.points["b"], 
-                                 self.b1.points["b"],
-                                 self.b1.points["a"],
-                                 self.torso.points["a"],
-                                 self.torso.points["b"],
-                                 self.f1.points["a"], 
-                                 self.f1.points["b"],
-                                 self.f2.points["b"])
-            self.linkLine_func_cache = ca.Function("linkLine_func", [xsym], [linkLine], ["xsym"], ["linkLine"])
+            # xsym = ca.SX.sym("xsym", len(x))
+            linkLine = ca.vertcat(self.b2.points["b"].T, 
+                                 self.b1.points["b"].T,
+                                 self.b1.points["a"].T,
+                                 self.torso.points["a"].T,
+                                 self.torso.points["b"].T,
+                                 self.f1.points["a"].T, 
+                                 self.f1.points["b"].T,
+                                 self.f2.points["b"].T)
+            self.linkLine_func_cache = ca.Function("linkLine_func", [self.q], [linkLine], ["xsym"], ["linkLine"])
             linkLine = self.linkLine_func_cache(x)
 
-        # linkLine = np.concatenate([c.visPoints(self.root.x, x) for c in [self.cart] + self.links])
         line, = plt.plot(linkLine[:,0], linkLine[:,1])
         return line
 

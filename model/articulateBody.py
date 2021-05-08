@@ -247,7 +247,6 @@ class Link2D(Body2D):
         Returns:
             [type]: [description]
         """
-        rB = self.Bp[2]
         return super().addChild(ChildType, Fp = self.move_X_p(lp), **kwargs)
 
     def _visFunc(self, xr):
