@@ -146,13 +146,28 @@ class optGen:
     def hyperParams(self):
         return {**self._hyperParams}
 
+    @hyperParams.setter
+    def hyperParams(self, d):
+        self._hyperParams.update(d)
+
     @property
     def allSolutionParse(self):
         return [self._parseSol.func] + [f for c in self._child.values() for f in c.allSolutionParse]
     
-    @hyperParams.setter
-    def hyperParams(self, d):
-        self._hyperParams.update(d)
+    def buildParseSolution(self, name, solEx):
+        """Build a casadi function that extract the target value given optimized result
+
+        Args:
+            name (string): the name of the function
+            solEx (solDict->MX): A function that takes in solDict and output the target MX, solDict is what `parseSol` generates
+
+        Returns:
+            [casadi.Function]: [x] -> [targetMX]
+        """
+        solDict = self.parseSol({"x": self.w})
+        target = solEx(solDict)
+        return ca.Function("parse_%s"%name, [self.w], [target], ["x"], [name])
+
 
     def substHyperParam(self, target):
         target = ca.DM(target) if isinstance(target, np.ndarray) else target
@@ -230,7 +245,15 @@ class optGen:
         """
         raise NotImplementedError
 
-    def cppGen(self, cppname, genFolder = True):
+    def cppGen(self, cppname, parseFuncs = None, genFolder = True):
+        """Generate cpp files of the optimization problem. Specifically, the `_info` `f` `g` `grad_` `hessian` and prse functions
+
+        Args:
+            cppname (string): The name of the cpp file. If `genFolder` is True, then this is the folder of the cpp
+            parseFuncs ([(string:name, sol->MX : extractFunction ) ], optional): A list of functions to parse the solution. See `buildParseSolution` for details
+            genFolder (bool, optional): Whether to generate functions separetly into a folder. Defaults to True.
+        """
+        parseFuncs = [] if parseFuncs is None else parseFuncs
         cppOptions = {"cpp": True, "with_header": True,"verbose":False}
         
         # Build different policies according to whether to generate the functions in 
@@ -336,5 +359,8 @@ class optGen:
 
         for f in self.allSolutionParse:
             addFunction(f)
+
+        for n,t in parseFuncs:
+            addFunction(self.buildParseSolution(n,t))
 
         outputFile()
