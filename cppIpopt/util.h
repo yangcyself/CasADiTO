@@ -1,3 +1,6 @@
+#ifndef _UTIL_H_
+#define _UTIL_H_
+
 #include <numeric>
 #include <Eigen/Core>
 
@@ -49,8 +52,8 @@ template <typename Derived, typename T, typename K>
 void compCCS_fillDense(const T CompCCSFormat[], const K numbers[] , Eigen::DenseBase<Derived>& target)
 {
     T nnz = compCCS_nnz(CompCCSFormat);
-    for(int i = 0; i < nnz; i++) { std::cout << numbers[i] <<", ";}
-    std::cout <<std::endl;
+    // for(int i = 0; i < nnz; i++) { std::cout << numbers[i] <<", ";}
+    // std::cout <<std::endl;
     size_t rp = 0; // write ptr
     if(CompCCSFormat[2]==1){ //dense
         for(T i = 0; i< CompCCSFormat[0]; i++){ // row first arrangement
@@ -64,7 +67,7 @@ void compCCS_fillDense(const T CompCCSFormat[], const K numbers[] , Eigen::Dense
         const size_t RStart = 3+CompCCSFormat[1];
         for(T k=0, j=0; j< CompCCSFormat[1]; j++){
             for(; k< CompCCSFormat[3+j]; k++){
-                std::cout << "i,j:\t"  << CompCCSFormat[RStart+k] << "\t" <<j << ", val:\t" << numbers[rp] << std::endl;
+                // std::cout << "i,j:\t"  << CompCCSFormat[RStart+k] << "\t" <<j << ", val:\t" << numbers[rp] << std::endl;
                 target(CompCCSFormat[RStart+k],j) = numbers[rp];
                 ++rp;
             }
@@ -77,18 +80,23 @@ template <typename T>
 class SimpleArrayPtr{
 private:
     T* ptr;
-    const size_t _n;
-    SimpleArrayPtr& operator= (const SimpleArrayPtr& a) = delete;
-    SimpleArrayPtr(const SimpleArrayPtr& a) = delete;
+    size_t _n;
+    SimpleArrayPtr(SimpleArrayPtr& a)=delete;
 public:
-    SimpleArrayPtr(size_t N):_n(N){
+    explicit SimpleArrayPtr(size_t N=0):_n(N){
         ptr = !N? nullptr : new T[N];
     }
     ~SimpleArrayPtr(){
         delete []ptr;
     }
+    SimpleArrayPtr& operator= (SimpleArrayPtr<T>& a){
+        std::swap(ptr, a.ptr);
+        std::swap(_n, a._n);
+        return *this;
+    };
     const size_t n() const{return _n;}
     T* p() {return ptr;}
     operator T* () {return ptr;}
-
 };
+
+#endif

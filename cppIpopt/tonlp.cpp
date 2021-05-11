@@ -17,15 +17,9 @@
  *  N_RES: the first N_RES results will be put into resW
  */
 #define AUTO_SET_UP_WORKING_MEM(FNAME, N_ARGS, N_RES, TAG)\
-    casadi_int TAG##sz_arg;\
-    casadi_int TAG##sz_res;\
     casadi_int TAG##n_arg;\
     casadi_int TAG##n_res;\
-    casadi_int TAG##sz_iw;\
-    casadi_int TAG##sz_w;\
     casadi_int TAG##flag=true;\
-    FNAME##_work(&TAG##sz_arg, &TAG##sz_res, &TAG##sz_iw, &TAG##sz_w);\
-    std::cout <<#FNAME " sz_arg: " << TAG##sz_arg << " sz_res " << TAG##sz_res << " sz_iw " << TAG##sz_iw << " sz_w " << TAG##sz_w <<std::endl;\
     TAG##n_arg = FNAME##_n_in();\
     TAG##n_res = FNAME##_n_out();\
     SimpleArrayPtr<casadi_int> TAG##argSize(TAG##n_arg);\
@@ -34,22 +28,43 @@
         TAG##argSize[i] = compCCS_nnz(FNAME##_sparsity_in(i));\
     for(casadi_int i = 0; i<TAG##n_res;i++)\
         TAG##resSize[i] = compCCS_nnz(FNAME##_sparsity_out(i));\
-    SimpleArrayPtr<const casadi_real*> TAG##arg(TAG##sz_arg);\
-    SimpleArrayPtr<casadi_real*> TAG##res(TAG##sz_res);\
-    SimpleArrayPtr<casadi_int> TAG##iw(TAG##sz_iw);\
-    SimpleArrayPtr<casadi_real> TAG##w(TAG##sz_w);\
     SimpleArrayPtr<casadi_real> TAG##argW(std::accumulate(TAG##argSize.p(), TAG##argSize+N_ARGS, 0));\
     SimpleArrayPtr<casadi_real> TAG##resW(std::accumulate(TAG##resSize.p(), TAG##resSize+N_RES, 0));\
     for(casadi_int i=0, ind=0; i<N_ARGS; ind+= TAG##argSize[i], ++i)\
-        TAG##arg[i] = TAG##argW+ind;\
+        _arg[i] = TAG##argW+ind;\
     for(casadi_int i=0, ind=0; i<N_RES; ind+= TAG##resSize[i], ++i)\
-        TAG##res[i] = TAG##resW+ind;\
+        _res[i] = TAG##resW+ind;\
 
 using namespace Ipopt;
 
 #ifdef __GNUC__
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #endif
+
+typedef int ca_work_t(casadi_int *, casadi_int* , casadi_int *, casadi_int *);
+
+void largestWork(ca_work_t f, casadi_int &sz_arg, casadi_int& sz_res, casadi_int &sz_iw, casadi_int &sz_w)
+{
+    casadi_int _sz_arg;
+    casadi_int _sz_res;
+    casadi_int _sz_iw;
+    casadi_int _sz_w;
+    f(&_sz_arg,  &_sz_res, &_sz_iw, &_sz_w);
+    sz_arg = std::max(_sz_arg, sz_arg);
+    sz_res = std::max(_sz_res, sz_res);
+    sz_iw = std::max(_sz_iw, sz_iw);
+    sz_w = std::max(_sz_w, sz_w);
+}
+
+inline void largestWork(casadi_int &sz_arg, casadi_int& sz_res, casadi_int &sz_iw, casadi_int &sz_w){}
+
+template<typename T1, typename... T>
+inline void largestWork(casadi_int &sz_arg, casadi_int& sz_res, casadi_int &sz_iw, casadi_int &sz_w,
+                 T1 f, T... fs)
+{
+    largestWork(f, sz_arg, sz_res, sz_iw, sz_w);
+    largestWork(sz_arg, sz_res, sz_iw, sz_w, fs...);
+}
 
 
 // constructor
@@ -60,7 +75,32 @@ x_out(x),
 u_out(u),
 t_out(t)
 {
+    /*Iterate over all functions and build the largest working array*/
+    casadi_int sz_arg=0;
+    casadi_int sz_res=0;
+    casadi_int sz_iw=0;
+    casadi_int sz_w=0;
+    largestWork(sz_arg, sz_res, sz_iw, sz_w, 
+        nlp_info_work,
+        bounds_info_work,
+        starting_point_work,
+        nlp_f_work,
+        nlp_grad_f_work,
+        nlp_g_work,
+        nlp_grad_g_work,
+        nlp_h_work,
+        TowrCollocationParse_work,
+        xGenTerrianHoloConsParse_work,
+        uGenDefaultParse_work,
+        FGenDefaultParse_work,
+        dTGenVariableParse_work
+    );
+    SimpleArrayPtr<const casadi_real*> arg(sz_arg); _arg = arg;
+    SimpleArrayPtr<casadi_real*> res(sz_res); _res = res;
+    SimpleArrayPtr<casadi_int> iw(sz_iw); _iw = iw;
+    SimpleArrayPtr<casadi_real> w(sz_w); _w = w;
 }
+
 
 // destructor
 TONLP::~TONLP()
@@ -79,22 +119,22 @@ bool TONLP::get_nlp_info(
     std::cout <<" get_nlp_info in" <<std::endl;
     AUTO_SET_UP_WORKING_MEM(nlp_info, 0, 4,);
 
-    flag = nlp_info(arg, res, iw, w, 0);
+    flag = nlp_info(_arg, _res, _iw, _w, 0);
     if (flag)
         return false;
 
     // The problem described in TONLP.hpp has 4 variables, x[0] through x[3]
-    n = std::round(res[0][0]);
+    n = std::round(_res[0][0]);
 
     // one equality constraint and one inequality constraint
-    m = std::round(res[1][0]);
+    m = std::round(_res[1][0]);
 
     // in this example the jacobian is dense and contains 8 nonzeros
-    nnz_jac_g = std::round(res[2][0]);
+    nnz_jac_g = std::round(_res[2][0]);
 
     // the Hessian is also dense and has 16 total nonzeros, but we
     // only need the lower left corner (since it is symmetric)
-    nnz_h_lag = std::round(res[3][0]);
+    nnz_h_lag = std::round(_res[3][0]);
 
     // use the C style indexing (0-based)
     index_style = TNLP::C_STYLE;
@@ -122,15 +162,15 @@ bool TONLP::get_bounds_info(
     // If desired, we could assert to make sure they are what we think they are.
     // assert(n == 4);
     // assert(m == 2);
-    std::cout <<" get_bounds_info in" <<std::endl;
+    // std::cout <<" get_bounds_info in" <<std::endl;
 
-    AUTO_SET_UP_WORKING_MEM(bounds_info, sz_arg, 0,);
-    res[0] = x_l;
-    res[1] = x_u;
-    res[2] = g_l;
-    res[3] = g_u;
-    flag = bounds_info(arg,res,iw,w,0);
-    std::cout <<" get_bounds_info out" <<std::endl;
+    AUTO_SET_UP_WORKING_MEM(bounds_info, n_arg, 0,);
+    _res[0] = x_l;
+    _res[1] = x_u;
+    _res[2] = g_l;
+    _res[3] = g_u;
+    flag = bounds_info(_arg,_res,_iw,_w,0);
+    // std::cout <<" get_bounds_info out" <<std::endl;
     return !flag;
 }
 // [TNLP_get_bounds_info]
@@ -148,17 +188,17 @@ bool TONLP::get_starting_point(
     bool init_lambda,
     Number *lambda)
 {
-    std::cout <<" get_starting_point in" <<std::endl;
+    // std::cout <<" get_starting_point in" <<std::endl;
 
     assert(init_x == true);
     assert(init_z == false);
     assert(init_lambda == false);
 
-    AUTO_SET_UP_WORKING_MEM(starting_point, sz_arg, 0,);
-    res[0] = x;
+    AUTO_SET_UP_WORKING_MEM(starting_point, n_arg, 0,);
+    _res[0] = x;
 
-    flag = starting_point(arg,res,iw,w,0);
-    std::cout <<" get_starting_point out" <<std::endl;
+    flag = starting_point(_arg,_res,_iw,_w,0);
+    // std::cout <<" get_starting_point out" <<std::endl;
     return !flag;
 
 }
@@ -172,14 +212,14 @@ bool TONLP::eval_f(
     bool new_x,
     Number &obj_value)
 {
-    std::cout <<" eval_f in" <<std::endl;
+    // std::cout <<" eval_f in" <<std::endl;
 
-    AUTO_SET_UP_WORKING_MEM(nlp_f, sz_arg-1, 1,);
-    arg[sz_arg-1] = x;
+    AUTO_SET_UP_WORKING_MEM(nlp_f, n_arg-1, 1,);
+    _arg[n_arg-1] = x;
     
-    flag = nlp_f(arg,res,iw,w,0);
-    obj_value = res[0][0];
-    std::cout <<" eval_f out" <<std::endl;
+    flag = nlp_f(_arg,_res,_iw,_w,0);
+    obj_value = _res[0][0];
+    // std::cout <<" eval_f out" <<std::endl;
     return !flag;
 }
 // [TNLP_eval_f]
@@ -192,14 +232,14 @@ bool TONLP::eval_grad_f(
     bool new_x,
     Number *grad_f)
 {
-    std::cout <<" eval_grad_f in" <<std::endl;
+    // std::cout <<" eval_grad_f in" <<std::endl;
 
-    AUTO_SET_UP_WORKING_MEM(nlp_grad_f, sz_arg-1, 0,);
-    arg[sz_arg-1] = x;
-    res[0] = grad_f;
+    AUTO_SET_UP_WORKING_MEM(nlp_grad_f, n_arg-1, 0,);
+    _arg[n_arg-1] = x;
+    _res[0] = grad_f;
 
-    flag = nlp_grad_f(arg,res,iw,w,0);
-    std::cout <<" eval_grad_f out" <<std::endl;
+    flag = nlp_grad_f(_arg,_res,_iw,_w,0);
+    // std::cout <<" eval_grad_f out" <<std::endl;
     return !flag;
 }
 // [TNLP_eval_grad_f]
@@ -213,14 +253,14 @@ bool TONLP::eval_g(
     Index m,
     Number *g)
 {
-    std::cout <<" eval_g in" <<std::endl;
+    // std::cout <<" eval_g in" <<std::endl;
 
-    AUTO_SET_UP_WORKING_MEM(nlp_g, sz_arg-1, 0,);
-    arg[sz_arg-1] = x;
-    res[0] = g;
+    AUTO_SET_UP_WORKING_MEM(nlp_g, n_arg-1, 0,);
+    _arg[n_arg-1] = x;
+    _res[0] = g;
 
-    flag = nlp_g(arg,res,iw,w,0);
-    std::cout <<" eval_g out" <<std::endl;
+    flag = nlp_g(_arg,_res,_iw,_w,0);
+    // std::cout <<" eval_g out" <<std::endl;
     return !flag;
 
 }
@@ -238,19 +278,19 @@ bool TONLP::eval_jac_g(
     Index *jCol,
     Number *values)
 {
-    std::cout <<" eval_jac_g in" <<std::endl;
+    // std::cout <<" eval_jac_g in" <<std::endl;
 
     if (values == NULL){
         compCCS_Triplet(nlp_grad_g_sparsity_out(0), iRow, jCol);
     }else{ // (values == NULL)
-        AUTO_SET_UP_WORKING_MEM(nlp_grad_g, sz_arg-1, 0,);
-        arg[sz_arg-1] = x;
-        res[0] = values;
+        AUTO_SET_UP_WORKING_MEM(nlp_grad_g, n_arg-1, 0,);
+        _arg[n_arg-1] = x;
+        _res[0] = values;
 
-        flag = nlp_grad_g(arg,res,iw,w,0);
+        flag = nlp_grad_g(_arg,_res,_iw,_w,0);
         return !flag;
     } //(values == NULL)
-    std::cout <<" eval_jac_g out" <<std::endl;
+    // std::cout <<" eval_jac_g out" <<std::endl;
     return true;
 }
 // [TNLP_eval_jac_g]
@@ -270,21 +310,21 @@ bool TONLP::eval_h(
     Index *jCol,
     Number *values)
 {
-    std::cout <<" eval_h in" <<std::endl;
+    // std::cout <<" eval_h in" <<std::endl;
 
     if (values == NULL){
         compCCS_Triplet(nlp_h_sparsity_out(0), iRow, jCol);
     }else{ //(values == NULL)
-        AUTO_SET_UP_WORKING_MEM(nlp_h, sz_arg-3, 0,);
-        arg[sz_arg-3] = x;
-        arg[sz_arg-2] = &obj_factor;
-        arg[sz_arg-1] = lambda;
-        res[0] = values;
+        AUTO_SET_UP_WORKING_MEM(nlp_h, n_arg-3, 0,);
+        _arg[n_arg-3] = x;
+        _arg[n_arg-2] = &obj_factor;
+        _arg[n_arg-1] = lambda;
+        _res[0] = values;
 
-        flag = nlp_h(arg,res,iw,w,0);
+        flag = nlp_h(_arg,_res,_iw,_w,0);
         return !flag;
     }
-    std::cout <<" eval_h out" <<std::endl;
+    // std::cout <<" eval_h out" <<std::endl;
     return true;
 }
 // [TNLP_eval_h]
@@ -303,59 +343,59 @@ void TONLP::finalize_solution(
     const IpoptData *ip_data,
     IpoptCalculatedQuantities *ip_cq)
 {
-    AUTO_SET_UP_WORKING_MEM(TowrCollocationParse, 0, sol_sz_res, sol_);
-    sol_arg[0] = x;
-    TowrCollocationParse(sol_arg, sol_res, sol_iw, sol_w, 0);
+    // AUTO_SET_UP_WORKING_MEM(TowrCollocationParse, 0, sol_n_res, sol_);
+    // _arg[0] = x;
+    // TowrCollocationParse(_arg, _res, _iw, _w, 0);
 
-    // parse result X
-    const size_t sol_x = 3;
-    assert(TowrCollocationParse_name_out(sol_x) == std::string("Xgen")); // type conversion to std::string is must needed. Or use string::compare 
-    AUTO_SET_UP_WORKING_MEM(xGenTerrianHoloConsParse, 0, x_sz_res, x_);
-    x_arg[0] = sol_res[sol_x];
-    xGenTerrianHoloConsParse(x_arg, x_res, x_iw, x_w, 0);
+    // // parse result X
+    // const size_t sol_x = 3;
+    // assert(TowrCollocationParse_name_out(sol_x) == std::string("Xgen")); // type conversion to std::string is must needed. Or use string::compare 
+    // AUTO_SET_UP_WORKING_MEM(xGenTerrianHoloConsParse, 0, x_n_res, x_);
+    // _arg[0] = _res[sol_x];
+    // xGenTerrianHoloConsParse(_arg, _res, _iw, _w, 0);
 
-    const size_t x_plot = 3;
-    assert(xGenTerrianHoloConsParse_name_out(x_plot) == std::string("x_plot"));
-    x_out = Eigen::MatrixXd::Zero(xGenTerrianHoloConsParse_sparsity_out(x_plot)[0],
-                        xGenTerrianHoloConsParse_sparsity_out(x_plot)[1]);
-    compCCS_fillDense(xGenTerrianHoloConsParse_sparsity_out(x_plot),
-                        x_res[x_plot], x_out);
-
-
-    // parse result U
-    const size_t sol_u = 4;
-    assert(TowrCollocationParse_name_out(sol_u) == std::string("Ugen")); // type conversion to std::string is must needed. Or use string::compare 
-    AUTO_SET_UP_WORKING_MEM(uGenDefaultParse, 0, u_sz_res, u_);
-    u_arg[0] = sol_res[sol_u];
-    uGenDefaultParse(u_arg, u_res, u_iw, u_w, 0);
-
-    const size_t u_plot = 3;
-    assert(uGenDefaultParse_name_out(u_plot) == std::string("u_plot"));
-    u_out = Eigen::MatrixXd::Zero(uGenDefaultParse_sparsity_out(u_plot)[0],
-                        uGenDefaultParse_sparsity_out(u_plot)[1]);
-    compCCS_fillDense(uGenDefaultParse_sparsity_out(u_plot),
-                        u_res[u_plot], u_out);
+    // const size_t x_plot = 3;
+    // assert(xGenTerrianHoloConsParse_name_out(x_plot) == std::string("x_plot"));
+    // x_out = Eigen::MatrixXd::Zero(xGenTerrianHoloConsParse_sparsity_out(x_plot)[0],
+    //                     xGenTerrianHoloConsParse_sparsity_out(x_plot)[1]);
+    // compCCS_fillDense(xGenTerrianHoloConsParse_sparsity_out(x_plot),
+    //                     _res[x_plot], x_out);
 
 
-    // parse result T
-    const size_t sol_T = 6;
-    assert(TowrCollocationParse_name_out(sol_T) == std::string("dTgen")); // type conversion to std::string is must needed. Or use string::compare 
-    AUTO_SET_UP_WORKING_MEM(dTGenVariableParse, 0, t_sz_res, t_);
-    t_arg[0] = sol_res[sol_T];
-    dTGenVariableParse(t_arg, t_res, t_iw, t_w, 0);
+    // // parse result U
+    // const size_t sol_u = 4;
+    // assert(TowrCollocationParse_name_out(sol_u) == std::string("Ugen")); // type conversion to std::string is must needed. Or use string::compare 
+    // AUTO_SET_UP_WORKING_MEM(uGenDefaultParse, 0, u_n_res, u_);
+    // _arg[0] = sol_res[sol_u];
+    // uGenDefaultParse(_arg, _res, _iw, _w, 0);
 
-    const size_t t_plot = 3; // index in the output function
-    assert(dTGenVariableParse_name_out(t_plot) == std::string("t_plot"));
-    t_out = Eigen::MatrixXd::Zero(dTGenVariableParse_sparsity_out(t_plot)[0],
-                        dTGenVariableParse_sparsity_out(t_plot)[1]);
-    compCCS_fillDense(dTGenVariableParse_sparsity_out(t_plot),
-                        t_res[t_plot], t_out);
+    // const size_t u_plot = 3;
+    // assert(uGenDefaultParse_name_out(u_plot) == std::string("u_plot"));
+    // u_out = Eigen::MatrixXd::Zero(uGenDefaultParse_sparsity_out(u_plot)[0],
+    //                     uGenDefaultParse_sparsity_out(u_plot)[1]);
+    // compCCS_fillDense(uGenDefaultParse_sparsity_out(u_plot),
+    //                     u_res[u_plot], u_out);
 
 
-    std::cout << std::endl
-              << std::endl
-              << "Objective value" << std::endl;
-    std::cout << "f(x*) = " << obj_value << std::endl;
+    // // parse result T
+    // const size_t sol_T = 6;
+    // assert(TowrCollocationParse_name_out(sol_T) == std::string("dTgen")); // type conversion to std::string is must needed. Or use string::compare 
+    // AUTO_SET_UP_WORKING_MEM(dTGenVariableParse, 0, t_sz_res, t_);
+    // t_arg[0] = sol_res[sol_T];
+    // dTGenVariableParse(t_arg, t_res, t_iw, t_w, 0);
+
+    // const size_t t_plot = 3; // index in the output function
+    // assert(dTGenVariableParse_name_out(t_plot) == std::string("t_plot"));
+    // t_out = Eigen::MatrixXd::Zero(dTGenVariableParse_sparsity_out(t_plot)[0],
+    //                     dTGenVariableParse_sparsity_out(t_plot)[1]);
+    // compCCS_fillDense(dTGenVariableParse_sparsity_out(t_plot),
+    //                     t_res[t_plot], t_out);
+
+
+    // std::cout << std::endl
+    //           << std::endl
+    //           << "Objective value" << std::endl;
+    // std::cout << "f(x*) = " << obj_value << std::endl;
 
 }
 // [TNLP_finalize_solution]

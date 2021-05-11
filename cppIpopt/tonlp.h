@@ -5,7 +5,7 @@
 
 #include "IpTNLP.hpp"
 #include <Eigen/Core>
-
+#include "util.h"
 
 using namespace Ipopt;
 
@@ -156,6 +156,11 @@ private:
    Eigen::MatrixXd& x_out;   
    Eigen::MatrixXd& u_out;   
    Eigen::MatrixXd& t_out;   
+
+   SimpleArrayPtr<const double*> _arg;
+   SimpleArrayPtr<double*> _res;
+   SimpleArrayPtr<long long int> _iw;
+   SimpleArrayPtr<double> _w;
 };
 
 #endif
