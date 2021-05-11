@@ -100,11 +100,9 @@ t_out(t)
         nlp_g_work,
         nlp_grad_g_work,
         nlp_h_work,
-        TowrCollocationParse_work,
-        xGenTerrianHoloConsParse_work,
-        uGenDefaultParse_work,
-        FGenDefaultParse_work,
-        dTGenVariableParse_work
+        parse_x_plot_work,
+        parse_u_plot_work,
+        parse_t_plot_work
     );
     SimpleArrayPtr<const casadi_real*> arg(sz_arg); _arg = arg;
     SimpleArrayPtr<casadi_real*> res(sz_res); _res = res;
@@ -372,53 +370,31 @@ void TONLP::finalize_solution(
     IpoptCalculatedQuantities *ip_cq)
 {
 
-    AUTO_SET_UP_WORKING_MEM(TowrCollocationParse, 0, sol_sz_res, sol_);
-    sol_arg[0] = x;
-    TowrCollocationParse(sol_arg, sol_res, sol_iw, sol_w, 0);
-
-    // parse result X
-    const size_t sol_x = 3;
-    assert(TowrCollocationParse_name_out(sol_x) == std::string("Xgen")); // type conversion to std::string is must needed. Or use string::compare 
-    AUTO_SET_UP_WORKING_MEM(xGenTerrianHoloConsParse, 0, x_sz_res, x_);
-    x_arg[0] = sol_res[sol_x];
-    xGenTerrianHoloConsParse(x_arg, x_res, x_iw, x_w, 0);
-
-    const size_t x_plot = 3;
-    assert(xGenTerrianHoloConsParse_name_out(x_plot) == std::string("x_plot"));
-    x_out = Eigen::MatrixXd::Zero(xGenTerrianHoloConsParse_sparsity_out(x_plot)[0],
-                        xGenTerrianHoloConsParse_sparsity_out(x_plot)[1]);
-    compCCS_fillDense(xGenTerrianHoloConsParse_sparsity_out(x_plot),
-                        x_res[x_plot], x_out);
+ 
+    AUTO_SET_UP_WORKING_MEM(parse_x_plot, 0, x_n_res, x_);
+    x_arg[0] = x;
+    parse_x_plot(x_arg, x_res, x_iw, x_w, 0);
+    x_out = Eigen::MatrixXd::Zero(parse_x_plot_sparsity_out(0)[0],
+                    parse_x_plot_sparsity_out(0)[1]);
+    compCCS_fillDense(parse_x_plot_sparsity_out(0),
+                        x_res[0], x_out);
 
 
-    // parse result U
-    const size_t sol_u = 4;
-    assert(TowrCollocationParse_name_out(sol_u) == std::string("Ugen")); // type conversion to std::string is must needed. Or use string::compare 
-    AUTO_SET_UP_WORKING_MEM(uGenDefaultParse, 0, u_sz_res, u_);
-    u_arg[0] = sol_res[sol_u];
-    uGenDefaultParse(u_arg, u_res, u_iw, u_w, 0);
+    AUTO_SET_UP_WORKING_MEM(parse_u_plot, 0, u_n_res, u_);
+    u_arg[0] = x;
+    parse_u_plot(u_arg, u_res, u_iw, u_w, 0);
+    u_out = Eigen::MatrixXd::Zero(parse_u_plot_sparsity_out(0)[0],
+                    parse_u_plot_sparsity_out(0)[1]);
+    compCCS_fillDense(parse_u_plot_sparsity_out(0),
+                        u_res[0], u_out);
 
-    const size_t u_plot = 3;
-    assert(uGenDefaultParse_name_out(u_plot) == std::string("u_plot"));
-    u_out = Eigen::MatrixXd::Zero(uGenDefaultParse_sparsity_out(u_plot)[0],
-                        uGenDefaultParse_sparsity_out(u_plot)[1]);
-    compCCS_fillDense(uGenDefaultParse_sparsity_out(u_plot),
-                        u_res[u_plot], u_out);
-
-
-    // parse result T
-    const size_t sol_T = 6;
-    assert(TowrCollocationParse_name_out(sol_T) == std::string("dTgen")); // type conversion to std::string is must needed. Or use string::compare 
-    AUTO_SET_UP_WORKING_MEM(dTGenVariableParse, 0, t_sz_res, t_);
-    t_arg[0] = sol_res[sol_T];
-    dTGenVariableParse(t_arg, t_res, t_iw, t_w, 0);
-
-    const size_t t_plot = 3; // index in the output function
-    assert(dTGenVariableParse_name_out(t_plot) == std::string("t_plot"));
-    t_out = Eigen::MatrixXd::Zero(dTGenVariableParse_sparsity_out(t_plot)[0],
-                        dTGenVariableParse_sparsity_out(t_plot)[1]);
-    compCCS_fillDense(dTGenVariableParse_sparsity_out(t_plot),
-                        t_res[t_plot], t_out);
+    AUTO_SET_UP_WORKING_MEM(parse_t_plot, 0, t_n_res, t_);
+    t_arg[0] = x;
+    parse_t_plot(t_arg, t_res, t_iw, t_w, 0);
+    t_out = Eigen::MatrixXd::Zero(parse_t_plot_sparsity_out(0)[0],
+                    parse_t_plot_sparsity_out(0)[1]);
+    compCCS_fillDense(parse_t_plot_sparsity_out(0),
+                        t_res[0], t_out);
 
 
     std::cout << std::endl

@@ -168,7 +168,10 @@ if __name__ == "__main__" :
     # opt.buildParseSolution("x_plot", lambda sol: sol["Xgen"]["x_plot"])
     # exit()
 
-    opt.cppGen("cppIpopt_bak/nlpGen")
+    opt.cppGen("cppIpopt_bak/nlpGen",parseFuncs=[
+        ("x_plot", lambda sol: sol["Xgen"]["x_plot"]),
+        ("u_plot", lambda sol: sol["Ugen"]["u_plot"]),
+        ("t_plot", lambda sol: sol["dTgen"]["t_plot"])])
     exit()
 
     import matplotlib.pyplot as plt
