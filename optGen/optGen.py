@@ -1,4 +1,4 @@
-from optGen.util import LazyFunc, kwargFunc, caSubsti
+from optGen.util import LazyFunc, kwargFunc, caSubsti, MXinSXop
 import casadi as ca
 import numpy as np
 import os
@@ -78,15 +78,16 @@ class optGen:
         """
         self._parseSol = LazyFunc(
             lambda: ca.Function('%sParse'%self.__class__.__name__, 
-                [self.w]+list(self.hyperParams.keys()), 
+                [self.w]+self.hyperParamList(self.w), 
                     [c() for c in self._parse.values()] + [c.w for c in self._child.values()], 
-                ['w']+[k.name() for k in self.hyperParams.keys()], 
+                ['w']+self.hyperParamList("name"), 
                     [n for n in self._parse.keys()] + [n for n in self._child.keys()])
         )
 
         """_hyperParams:  free variables and their values. Defaults to None.
             Those free variables might involves building the w0 or the cost function etc.
-            {SX: val}
+            {name: (shape, SX, MX, value)}. We need SX and MX together as the traj cal(e.g. w) uses MX 
+                                    where the init value cal (e.g. w0) uses SX
         """
         self._hyperParams = {}
 
@@ -98,14 +99,6 @@ class optGen:
     @property
     def w0(self):
         """narray: the init value of w"""
-        try:
-            ca.vertcat(
-                *self._w0, 
-                *[c.w0 for c in self._child.values()])
-        except Exception as e:
-            print([type(w) for w in self._w0])
-            print([(type(c),  type(c.w0)) for c in self._child.values()])
-            exit()
         return ca.vertcat(
                 *self._w0, 
                 *[c.w0 for c in self._child.values()])
@@ -154,11 +147,49 @@ class optGen:
     def hyperParams(self):
         return {**self._hyperParams}
 
-    @hyperParams.setter
-    def hyperParams(self, d):
-        self._hyperParams.update(d)
+    def newhyperParam(self, hp, shape=None):
+        """Add a new hyper parameter to the system. Return the SX version
+
+        Args:
+            hp (string or ca.SX): the hp of the hyperparam
+            shape (tuple, optional): the shape. Defaults to (1,1).
+
+        Returns:
+            [SX]: SX version of the hyper parameter
+        """
+        if(isinstance(hp, str)):
+            assert(hp not in self._hyperParams.keys())
+            shape = (1,1) if shape is None else shape
+            self._hyperParams[hp] = (shape, ca.SX.sym(hp, *shape), ca.MX.sym(hp, *shape), None)
+            return self._hyperParams[hp][1]
+        elif(isinstance(hp, ca.SX)):
+            self._hyperParams[hp.name()] = (hp.size(), hp, ca.MX.sym(hp.name(), *hp.size()), None)
+            return hp
+        else:
+            raise TypeError("the hp should be eitehr a string or a SX, but got %s"%str(type(hp)))
 
     
+    def hyperParamList(self, t):
+        """get a list of hyperParameters. e.g. MX list, SX list, or all names
+
+        Args:
+            t ({string; MX; SX}): "name", "value" or ca.MX or ca.SX
+        """
+        if(t=="name"):
+            return list(self._hyperParams.keys())
+        if(t=="value"):
+            return [(m if v is None else v) for z,s,m,v in self._hyperParams.values()]
+        elif(isinstance(t, ca.MX) or t is ca.MX):
+            return [m for z,s,m,v in self._hyperParams.values()]
+        elif(isinstance(t, ca.SX) or t is ca.SX or isinstance(t, ca.DM) or t is ca.DM):
+            return [s for z,s,m,v in self._hyperParams.values()]
+        else:
+            raise ValueError("t should be 'name' or SX MX class or objects, but get %s"%(type(t)))
+        
+    def setHyperParamValue(self, hpdict):
+        for k,v in hpdict.items():
+            self._hyperParams[k] = (*(self._hyperParams[k][:3]),v )
+
     def buildParseSolution(self, name, solEx):
         """Build a casadi function that extract the target value given optimized result
 
@@ -173,11 +204,10 @@ class optGen:
         target = solEx(solDict)
         return ca.Function("parse_%s"%name, [self.w], [target], ["x"], [name])
 
-
     def substHyperParam(self, target):
         target = ca.DM(target) if isinstance(target, np.ndarray) else target
         target = ca.DM(target) if isinstance(target, ca.SX) and target.is_constant() else target
-        return caSubsti(target, self._hyperParams.keys(), self._hyperParams.values())
+        return caSubsti(target, self.hyperParamList(target), self.hyperParamList("value"))
 
     def loadSol(self, sol):
         """[loadSol]: load the solution and pass the corresponding 
@@ -186,15 +216,16 @@ class optGen:
             sol ([narray, MX]): the solution of the optimization problem
         """
         self._sol = sol
-        parseRes = self._parseSol(w = sol['x'], **{k.name():v for k,v in self._hyperParams.items()})
+        parseRes = self._parseSol(w = sol['x'], **{k:v for k,v in zip(self.hyperParamList("name"), self.hyperParamList("value"))})
         for n,c in self._child.items():
             c.loadSol({'x':parseRes[n]})
     
     def parseSol(self, sol):
+        parseType = sol if(isinstance(sol, ca.MX) or isinstance(sol, ca.SX)) else "value"
         return { k: 
                 v if k not in self._child.keys()
                   else self._child[k].parseSol({'x':v})
-            for k,v in self._parseSol(w=sol['x'], **{k.name():v for k,v in self._hyperParams.items()}).items()
+            for k,v in self._parseSol(w=sol['x'], **{k:v for k,v in zip(self.hyperParamList("name"), self.hyperParamList(parseType))}).items()
             }
     
     def buildSolver(self, solver = "ipopt", options = None):
@@ -232,13 +263,29 @@ class optGen:
 
     # Add constriant of the state of last step
     def addConstraint(self, func, lb, ub):
-        self._g.append( kwargFunc(func)(**self._state) )
+        try:
+            self._g.append( kwargFunc(func)(**self._state) )
+        except TypeError as e:
+            if("operand type(s)" not in str(e)):
+                raise e
+            self._g.append(MXinSXop(kwargFunc(func), self._state, 
+                list(zip(self.hyperParamList("name"),
+                         self.hyperParamList(ca.SX),
+                         self.hyperParamList(ca.MX)))))
         self._lbg.append(lb)
         self._ubg.append(ub)
     
     # Add constriant of the state of last step
     def addCost(self, func):
-        self._J += kwargFunc(func)(**self._state)
+        try:
+            self._J += kwargFunc(func)(**self._state)
+        except TypeError as e:
+            if("unsupported operand type(s)" not in str(e)):
+                raise e
+            self._J += MXinSXop(kwargFunc(func), self._state, 
+                list(zip(self.hyperParamList("name"),
+                         self.hyperParamList(ca.SX),
+                         self.hyperParamList(ca.MX))))
 
     def _begin(self,**kwargs):
         raise NotImplementedError
@@ -312,27 +359,27 @@ class optGen:
 
         addFunction(nlp_info)
 
-        bounds_info = ca.Function("bounds_info",list(self.hyperParams.keys()),
+        bounds_info = ca.Function("bounds_info", self.hyperParamList(self.lbw),
         [self.lbw,        # the lower bounds xL for the variables  x
          self.ubw,        # the upper bounds xU for the variables 
          self.lbg,    # the lower bounds gL for the constraints
          self.ubg], # the upper bounds gU for the constraints 
-        [k.name() for k in self.hyperParams.keys()],["x_l", "x_u", "g_l", "g_u"]
+        self.hyperParamList('name'),["x_l", "x_u", "g_l", "g_u"]
         )
 
         addFunction(bounds_info)
 
-        starting_point = ca.Function("starting_point", list(self.hyperParams.keys()),
+        starting_point = ca.Function("starting_point", self.hyperParamList(self.w0),
         [self.w0],	#the initial values for the primal variables x
-        [k.name() for k in self.hyperParams.keys()],["x"]
+        self.hyperParamList('name'),["x"]
         )
 
         addFunction(starting_point)
 
         # The parameter conversion is hyper parameter first, and the interface parameter follows
         # So that feeding the hyper parameters makes in becomes a interface method for IPOPT
-        hyperAndWsym = list(self.hyperParams.keys()) + [ self.w ]
-        hyperAndWname = [k.name() for k in self.hyperParams.keys()]+["x"]
+        hyperAndWsym = self.hyperParamList(self.w) + [ self.w ]
+        hyperAndWname = self.hyperParamList('name')+["x"]
         
         eval_f = ca.Function("nlp_f", hyperAndWsym,
         [self.J],
