@@ -19,15 +19,20 @@
 #define AUTO_SET_UP_WORKING_MEM(FNAME, N_ARGS, N_RES, TAG)\
     casadi_int TAG##sz_arg;\
     casadi_int TAG##sz_res;\
+    casadi_int TAG##n_arg;\
+    casadi_int TAG##n_res;\
     casadi_int TAG##sz_iw;\
     casadi_int TAG##sz_w;\
-    casadi_int TAG##flag;\
+    casadi_int TAG##flag=true;\
     FNAME##_work(&TAG##sz_arg, &TAG##sz_res, &TAG##sz_iw, &TAG##sz_w);\
-    SimpleArrayPtr<casadi_int> TAG##argSize(N_ARGS);\
-    SimpleArrayPtr<casadi_int> TAG##resSize(N_RES);\
-    for(casadi_int i = 0; i<N_ARGS;i++)\
+    std::cout <<#FNAME " sz_arg: " << TAG##sz_arg << " sz_res " << TAG##sz_res << " sz_iw " << TAG##sz_iw << " sz_w " << TAG##sz_w <<std::endl;\
+    TAG##n_arg = FNAME##_n_in();\
+    TAG##n_res = FNAME##_n_out();\
+    SimpleArrayPtr<casadi_int> TAG##argSize(TAG##n_arg);\
+    SimpleArrayPtr<casadi_int> TAG##resSize(TAG##n_res);\
+    for(casadi_int i = 0; i<TAG##n_arg;i++)\
         TAG##argSize[i] = compCCS_nnz(FNAME##_sparsity_in(i));\
-    for(casadi_int i = 0; i<N_RES;i++)\
+    for(casadi_int i = 0; i<TAG##n_res;i++)\
         TAG##resSize[i] = compCCS_nnz(FNAME##_sparsity_out(i));\
     SimpleArrayPtr<const casadi_real*> TAG##arg(TAG##sz_arg);\
     SimpleArrayPtr<casadi_real*> TAG##res(TAG##sz_res);\
@@ -71,6 +76,7 @@ bool TONLP::get_nlp_info(
     Index &nnz_h_lag,
     IndexStyleEnum &index_style)
 {
+    std::cout <<" get_nlp_info in" <<std::endl;
     AUTO_SET_UP_WORKING_MEM(nlp_info, 0, 4,);
 
     flag = nlp_info(arg, res, iw, w, 0);
@@ -96,7 +102,8 @@ bool TONLP::get_nlp_info(
     std::cout<<"m: \t"<< m <<std::endl;
     std::cout<<"nnz_jac_g: \t"<< nnz_jac_g <<std::endl;
     std::cout<<"nnz_h_lag: \t"<< nnz_h_lag <<std::endl;
-    
+    std::cout <<" get_nlp_info out" <<std::endl;
+
     return true;
 }
 // [TNLP_get_nlp_info]
@@ -115,12 +122,15 @@ bool TONLP::get_bounds_info(
     // If desired, we could assert to make sure they are what we think they are.
     // assert(n == 4);
     // assert(m == 2);
+    std::cout <<" get_bounds_info in" <<std::endl;
+
     AUTO_SET_UP_WORKING_MEM(bounds_info, sz_arg, 0,);
     res[0] = x_l;
     res[1] = x_u;
     res[2] = g_l;
     res[3] = g_u;
     flag = bounds_info(arg,res,iw,w,0);
+    std::cout <<" get_bounds_info out" <<std::endl;
     return !flag;
 }
 // [TNLP_get_bounds_info]
@@ -138,6 +148,8 @@ bool TONLP::get_starting_point(
     bool init_lambda,
     Number *lambda)
 {
+    std::cout <<" get_starting_point in" <<std::endl;
+
     assert(init_x == true);
     assert(init_z == false);
     assert(init_lambda == false);
@@ -146,6 +158,7 @@ bool TONLP::get_starting_point(
     res[0] = x;
 
     flag = starting_point(arg,res,iw,w,0);
+    std::cout <<" get_starting_point out" <<std::endl;
     return !flag;
 
 }
@@ -159,11 +172,14 @@ bool TONLP::eval_f(
     bool new_x,
     Number &obj_value)
 {
+    std::cout <<" eval_f in" <<std::endl;
+
     AUTO_SET_UP_WORKING_MEM(nlp_f, sz_arg-1, 1,);
     arg[sz_arg-1] = x;
     
     flag = nlp_f(arg,res,iw,w,0);
     obj_value = res[0][0];
+    std::cout <<" eval_f out" <<std::endl;
     return !flag;
 }
 // [TNLP_eval_f]
@@ -176,11 +192,14 @@ bool TONLP::eval_grad_f(
     bool new_x,
     Number *grad_f)
 {
+    std::cout <<" eval_grad_f in" <<std::endl;
+
     AUTO_SET_UP_WORKING_MEM(nlp_grad_f, sz_arg-1, 0,);
     arg[sz_arg-1] = x;
     res[0] = grad_f;
 
     flag = nlp_grad_f(arg,res,iw,w,0);
+    std::cout <<" eval_grad_f out" <<std::endl;
     return !flag;
 }
 // [TNLP_eval_grad_f]
@@ -194,11 +213,14 @@ bool TONLP::eval_g(
     Index m,
     Number *g)
 {
+    std::cout <<" eval_g in" <<std::endl;
+
     AUTO_SET_UP_WORKING_MEM(nlp_g, sz_arg-1, 0,);
     arg[sz_arg-1] = x;
     res[0] = g;
 
     flag = nlp_g(arg,res,iw,w,0);
+    std::cout <<" eval_g out" <<std::endl;
     return !flag;
 
 }
@@ -216,6 +238,8 @@ bool TONLP::eval_jac_g(
     Index *jCol,
     Number *values)
 {
+    std::cout <<" eval_jac_g in" <<std::endl;
+
     if (values == NULL){
         compCCS_Triplet(nlp_grad_g_sparsity_out(0), iRow, jCol);
     }else{ // (values == NULL)
@@ -226,6 +250,7 @@ bool TONLP::eval_jac_g(
         flag = nlp_grad_g(arg,res,iw,w,0);
         return !flag;
     } //(values == NULL)
+    std::cout <<" eval_jac_g out" <<std::endl;
     return true;
 }
 // [TNLP_eval_jac_g]
@@ -245,6 +270,8 @@ bool TONLP::eval_h(
     Index *jCol,
     Number *values)
 {
+    std::cout <<" eval_h in" <<std::endl;
+
     if (values == NULL){
         compCCS_Triplet(nlp_h_sparsity_out(0), iRow, jCol);
     }else{ //(values == NULL)
@@ -257,6 +284,8 @@ bool TONLP::eval_h(
         flag = nlp_h(arg,res,iw,w,0);
         return !flag;
     }
+    std::cout <<" eval_h out" <<std::endl;
+    return true;
 }
 // [TNLP_eval_h]
 
