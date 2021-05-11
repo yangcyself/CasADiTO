@@ -29,8 +29,9 @@ Two steps for building an opt problem:
             Then the function with argument (x,F,u) or (u) are all valid, 
             but ones with argument (x0, u) is not valid
 
-hyperParams (dict): e.g. the distance for the robot to jump is a user defined value, but 
-    appears in w0 and g as a free MX symbol. The setting of this hyperparameter is setted here
+hyperParams (dict: {name: (shape, SX, MX)}): e.g. the distance for the robot to jump is a user defined value, but 
+    appears in w0 and g as a free MX symbol. 
+    
 """
 class optGen:
     def __init__(self):
@@ -97,45 +98,52 @@ class optGen:
     @property
     def w0(self):
         """narray: the init value of w"""
-
-        return self.substHyperParam(ca.vertcat(
+        try:
+            ca.vertcat(
                 *self._w0, 
-                *[c.w0 for c in self._child.values()]))
+                *[c.w0 for c in self._child.values()])
+        except Exception as e:
+            print([type(w) for w in self._w0])
+            print([(type(c),  type(c.w0)) for c in self._child.values()])
+            exit()
+        return ca.vertcat(
+                *self._w0, 
+                *[c.w0 for c in self._child.values()])
 
     @property
     def lbw(self):
         """narray: the lower bound of w"""
-        return self.substHyperParam(ca.vertcat(
+        return ca.vertcat(
                 *self._lbw,
-                *[c.lbw for c in self._child.values()]))
+                *[c.lbw for c in self._child.values()])
 
     @property
     def ubw(self):
         """narray: the upper bound of w"""
-        return self.substHyperParam(ca.vertcat(
+        return ca.vertcat(
             *self._ubw,
-            *[c.ubw for c in self._child.values()]))
+            *[c.ubw for c in self._child.values()])
 
     @property
     def g(self):
         """[MX,SX]: the variables of this and child"""
-        return self.substHyperParam(ca.vertcat(
-                *self._g, *[c.g for c in self._child.values()]))
+        return ca.vertcat(
+                *self._g, *[c.g for c in self._child.values()])
 
 
     @property
     def lbg(self):
         """narray: the lower bound of g"""
-        return self.substHyperParam(ca.vertcat(
+        return ca.vertcat(
                 *self._lbg,
-                *[c.lbg for c in self._child.values()]))
+                *[c.lbg for c in self._child.values()])
 
     @property
     def ubg(self):
         """narray: the upper bound of g"""
-        return self.substHyperParam(ca.vertcat(
+        return ca.vertcat(
                 *self._ubg,
-                *[c.ubg for c in self._child.values()]))
+                *[c.ubg for c in self._child.values()])
 
     @property
     def J(self):
@@ -150,9 +158,6 @@ class optGen:
     def hyperParams(self, d):
         self._hyperParams.update(d)
 
-    @property
-    def allSolutionParse(self):
-        return [self._parseSol.func] + [f for c in self._child.values() for f in c.allSolutionParse]
     
     def buildParseSolution(self, name, solEx):
         """Build a casadi function that extract the target value given optimized result
@@ -203,7 +208,10 @@ class optGen:
             ca.Function: the solver function
         """
         options = {} if options is None else options
-        prob = {'f':self.J, 'x': self.w, 'g': self.g}
+        prob = {'f':self.substHyperParam(self.J),
+                'x': self.substHyperParam(self.w),
+                'g': self.substHyperParam(self.g)}
+
         solver = ca.nlpsol('solver', solver, prob, options)
         return solver
 
@@ -214,8 +222,11 @@ class optGen:
 
     def solve(self, options = None):
         solver = self.buildSolver(options = options)
-        self._sol = solver(x0=self.w0, lbx=self.lbw, ubx=self.ubw, 
-                            lbg=self.lbg, ubg=self.ubg)
+        self._sol = solver( x0=self.substHyperParam(self.w0),
+                            lbx=self.substHyperParam(self.lbw),
+                            ubx=self.substHyperParam(self.ubw),
+                            lbg=self.substHyperParam(self.lbg),
+                            ubg=self.substHyperParam(self.ubg))
         self._sol.update(self.parseSol(self._sol))
         return self._sol
 
@@ -249,9 +260,9 @@ class optGen:
         """Generate cpp files of the optimization problem. Specifically, the `_info` `f` `g` `grad_` `hessian` and prse functions
 
         Args:
-            cppname (string): The name of the cpp file. If `genFolder` is True, then this is the folder of the cpp
-            parseFuncs ([(string:name, sol->MX : extractFunction ) ], optional): A list of functions to parse the solution. See `buildParseSolution` for details
-            genFolder (bool, optional): Whether to generate functions separetly into a folder. Defaults to True.
+            cppname (string): The name of the cpp file. If `genFolder` is True, then this is the folder of the cpp  
+            parseFuncs ([(string:name, sol->MX : extractFunction ) ], optional): A list of functions to parse the solution. See `buildParseSolution` for details  
+            genFolder (bool, optional): Whether to generate functions separetly into a folder. Defaults to True.  
         """
         parseFuncs = [] if parseFuncs is None else parseFuncs
         cppOptions = {"cpp": True, "with_header": True,"verbose":False}
@@ -357,8 +368,8 @@ class optGen:
 
         addFunction(eval_h)
 
-        for f in self.allSolutionParse:
-            addFunction(f)
+        # for f in self.allSolutionParse:
+        #     addFunction(f)
 
         for n,t in parseFuncs:
             addFunction(self.buildParseSolution(n,t))
