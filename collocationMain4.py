@@ -11,7 +11,7 @@ from ExperimentSecretary.Core import Session
 import os
 import time
 
-from optGen.util import caSubsti, caFuncSubsti
+from optGen.util import caSubsti, caFuncSubsti, substiSX2MX
 
 """
 This file use dynamic constraint as dynamics, rather than dynF
@@ -24,6 +24,8 @@ distance = model.params["torLL"] * 1.5
 legLength = model.params["legL2"]
 
 # distance = ca.SX.sym("distance",1)
+# distance_mx = ca.MX.sym("distance",1)
+
 # distance = 0.5
 
 X0 = np.array([0,0.3 + legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
@@ -32,6 +34,7 @@ X0 = np.array([0,0.3 + legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5
 XDes = np.array([distance, legLength ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
+# XDes = substiSX2MX(XDes, [distance], [distance_mx])
 
 xlim = [
     [-np.inf,np.inf],
@@ -107,7 +110,6 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
 
 opt = TowrCollocationVTiming(14, 4, 4, xlim, ulim, [[-200, 200]]*4, dT0, [dT0/100, dT0])
 opt.Xgen = xGenTerrianHoloCons(14, np.array(xlim), model.pFuncs.values(), lambda p: ca.if_else(p[0]>0.35, p[1],p[1] - 0.3))
-# opt.hyperParams = {distance: 0.5}
 # opt = TowrCollocationDefault(14, 4, 4, xlim, [[-100,100]]*4, [[-200, 200]]*4, dT0)
 
 opt.begin(x0=X0, u0=[1,125,1,125], F0=[0,100,0,100])
@@ -119,7 +121,7 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     opt.dTgen.chMod(modName = name)
     for i in range(N):
         x_0, u_0 = R(i)
-        x_0 = caSubsti(x_0, opt.hyperParams.keys(), opt.hyperParams.values())
+        # x_0 = caSubsti(x_0, opt.hyperParams.keys(), opt.hyperParams.values())
 
         initSol = solveLinearCons(caFuncSubsti(EOMF, {"x":x_0}), [("ddq", np.zeros(7), 1e3)])
         opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
@@ -158,15 +160,20 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         opt.addConstraint(*FinalC)
 
 opt.step(lambda dx,x,u : EoMFuncs[(0,0)](x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-        x0 = XDes, u0 = [0,0,0,0], F0=[0,0,0,0])
+        x0 = caSubsti(XDes, opt.hyperParams.keys(), opt.hyperParams.values()), u0 = [0,0,0,0], F0=[0,0,0,0])
 
 
 if __name__ == "__main__" :
 
-    # opt.cppGen("cppIpopt/nlpGen")
+    # opt.buildParseSolution("x_plot", lambda sol: sol["Xgen"]["x_plot"])
     # exit()
+
+    opt.cppGen("cppIpopt_bak/nlpGen")
+    exit()
+
     import matplotlib.pyplot as plt
     with Session(__file__,terminalLog = True) as ss:
+        # opt.hyperParams = {distance_mx: 0.5, distance:0.5}
     # if(True):
         res = opt.solve(options=
             {"calc_f" : True,

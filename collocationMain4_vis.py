@@ -1,6 +1,5 @@
 # from collocationMain4 import *
 # from directMain import rounge_Kutta, DynFuncs
-import vis
 import pickle as pkl
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation

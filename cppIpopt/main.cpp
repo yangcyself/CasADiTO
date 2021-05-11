@@ -30,10 +30,8 @@ int main(
    // Note: The following choices are only examples, they might not be
    //       suitable for your optimization problem.
    app->Options()->SetNumericValue("tol", 1e-7);
-   app->Options()->SetStringValue("mu_strategy", "adaptive");
-   app->Options()->SetStringValue("output_file", "ipopt.out");
-   // The following overwrites the default name (ipopt.opt) of the options file
-   // app->Options()->SetStringValue("option_file_name", "hs071.opt");
+   app->Options()->SetStringValue("mu_strategy", "monotone"); // from casadi document, IMPORTANT! related to coredump
+   // default is monotone
 
    // Initialize the IpoptApplication and process the options
    ApplicationReturnStatus status;
@@ -56,15 +54,7 @@ int main(
       std::cout << std::endl << std::endl << "*** The problem FAILED!" << std::endl;
    }
 
-   std::cout << "********* X out **********"<<std::endl;
-   std::cout << X <<std::endl;
 
-   std::cout << "********* U out **********"<<std::endl;
-   std::cout << U <<std::endl;
-
-   std::cout << "********* T out **********"<<std::endl;
-   std::cout << T <<std::endl;
-   
    std::ofstream fox("X_out.csv");
    fox << X.transpose().format(CSVFormat);
 
