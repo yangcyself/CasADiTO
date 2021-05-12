@@ -1,5 +1,5 @@
 from optGen.optGen import *
-
+from optGen.util import substiSX2MX
 class TowrCollocation(optGen):
     """The traj optimization builder using towr like integration algorithm
 
@@ -158,7 +158,7 @@ class xGenDefault(optGen):
 
 
 class xGenTerrianHoloCons(xGenDefault):
-    def __init__(self, xDim, xLim, ptrFuncs, terrian):
+    def __init__(self, xDim, xLim, ptrFuncs, terrian, terrianLim = (-2,2)):
         """xGen that adds the terrian constraints of points
 
         Args:
@@ -168,7 +168,16 @@ class xGenTerrianHoloCons(xGenDefault):
         super().__init__(xDim, xLim)
         self.ptrFuncs = ptrFuncs
         self.terrain = terrian
-    
+        self.terrainLim = terrianLim
+        terrianX = np.linspace(*terrianLim, 100)
+        self._parse.update({
+            "x_plot": lambda: ca.horzcat(*self._x_plot),
+            "terrian_plot": lambda: ca.horzcat(terrianX, substiSX2MX( 
+                ca.vertcat(*[- self.terrain([x,0]) for x in terrianX]), 
+                self.hyperParamList(ca.SX),
+                self.hyperParamList(ca.MX) ) )
+        })
+
     def _begin(self, **kwargs):
         pass
     
@@ -176,7 +185,7 @@ class xGenTerrianHoloCons(xGenDefault):
         Xk = super().step(step,x0,**kwargs)
 
         for pF in self.ptrFuncs:
-            g = self.terrain( pF(Xk) )
+            g = self.tryCallWithHyperParam(self.terrain, {"p" : pF(Xk)} )
             self._g.append(g)
             self._lbg.append([0]*g.size(1)) #size(1): the dim of axis0
             self._ubg.append([np.infty]*g.size(1)) #size(1): the dim of axis0

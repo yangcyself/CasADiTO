@@ -1,6 +1,7 @@
 # from trajOptimizer import *
 # from policyOptimizer import *
 from optGen.trajOptimizer import *
+from optGen.helpers import pointsTerrian2D
 # import model, vis
 from model.leggedRobot2D import LeggedRobot2D
 from mathUtil import solveLinearCons
@@ -22,17 +23,21 @@ model = LeggedRobot2D.fromYaml("data/robotConfigs/JYminiLite.yaml")
 dT0 = 0.01
 # distance = model.params["torLL"] * 1.5
 legLength = model.params["legL2"]
-distance = ca.SX.sym("distance",1)
+# distance = ca.SX.sym("distance",1)
+terrianPoints = ca.SX.sym("terrianPoints",7, 2)
 
-# X0 = np.array([0,0.3 + legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+
+X0 = np.array([terrianPoints[1, 0], terrianPoints[1, 1] + legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+         0,0,0,0,    0,    0,    0])
+# X0 = np.array([0, legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
 #          0,0,0,0,    0,    0,    0])
-X0 = np.array([0, legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+
+XDes = np.array([terrianPoints[-2, 0], terrianPoints[-2, 1] + legLength ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
+SchemeSteps = 50
 
-
-XDes = np.array([distance, legLength ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
-         0,0,0,0,    0,    0,    0])
-
+distance = terrianPoints[-2, 0] - terrianPoints[1, 0]
+height = terrianPoints[-2, 0] - terrianPoints[1, 0]
 # XDes = substiSX2MX(XDes, [distance], [distance_mx])
 
 xlim = [
@@ -68,11 +73,11 @@ EoMFuncs = {
 }
 
 Scheme = [ # list: (contact constaints, length)
-    ((1,1), 50, "start"),
-    ((1,0), 50, "lift"),
-    ((0,0), 50, "fly"),
+    ((1,1), SchemeSteps, "start"),
+    ((1,0), SchemeSteps, "lift"),
+    ((0,0), SchemeSteps, "fly"),
     # ([model.phbLeg2], 3, "land"),
-    # ((1,1), 50, "finish")
+    # ((1,1), SchemeSteps, "finish")
 ]
 
 Xlift0 = X0.copy()
@@ -88,7 +93,8 @@ References = [
         [0,100,0,0,0,100,0,0]
     ),
     lambda i:( # fly
-        X0 + np.concatenate([np.array([distance/50*i, 0.2+i*(50-i)/625]), np.zeros(12)]),
+        X0 + np.concatenate([np.array([distance/SchemeSteps*i, 
+        height/SchemeSteps*i + 0.2+i*(SchemeSteps-i)/(SchemeSteps**2/4)]), np.zeros(12)]),
         [0,0,0,0, 0,0,0,0]
     ),
     # lambda i:( # finish
@@ -108,13 +114,15 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
 
 
 opt = TowrCollocationVTiming(14, 4, 4, xlim, ulim, [[-200, 200]]*4, dT0, [dT0/100, dT0])
-opt.Xgen = xGenTerrianHoloCons(14, np.array(xlim), model.pFuncs.values(), lambda p: p[1])
-# opt.Xgen = xGenTerrianHoloCons(14, np.array(xlim), model.pFuncs.values(), lambda p: ca.if_else(p[0]>0.35, p[1],p[1] - 0.3))
+# opt.Xgen = xGenTerrianHoloCons(14, np.array(xlim), model.pFuncs.values(), lambda p: p[1])
+terrian = pointsTerrian2D(terrianPoints)
+opt.Xgen = xGenTerrianHoloCons(14, np.array(xlim), model.pFuncs.values(), lambda p: p[1] - terrian(p[0]))
+
 # opt = TowrCollocationDefault(14, 4, 4, xlim, [[-100,100]]*4, [[-200, 200]]*4, dT0)
 costU = opt.newhyperParam("costU")
 costDDQ = opt.newhyperParam("costDDQ")
 costQReg = opt.newhyperParam("costQReg")
-opt.newhyperParam(distance)
+opt.newhyperParam(terrianPoints)
 
 opt.begin(x0=X0, u0=[1,125,1,125], F0=[0,100,0,100])
 
@@ -181,7 +189,16 @@ if __name__ == "__main__" :
 
     import matplotlib.pyplot as plt
     with Session(__file__,terminalLog = True) as ss:
-        opt.setHyperParamValue({"distance": 1, 
+    # if True:
+        opt.setHyperParamValue({"terrianPoints": np.array([
+                                    [-2, 0],
+                                    [0, 0], # init point
+                                    [0.45, 0],
+                                    [0.5, 0.2],
+                                    [0.6, 0.2],
+                                    [0.8, 0.2], # target point
+                                    [2, 0.2]
+                                ]), 
                                 "costU":0.01,
                                 "costDDQ":0.0001,
                                 "costQReg":0.1})
@@ -195,10 +212,10 @@ if __name__ == "__main__" :
                 "verbose_init":True,
                 # "jac_g": gjacFunc
             "ipopt":{
-                "max_iter" : 10000, # unkown option
+                "max_iter" : 2000, # unkown option
                 }
             })
-
+        
         dumpname = os.path.abspath(os.path.join("./data/nlpSol", "ycyCollo%d.pkl"%time.time()))
 
         with open(dumpname, "wb") as f:

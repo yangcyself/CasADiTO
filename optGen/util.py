@@ -40,6 +40,9 @@ def kwargFunc(f):
         return f(**{k:kwargs[k] for k in sig[0]})
     return func
 
+def getName(a):
+    return a[0,0].name()[:-2]
+
 def caSubsti(a, sym, val):
     """Substitute the symbols by values and calculate the value of a
 
@@ -84,7 +87,7 @@ def substiSX2MX(a, SX, MX):
         SX ([type]): [description]
         MX ([type]): [description]
     """
-    return ca.Function("TMPsubstiSX2MX", SX, [a], [x.name() for x in SX], ["out"])(*MX)
+    return ca.Function("TMPsubstiSX2MX", SX, [a])(*MX)
 
 def MXinSXop(op, a, SXandMX):
     """conduct the SX operation with MX

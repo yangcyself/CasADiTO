@@ -1,4 +1,4 @@
-from optGen.util import LazyFunc, kwargFunc, caSubsti, MXinSXop
+from optGen.util import LazyFunc, kwargFunc, caSubsti, MXinSXop, getName
 import casadi as ca
 import numpy as np
 import os
@@ -147,6 +147,11 @@ class optGen:
     def hyperParams(self):
         return {**self._hyperParams}
 
+    def updateHyperParams(self, hp = None):
+        hp ={} if hp is None else hp
+        self._hyperParams.update(hp)
+        [c.updateHyperParams(self._hyperParams) for c in self._child.values()]
+
     def newhyperParam(self, hp, shape=None):
         """Add a new hyper parameter to the system. Return the SX version
 
@@ -160,13 +165,15 @@ class optGen:
         if(isinstance(hp, str)):
             assert(hp not in self._hyperParams.keys())
             shape = (1,1) if shape is None else shape
-            self._hyperParams[hp] = (shape, ca.SX.sym(hp, *shape), ca.MX.sym(hp, *shape), None)
-            return self._hyperParams[hp][1]
+            self._hyperParams[hp] = (shape, ca.SX.sym(hp, *shape), ca.MX.sym("%s_mx"%hp, *shape), None)
+            ret = self._hyperParams[hp][1]
         elif(isinstance(hp, ca.SX)):
-            self._hyperParams[hp.name()] = (hp.size(), hp, ca.MX.sym(hp.name(), *hp.size()), None)
-            return hp
+            self._hyperParams[getName(hp)] = (hp.size(), hp, ca.MX.sym("%s_mx"%getName(hp), *hp.size()), None)
+            ret = hp
         else:
             raise TypeError("the hp should be eitehr a string or a SX, but got %s"%str(type(hp)))
+        self.updateHyperParams()
+        return ret
 
     
     def hyperParamList(self, t):
@@ -189,6 +196,19 @@ class optGen:
     def setHyperParamValue(self, hpdict):
         for k,v in hpdict.items():
             self._hyperParams[k] = (*(self._hyperParams[k][:3]),v )
+        self.updateHyperParams()
+
+    def tryCallWithHyperParam(self, func, kwargs):
+        try:
+            res = func(**kwargs)
+        except TypeError as e:
+            if("operand type(s)" not in str(e)):
+                raise e
+            res = MXinSXop(func, kwargs, 
+                list(zip(self.hyperParamList("name"),
+                         self.hyperParamList(ca.SX),
+                         self.hyperParamList(ca.MX))))
+        return res
 
     def buildParseSolution(self, name, solEx):
         """Build a casadi function that extract the target value given optimized result
@@ -263,29 +283,13 @@ class optGen:
 
     # Add constriant of the state of last step
     def addConstraint(self, func, lb, ub):
-        try:
-            self._g.append( kwargFunc(func)(**self._state) )
-        except TypeError as e:
-            if("operand type(s)" not in str(e)):
-                raise e
-            self._g.append(MXinSXop(kwargFunc(func), self._state, 
-                list(zip(self.hyperParamList("name"),
-                         self.hyperParamList(ca.SX),
-                         self.hyperParamList(ca.MX)))))
+        self._g.append(self.tryCallWithHyperParam(kwargFunc(func), self._state))
         self._lbg.append(lb)
         self._ubg.append(ub)
     
     # Add constriant of the state of last step
     def addCost(self, func):
-        try:
-            self._J += kwargFunc(func)(**self._state)
-        except TypeError as e:
-            if("unsupported operand type(s)" not in str(e)):
-                raise e
-            self._J += MXinSXop(kwargFunc(func), self._state, 
-                list(zip(self.hyperParamList("name"),
-                         self.hyperParamList(ca.SX),
-                         self.hyperParamList(ca.MX))))
+        self._J += self.tryCallWithHyperParam(kwargFunc(func), self._state)
 
     def _begin(self,**kwargs):
         raise NotImplementedError
