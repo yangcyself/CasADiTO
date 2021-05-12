@@ -24,6 +24,7 @@ with open(solFile, "rb") as f:
     sol = solraw["sol"]
     sol_x= sol['Xgen']['x_plot'].full().T
     sol_u= sol['Ugen']['u_plot'].full().T
+    terrian = sol['Xgen']['terrain_plot'].full()
     Scheme = solraw["Scheme"]
     # x_init = solraw["x_init"]
     timeStamps = sol['dTgen']['t_plot'].full()
@@ -103,6 +104,8 @@ def animate(i):
     
     linesol = model.visulize(xsol)
     # lineini = model.visulize(xini)
+
+    terrianLine = ax.plot(terrian[:,0],terrian[:,1])
 
     til = ax.set_title(phase[ind])
     # til = ax.set_title(phase[i%Total])

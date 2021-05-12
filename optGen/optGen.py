@@ -222,7 +222,9 @@ class optGen:
         """
         solDict = self.parseSol({"x": self.w})
         target = solEx(solDict)
-        return ca.Function("parse_%s"%name, [self.w], [target], ["x"], [name])
+        return ca.Function("parse_%s"%name, 
+                self.hyperParamList(self.w) + [ self.w ], [target], 
+                self.hyperParamList("name") + ["x"], [name])
 
     def substHyperParam(self, target):
         target = ca.DM(target) if isinstance(target, np.ndarray) else target
@@ -307,7 +309,7 @@ class optGen:
         """
         raise NotImplementedError
 
-    def cppGen(self, cppname, parseFuncs = None, genFolder = True):
+    def cppGen(self, cppname, parseFuncs = None, genFolder = True, cmakeOpt = None):
         """Generate cpp files of the optimization problem. Specifically, the `_info` `f` `g` `grad_` `hessian` and prse functions
 
         Args:
@@ -342,6 +344,21 @@ class optGen:
                 with open(os.path.join(cppname, "interface.h"), "w") as f:
                     for h in hfiles:
                         f.write('#include "%s"\n'%h)
+                if(cmakeOpt is not None):
+                    cmakeOption = {"projName": "casaditoGen",
+                                "cxxflag": '"-O0"',
+                                "libName": "nlpgen"}
+                    cmakeOption.update(cmakeOpt)
+                    with open(os.path.join(cppname, "CMakeLists.txt"), "w") as f:
+                        f.write(
+                        'project({projName})\n'\
+                        'cmake_minimum_required(VERSION 3.7)\n'\
+                        'set(CMAKE_BUILD_TYPE Release)\n'\
+                        'SET(CMAKE_CXX_FLAGS_RELEASE {cxxflag})\n'\
+                        'link_directories(/usr/local/lib)\n'\
+                        'file(GLOB NlpGenFiles "*.cpp")\n'\
+                        'add_library({libName} ${{NlpGenFiles}})\n'\
+                        .format(**cmakeOption))
             
         glen = self.g.size(1)
         jacg = ca.jacobian(self.g, self.w)

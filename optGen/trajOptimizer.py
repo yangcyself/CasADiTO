@@ -172,7 +172,7 @@ class xGenTerrianHoloCons(xGenDefault):
         terrianX = np.linspace(*terrianLim, 100)
         self._parse.update({
             "x_plot": lambda: ca.horzcat(*self._x_plot),
-            "terrian_plot": lambda: ca.horzcat(terrianX, substiSX2MX( 
+            "terrain_plot": lambda: ca.horzcat(terrianX, substiSX2MX( 
                 ca.vertcat(*[- self.terrain([x,0]) for x in terrianX]), 
                 self.hyperParamList(ca.SX),
                 self.hyperParamList(ca.MX) ) )
