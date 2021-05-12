@@ -3,6 +3,8 @@
 
 #include <iostream>
 #include <fstream>
+#include <vector>
+#include <utility>
 
 using namespace Ipopt;
 
@@ -17,7 +19,12 @@ int main(
    // Create a new instance of your nlp
    //  (use a SmartPtr, not raw)
    Eigen::MatrixXd X,U,T;
-   SmartPtr<TNLP> mynlp = new TONLP(X,U,T);
+   double hp_dist = 0.8175;
+   std::vector<std::pair<std::string, const double* > > hp = {
+      std::make_pair("distance", &hp_dist)
+   };
+
+   SmartPtr<TNLP> mynlp = new TONLP(X,U,T, hp);
 //    SmartPtr<TNLP> mynlp = new HS071_NLP();
 
    // Create a new instance of IpoptApplication

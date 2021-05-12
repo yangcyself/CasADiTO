@@ -81,7 +81,8 @@ inline void largestWork(casadi_int &sz_arg, casadi_int& sz_res, casadi_int &sz_i
 // constructor
 TONLP::TONLP(Eigen::MatrixXd& x,    
             Eigen::MatrixXd& u,
-            Eigen::MatrixXd& t):
+            Eigen::MatrixXd& t,
+            const hp_t& hyParam):
 x_out(x),
 u_out(u),
 t_out(t)
@@ -108,6 +109,12 @@ t_out(t)
     SimpleArrayPtr<casadi_real*> res(sz_res); _res = res;
     SimpleArrayPtr<casadi_int> iw(sz_iw); _iw = iw;
     SimpleArrayPtr<casadi_real> w(sz_w); _w = w;
+
+    /** Set the first several arguments of arg **/
+    for(int i = 0; i<hyParam.size(); i++){
+        assert(std::string(hyParam[i].first) == bounds_info_name_in(i));
+        _arg[i] = hyParam[i].second;
+    }
 }
 
 

@@ -170,16 +170,16 @@ if __name__ == "__main__" :
     # opt.buildParseSolution("x_plot", lambda sol: sol["Xgen"]["x_plot"])
     # exit()
 
-    opt.cppGen("cppIpopt_bak/nlpGen",parseFuncs=[
-        ("x_plot", lambda sol: sol["Xgen"]["x_plot"]),
-        ("u_plot", lambda sol: sol["Ugen"]["u_plot"]),
-        ("t_plot", lambda sol: sol["dTgen"]["t_plot"])])
+    # opt.cppGen("cppIpopt_bak/nlpGen",parseFuncs=[
+    #     ("x_plot", lambda sol: sol["Xgen"]["x_plot"]),
+    #     ("u_plot", lambda sol: sol["Ugen"]["u_plot"]),
+    #     ("t_plot", lambda sol: sol["dTgen"]["t_plot"])])
     # exit()
 
     import matplotlib.pyplot as plt
     with Session(__file__,terminalLog = True) as ss:
         # opt.hyperParams = {distance_mx: 0.5, distance:0.5}
-        opt.setHyperParamValue({"distance":0.5})
+        opt.setHyperParamValue({"distance":model.params["torLL"] * 1.5})
     # if(True):
         res = opt.solve(options=
             {"calc_f" : True,

@@ -6,7 +6,8 @@
 #include "IpTNLP.hpp"
 #include <Eigen/Core>
 #include "util.h"
-
+#include <vector>
+#include <utility>
 using namespace Ipopt;
 
 /** IPOPT C++ interface for NLP problem using code generated from casadi
@@ -15,10 +16,13 @@ using namespace Ipopt;
 class TONLP: public TNLP
 {
 public:
+
+   using hp_t = std::vector<std::pair<std::string, const double*>  >;
    /** Default constructor */
    TONLP(Eigen::MatrixXd& x,    
          Eigen::MatrixXd& u,
-         Eigen::MatrixXd& t
+         Eigen::MatrixXd& t,
+         const hp_t& hyParam
    );
 
    /** Default destructor */

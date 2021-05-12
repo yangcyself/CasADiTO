@@ -50,6 +50,9 @@ def caSubsti(a, sym, val):
     """
     if(len(sym) == 0 or isinstance(a, ca.DM)):
         return a
+    sameType = [type(s) == type(a) for s in sym]
+    sym = [s for s,i in zip(sym, sameType) if i]
+    val = [v for v,i in zip(val, sameType) if i]
     res = ca.substitute([a], sym, val)[0]
     return ca.DM(res) if res.is_constant() else res
 
@@ -60,7 +63,8 @@ def caFuncSubsti(f, kwargs):
         a (MX/SX): The target to calculate
         kwargs {name, val} the name and value to substitute in the function
     """
-    X_dict = {n: ca.SX.sym(n,f.size_in(n)) 
+    caType = ca.MX if isinstance (next(iter(kwargs.values())), ca.MX) else ca.SX
+    X_dict = {n: caType.sym(n,f.size_in(n)) 
         for n in f.name_in() if n not in kwargs.keys()
     }
     fres = f(**X_dict, **kwargs)
@@ -71,3 +75,28 @@ def caFuncSubsti(f, kwargs):
         list(X_dict.keys()),
         list(fres.keys())
     )
+
+def substiSX2MX(a, SX, MX):
+    """given a SX expression, make it a function and call with MX
+
+    Args:
+        a ([type]): [description]
+        SX ([type]): [description]
+        MX ([type]): [description]
+    """
+    return ca.Function("TMPsubstiSX2MX", SX, [a], [x.name() for x in SX], ["out"])(*MX)
+
+def MXinSXop(op, a, SXandMX):
+    """conduct the SX operation with MX
+
+    Args:
+        op ([type]): [description]
+        a ({name: MX}): a dict of MX variables
+        SXandMX([(name, SX, MX)])
+    """
+    asx = {k:ca.SX.sym(k, v.size(1), v.size(2)) for k,v in a.items() if v is not None}
+    opsx = op(**asx)
+    opsx_func = ca.Function("op", list(asx.values()) + [s for n,s,m in SXandMX], [opsx], 
+                            list(asx.keys()) + [n for n,s,m in SXandMX], ["out"])
+    return opsx_func(*[v for v in a.values() if v is not None], *[m for n,s,m in SXandMX])
+
