@@ -21,23 +21,21 @@ This file use dynamic constraint as dynamics, rather than dynF
 model = LeggedRobot2D.fromYaml("data/robotConfigs/JYminiLite.yaml")
 # input dims: [ux4,Fbx2,Ffx2]
 dT0 = 0.01
-# distance = model.params["torLL"] * 1.5
 legLength = model.params["legL2"]
-# distance = ca.SX.sym("distance",1)
-terrianPoints = ca.SX.sym("terrianPoints",7, 2)
+distance = ca.SX.sym("distance",1)
 
-
-X0 = np.array([terrianPoints[1, 0], terrianPoints[1, 1] + legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
-         0,0,0,0,    0,    0,    0])
-# X0 = np.array([0, legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+# X0 = np.array([0,0.3 + legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
 #          0,0,0,0,    0,    0,    0])
-
-XDes = np.array([terrianPoints[-2, 0], terrianPoints[-2, 1] + legLength ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+X0 = np.array([0, legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
-SchemeSteps = 50
 
-distance = terrianPoints[-2, 0] - terrianPoints[1, 0]
-height = terrianPoints[-2, 0] - terrianPoints[1, 0]
+
+XDes = np.array([distance, legLength ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+         0,0,0,0,    0,    0,    0])
+
+SchemeSteps = 50
+height = 0
+
 # XDes = substiSX2MX(XDes, [distance], [distance_mx])
 
 xlim = [
@@ -114,15 +112,13 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
 
 
 opt = TowrCollocationVTiming(14, 4, 4, xlim, ulim, [[-200, 200]]*4, dT0, [dT0/100, dT0])
-# opt.Xgen = xGenTerrianHoloCons(14, np.array(xlim), model.pFuncs.values(), lambda p: p[1])
-terrian = pointsTerrian2D(terrianPoints, 0.001) 
-opt.Xgen = xGenTerrianHoloCons(14, np.array(xlim), model.pFuncs.values(), lambda p: p[1] - terrian(p[0]))
-
+opt.Xgen = xGenTerrianHoloCons(14, np.array(xlim), model.pFuncs.values(), lambda p: p[1])
+# opt.Xgen = xGenTerrianHoloCons(14, np.array(xlim), model.pFuncs.values(), lambda p: ca.if_else(p[0]>0.35, p[1],p[1] - 0.3))
 # opt = TowrCollocationDefault(14, 4, 4, xlim, [[-100,100]]*4, [[-200, 200]]*4, dT0)
 costU = opt.newhyperParam("costU")
 costDDQ = opt.newhyperParam("costDDQ")
 costQReg = opt.newhyperParam("costQReg")
-opt.newhyperParam(terrianPoints)
+opt.newhyperParam(distance)
 
 opt.begin(x0=X0, u0=[1,125,1,125], F0=[0,100,0,100])
 
@@ -181,26 +177,18 @@ if __name__ == "__main__" :
     # opt.buildParseSolution("x_plot", lambda sol: sol["Xgen"]["x_plot"])
     # exit()
 
-    opt.cppGen("cppIpopt/terrainJump",parseFuncs=[
+    opt.cppGen("cppIpopt/flatJump",parseFuncs=[
         ("x_plot", lambda sol: sol["Xgen"]["x_plot"]),
         ("u_plot", lambda sol: sol["Ugen"]["u_plot"]),
         ("t_plot", lambda sol: sol["dTgen"]["t_plot"]),
         ("terrain_plot", lambda sol: sol["Xgen"]["terrain_plot"])],
-        cmakeOpt={'libName': 'nlpTrnJmp'})
+        cmakeOpt={'libName': 'nlpFltJmp'})
     exit()
 
     import matplotlib.pyplot as plt
     with Session(__file__,terminalLog = True) as ss:
     # if True:
-        opt.setHyperParamValue({"terrianPoints": np.array([
-                                    [-2, 0.3],
-                                    [0, 0.3], # init point
-                                    [0.34, 0.3],
-                                    [0.36, 0.],
-                                    [0.6, 0.],
-                                    [0.8, 0.], # target point
-                                    [2, 0.]
-                                ]), 
+        opt.setHyperParamValue({"distance": 0.5, 
                                 "costU":0.01,
                                 "costDDQ":0.0001,
                                 "costQReg":0.1})
