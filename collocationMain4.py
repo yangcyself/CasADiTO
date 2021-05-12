@@ -22,14 +22,13 @@ model = LeggedRobot2D.fromYaml("data/robotConfigs/JYminiLite.yaml")
 dT0 = 0.01
 # distance = model.params["torLL"] * 1.5
 legLength = model.params["legL2"]
-
 distance = ca.SX.sym("distance",1)
-# distance_mx = ca.MX.sym("distance",1)
 
-# distance = 0.5
-
-X0 = np.array([0,0.3 + legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+# X0 = np.array([0,0.3 + legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+#          0,0,0,0,    0,    0,    0])
+X0 = np.array([0, legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
+
 
 XDes = np.array([distance, legLength ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
@@ -109,8 +108,12 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
 
 
 opt = TowrCollocationVTiming(14, 4, 4, xlim, ulim, [[-200, 200]]*4, dT0, [dT0/100, dT0])
-opt.Xgen = xGenTerrianHoloCons(14, np.array(xlim), model.pFuncs.values(), lambda p: ca.if_else(p[0]>0.35, p[1],p[1] - 0.3))
+opt.Xgen = xGenTerrianHoloCons(14, np.array(xlim), model.pFuncs.values(), lambda p: p[1])
+# opt.Xgen = xGenTerrianHoloCons(14, np.array(xlim), model.pFuncs.values(), lambda p: ca.if_else(p[0]>0.35, p[1],p[1] - 0.3))
 # opt = TowrCollocationDefault(14, 4, 4, xlim, [[-100,100]]*4, [[-200, 200]]*4, dT0)
+costU = opt.newhyperParam("costU")
+costDDQ = opt.newhyperParam("costDDQ")
+costQReg = opt.newhyperParam("costQReg")
 opt.newhyperParam(distance)
 
 opt.begin(x0=X0, u0=[1,125,1,125], F0=[0,100,0,100])
@@ -133,9 +136,9 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         # opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
         #         u_0, X0)
 
-        opt.addCost(lambda x,u: 0.01*ca.dot(u[:4],u[:4]))
-        opt.addCost(lambda ddq1: 0.0001 * ca.dot(ddq1[-4:],ddq1[-4:]))
-        opt.addCost(lambda x: 0.1 * ca.dot((x - X0)[2:],(x - X0)[2:]))
+        opt.addCost(lambda x,u: costU*ca.dot(u[:4],u[:4]))
+        opt.addCost(lambda ddq1: costDDQ * ca.dot(ddq1[-4:],ddq1[-4:]))
+        opt.addCost(lambda x: costQReg * ca.dot((x - X0)[2:],(x - X0)[2:]))
         # opt.addCost(lambda x,u: 0.005*ca.dot(x[-4:],x[-4:]))
 
         # opt.addCost(lambda x,u: ca.dot(x - X0,x - X0))
@@ -170,7 +173,7 @@ if __name__ == "__main__" :
     # opt.buildParseSolution("x_plot", lambda sol: sol["Xgen"]["x_plot"])
     # exit()
 
-    # opt.cppGen("cppIpopt_bak/nlpGen",parseFuncs=[
+    # opt.cppGen("cppIpopt/flatJump",parseFuncs=[
     #     ("x_plot", lambda sol: sol["Xgen"]["x_plot"]),
     #     ("u_plot", lambda sol: sol["Ugen"]["u_plot"]),
     #     ("t_plot", lambda sol: sol["dTgen"]["t_plot"])])
@@ -178,8 +181,10 @@ if __name__ == "__main__" :
 
     import matplotlib.pyplot as plt
     with Session(__file__,terminalLog = True) as ss:
-        # opt.hyperParams = {distance_mx: 0.5, distance:0.5}
-        opt.setHyperParamValue({"distance":model.params["torLL"] * 1.5})
+        opt.setHyperParamValue({"distance": 1, 
+                                "costU":0.01,
+                                "costDDQ":0.0001,
+                                "costQReg":0.1})
     # if(True):
         res = opt.solve(options=
             {"calc_f" : True,

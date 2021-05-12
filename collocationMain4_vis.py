@@ -25,7 +25,7 @@ with open(solFile, "rb") as f:
     sol_x= sol['Xgen']['x_plot'].full().T
     sol_u= sol['Ugen']['u_plot'].full().T
     Scheme = solraw["Scheme"]
-    x_init = solraw["x_init"]
+    # x_init = solraw["x_init"]
     timeStamps = sol['dTgen']['t_plot'].full()
 
 
@@ -89,7 +89,7 @@ def animate(i):
         ind+=1
     # xsim = x_sim[ind]
     xsol = x_opt[ind]
-    xini = x_init[ind]
+    # xini = x_init[ind]
 
     # line.set_xdata(robotLines[i][:,0])  # update the data.
     # line.set_ydata(robotLines[i][:,1])  # update the data.
@@ -102,13 +102,14 @@ def animate(i):
     # lineini, = ax.plot(robotLineini[:,0], robotLineini[:,1])
     
     linesol = model.visulize(xsol)
-    lineini = model.visulize(xini)
+    # lineini = model.visulize(xini)
 
     til = ax.set_title(phase[ind])
     # til = ax.set_title(phase[i%Total])
     ax.set_xlim(-0.5,1.5)
     ax.set_ylim(-0.5,1.5)
-    return linesol,lineini,til
+    # return linesol,lineini,til
+    return linesol,til
     # return linesim,linesol
 
 ani = animation.FuncAnimation(
