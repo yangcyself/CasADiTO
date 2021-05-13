@@ -41,7 +41,8 @@ def kwargFunc(f):
     return func
 
 def getName(a):
-    return a[0,0].name()[:-2]
+    
+    return a.name() if a.is_scalar() else a[0,0].name()[:-2]
 
 def caSubsti(a, sym, val):
     """Substitute the symbols by values and calculate the value of a

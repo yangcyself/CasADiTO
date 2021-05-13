@@ -92,7 +92,7 @@ t_out(t)
     casadi_int sz_res=0;
     casadi_int sz_iw=0;
     casadi_int sz_w=0;
-    largestWork(sz_arg, sz_res, sz_iw, sz_w, 
+    largestWork(sz_arg, sz_res, sz_iw, sz_w,
         nlp_info_work,
         bounds_info_work,
         starting_point_work,
@@ -377,10 +377,11 @@ void TONLP::finalize_solution(
     IpoptCalculatedQuantities *ip_cq)
 {
 
- 
+    static casadi_int n_arg = parse_x_plot_n_in();
+    _arg[n_arg-1] = x;
+
     AUTO_SET_UP_WORKING_MEM(parse_x_plot, 0, x_n_res, x_);
-    x_arg[0] = x;
-    parse_x_plot(x_arg, x_res, x_iw, x_w, 0);
+    parse_x_plot(_arg, x_res, x_iw, x_w, 0);
     x_out = Eigen::MatrixXd::Zero(parse_x_plot_sparsity_out(0)[0],
                     parse_x_plot_sparsity_out(0)[1]);
     compCCS_fillDense(parse_x_plot_sparsity_out(0),
@@ -388,16 +389,14 @@ void TONLP::finalize_solution(
 
 
     AUTO_SET_UP_WORKING_MEM(parse_u_plot, 0, u_n_res, u_);
-    u_arg[0] = x;
-    parse_u_plot(u_arg, u_res, u_iw, u_w, 0);
+    parse_u_plot(_arg, u_res, u_iw, u_w, 0);
     u_out = Eigen::MatrixXd::Zero(parse_u_plot_sparsity_out(0)[0],
                     parse_u_plot_sparsity_out(0)[1]);
     compCCS_fillDense(parse_u_plot_sparsity_out(0),
                         u_res[0], u_out);
 
     AUTO_SET_UP_WORKING_MEM(parse_t_plot, 0, t_n_res, t_);
-    t_arg[0] = x;
-    parse_t_plot(t_arg, t_res, t_iw, t_w, 0);
+    parse_t_plot(_arg, t_res, t_iw, t_w, 0);
     t_out = Eigen::MatrixXd::Zero(parse_t_plot_sparsity_out(0)[0],
                     parse_t_plot_sparsity_out(0)[1]);
     compCCS_fillDense(parse_t_plot_sparsity_out(0),
