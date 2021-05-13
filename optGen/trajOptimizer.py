@@ -158,12 +158,13 @@ class xGenDefault(optGen):
 
 
 class xGenTerrianHoloCons(xGenDefault):
-    def __init__(self, xDim, xLim, ptrFuncs, terrian, terrianLim = (-2,2)):
+    def __init__(self, xDim, xLim, ptrFuncs, terrian, terrianLim = (-2,2), robustGap = None):
         """xGen that adds the terrian constraints of points
 
         Args:
             ptrFuncs ([(x)=> p]): list of functions that calculates interested points given current state
             terrian ([g(p)]): the constraint function on points, the constraint is: g(p)>0
+            robustGap([double]): the gap for the ptr functions. The ptrs should be higher than the gap. Same size as ptrFunctions
         """
         super().__init__(xDim, xLim)
         self.ptrFuncs = ptrFuncs
@@ -177,6 +178,8 @@ class xGenTerrianHoloCons(xGenDefault):
                 self.hyperParamList(ca.SX),
                 self.hyperParamList(ca.MX) ) )
         })
+        self.robustGap = [0] * len(self.ptrFuncs) if robustGap is None else robustGap
+        assert(len(self.robustGap) == len(self.ptrFuncs))
 
     def _begin(self, **kwargs):
         pass
@@ -184,9 +187,9 @@ class xGenTerrianHoloCons(xGenDefault):
     def step(self, step, x0, **kwargs):
         Xk = super().step(step,x0,**kwargs)
 
-        for pF in self.ptrFuncs:
+        for pF, r in zip(self.ptrFuncs, self.robustGap):
             g = self.tryCallWithHyperParam(self.terrain, {"p" : pF(Xk)} )
-            self._g.append(g)
+            self._g.append(g - r)
             self._lbg.append([0]*g.size(1)) #size(1): the dim of axis0
             self._ubg.append([np.infty]*g.size(1)) #size(1): the dim of axis0
 

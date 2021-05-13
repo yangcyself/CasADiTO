@@ -84,6 +84,9 @@ class Body2D(Body):
             return ca.DM.zeros(3) if self.parent is None else self.parent.Mdp
         return ca.jtimes(self.Mp, self.q, self.dq)
 
+    def p2v(self, p):#Warning Untested!!!
+        return ca.jtimes(p, self.q, self.dq)
+
     @property
     def Mp(self):
         """3D verctor: px, py, pr

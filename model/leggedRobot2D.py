@@ -61,6 +61,13 @@ class LeggedRobot2D(ArticulateSystem):
             "phfLeg2" : ca.Function("phfLeg2", [self.x], [self.f2.points["b"]])
         }
 
+    @property
+    def vFuncs(self):#Warning Untested!!!
+        return {
+            "vtoeb" : ca.Function("vtoeb", [self.x], [self.b2.p2v(self.b2.points["b"])]),
+            "vtoef" : ca.Function("vtoef", [self.x], [self.f2.p2v(self.f2.points["b"])])
+        }
+
     def buildEOMF(self, consMap, name=""):
         """Build the equation of Motion and constraint. Return g(x,u,F,ddq)
 

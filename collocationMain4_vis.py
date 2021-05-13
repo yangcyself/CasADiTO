@@ -41,23 +41,9 @@ print(sol_x.shape)
 #     # # Plot the solution
 u_opt = sol_u
 x_opt = sol_x
-
-
-# exit()
-# u_opt = solraw["sol_u"].T
-# x_opt = solraw["sol_x"].T
-# x_sim = x_opt
-
-
 print("u_optShape", u_opt.shape)
 print("x_optShape", x_opt.shape)
 
-print("x_opt[0]",x_opt[0])
-print("x_opt[1]",x_opt[1])
-ddq = (6 * x_opt[1][:7] - 2*x_opt[1][7:]*dT 
-            - 6 * x_opt[0][:7] - 4*x_opt[0][7:]*dT)/(dT**2)
-print("ddq0",ddq)
-print("U0F0",u_opt[0])
 
 phase = ["init"]
 x_sim = [x_opt[0]]
@@ -66,10 +52,6 @@ for cons, N, name in Scheme:
     # dynF = DynFuncs[cons]
     for i in range(N):
         phase.append(name)
-        # x_sim.append( np.array(rounge_Kutta(x_sim[-1], u_opt[u_count][:4], 
-        #     lambda x,u : dynF(x=x,u=u)["dx"])).reshape(-1))
-        # u_count += 1
-        
 
 
 # Animate
@@ -90,17 +72,7 @@ def animate(i):
         ind+=1
     # xsim = x_sim[ind]
     xsol = x_opt[ind]
-    # xini = x_init[ind]
-
-    # line.set_xdata(robotLines[i][:,0])  # update the data.
-    # line.set_ydata(robotLines[i][:,1])  # update the data.
     ax.clear()
-    # # robotLinesim = vis.visFunc(xsim[:7])
-    # robotLinesol = vis.visFunc(xsol[:7])
-    # robotLineini = vis.visFunc(xini[:7])
-    # # linesim, = ax.plot(robotLinesim[:,0], robotLinesim[:,1])
-    # linesol, = ax.plot(robotLinesol[:,0], robotLinesol[:,1])
-    # lineini, = ax.plot(robotLineini[:,0], robotLineini[:,1])
     
     linesol = model.visulize(xsol)
     # lineini = model.visulize(xini)
@@ -113,7 +85,6 @@ def animate(i):
     ax.set_ylim(-0.5,1.5)
     # return linesol,lineini,til
     return linesol,til
-    # return linesim,linesol
 
 ani = animation.FuncAnimation(
     fig, animate, frames= int(timeStamps[-1]/0.01), interval=25, blit=True, save_count=50)
