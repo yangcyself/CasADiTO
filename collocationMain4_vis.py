@@ -4,6 +4,8 @@ import pickle as pkl
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
+from vis import saveSolution
+
 import sys
 import pandas as pd
 import numpy as np
@@ -98,6 +100,8 @@ ani.save("data/animation/collocation.mp4")
 # writer = animation.FFMpegWriter(
 #     fps=15, metadata=dict(artist='Me'), bitrate=1800)
 # ani.save("movie.mp4", writer=writer)
+
+saveSolution("out.csv", sol_x, sol_u, timeStamps.reshape(-1))
 
 plt.show()
 
