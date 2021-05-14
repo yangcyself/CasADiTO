@@ -19,18 +19,18 @@ int main(
    // Create a new instance of your nlp
    //  (use a SmartPtr, not raw)
    Eigen::MatrixXd X,U,T;
-   // double distance = 0.8;
    double hp_cost_u = 0.1;
    double hp_cost_ddq = 0.0001;
    double hp_cost_qreg = 0.1;
-   double hp_terrianPoints[] = {-2, 0,    0.45, 0.47, 0.6,  0.8,  2,
+   double hp_dist = 1;
+   double hp_terrainPoints[] = {-2, 0,    0.45, 0.47, 0.6,  0.8,  2,
                                0.0, 0.0,  0.0,  0.3,  0.3,  0.3,  0.3};
    std::vector<std::pair<std::string, const double* > > hp = {
-      // std::make_pair("distance", &hp_dist)
       std::make_pair("costU", &hp_cost_u),
       std::make_pair("costDDQ", &hp_cost_ddq),
       std::make_pair("costQReg", &hp_cost_qreg),
-      std::make_pair("terrianPoints", hp_terrianPoints)
+      std::make_pair("distance", &hp_dist)
+      // std::make_pair("terrainPoints", hp_terrainPoints)
    };
 
    SmartPtr<TNLP> mynlp = new TONLP(X,U,T, hp);

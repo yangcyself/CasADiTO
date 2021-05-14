@@ -13,17 +13,17 @@ from trajOptimizerHelper import *
 from ExperimentSecretary.Core import Session
 
 
-model = LeggedRobot2D.fromYaml("data/robotConfigs/JYminiLite.yaml")
+model = LeggedRobot2D.fromYaml("data/robotConfigs/JYminiLitev2.yaml")
 # input dims: [ux4,Fbx2,Ffx2]
 dT0 = 0.01
 # distance = model.params["torLL"] * 1.5
-legLength = model.params["legL2"]
+initHeight = (model.params["legL2"] + model.params["legL1"])/2 # assume 30 angle of legs
 # distance = ca.SX.sym("distance",1)
 
-X0 = np.array([0, 0 + legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+X0 = np.array([0, 0 + initHeight,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
-XDes = np.array([0, 0 + legLength , 2*np.math.pi ,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+XDes = np.array([0, 0 + initHeight , 2*np.math.pi ,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
 SchemeSteps = 50

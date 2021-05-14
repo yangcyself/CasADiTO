@@ -2,7 +2,8 @@
 
 #include "tonlp.h"
 // #include "nlpGen.h"
-#include "nlpGen/interface.h"
+// #include "nlpGen/interface.h"
+#include "flatJump/interface.h"
 #include <cmath>
 
 #include <cassert>
@@ -132,7 +133,6 @@ bool TONLP::get_nlp_info(
     Index &nnz_h_lag,
     IndexStyleEnum &index_style)
 {
-    std::cout <<" get_nlp_info in" <<std::endl;
     AUTO_SET_UP_WORKING_MEM(nlp_info, 0, 4,);
 
     flag = nlp_info(arg, res, iw, w, 0);
@@ -158,7 +158,6 @@ bool TONLP::get_nlp_info(
     std::cout<<"m: \t"<< m <<std::endl;
     std::cout<<"nnz_jac_g: \t"<< nnz_jac_g <<std::endl;
     std::cout<<"nnz_h_lag: \t"<< nnz_h_lag <<std::endl;
-    std::cout <<" get_nlp_info out" <<std::endl;
 
     return true;
 }

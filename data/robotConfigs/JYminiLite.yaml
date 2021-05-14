@@ -1,5 +1,7 @@
 # Body config
 
+# deprecated, this is not in accord with /home/ami/jy_models/JueyingMiniLite
+
 M : 8.5
 L : 0.35
 LL : 0.545

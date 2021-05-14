@@ -10,7 +10,7 @@ class LeggedRobot2D(ArticulateSystem):
 
         self.torso = root.addChild(
             Link2D.Rot, name = "Torso",
-            la = - params["torLL"]/2, lb = params["torLL"]/2, lc = 0,
+            la = - params["torLL"]/2, lb = params["torLL"]/2, lc = params["torLc"],
             M = params["torM"], I = params["torI"], fix = True
         )
 
@@ -132,6 +132,7 @@ class LeggedRobot2D(ArticulateSystem):
             "legLc2":robotParam["lc2"],
             "torL":robotParam["L"],
             "torLL":robotParam["LL"],
+            "torLc":robotParam.get("Lc", 0),
             "legM1":robotParam["m1"],
             "legM2":robotParam["m2"],
             "torM": robotParam["M"],
