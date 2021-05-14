@@ -1,1 +1,1 @@
-# JYTO: Trajectory optimization of Jue Ying
+# JYTO: Trajectory optimization framework based on CasADi
