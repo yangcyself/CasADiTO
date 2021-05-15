@@ -18,19 +18,18 @@ from optGen.util import caSubsti, caFuncSubsti, substiSX2MX
 This file use dynamic constraint as dynamics, rather than dynF
 """
 
-model = LeggedRobot2D.fromYaml("data/robotConfigs/JYminiLite.yaml")
+model = LeggedRobot2D.fromYaml("data/robotConfigs/JYminiLitev2.yaml")
 # input dims: [ux4,Fbx2,Ffx2]
 dT0 = 0.01
-legLength = model.params["legL2"]
+initHeight = (model.params["legL2"] + model.params["legL1"])/2 # assume 30 angle of legs
 distance = ca.SX.sym("distance",1)
 
-# X0 = np.array([0,0.3 + legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
-#          0,0,0,0,    0,    0,    0])
-X0 = np.array([0, legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+
+X0 = np.array([0, initHeight,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
 
-XDes = np.array([distance, legLength ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+XDes = np.array([distance, initHeight ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
 SchemeSteps = 50
@@ -189,7 +188,7 @@ if __name__ == "__main__" :
     import matplotlib.pyplot as plt
     with Session(__file__,terminalLog = True) as ss:
     # if True:
-        opt.setHyperParamValue({"distance": 1, 
+        opt.setHyperParamValue({"distance": 0.5, 
                                 "costU":0.01,
                                 "costDDQ":0.0001,
                                 "costQReg":0.1})
