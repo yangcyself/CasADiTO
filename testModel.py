@@ -11,6 +11,9 @@ x_val = ca.DM([0,1,0, 1/2*ca.pi, -1/2*ca.pi, 0, -ca.pi,0,0 ]+[0]*9)
 print(ca.symvar(model.lhip._p_proj(model.l2.points["b"])))
 print(f(x_val))
 
+f_xy = model.pFuncs["pltoexy"]
+print(f_xy(x_val) )
+
 ### Kinematic Test
 
 # def x_f(i):

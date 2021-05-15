@@ -63,7 +63,9 @@ class LeggedRobotX(ArticulateSystem):
             "pl1" : ca.Function("pl1", [self.x], [self.lhip._p_proj(self.l1.points["b"])]),
             "pl2" : ca.Function("pl2", [self.x], [self.lhip._p_proj(self.l2.points["b"])]),
             "pr1" : ca.Function("pr1", [self.x], [self.rhip._p_proj(self.r1.points["b"])]),
-            "pr2" : ca.Function("pr2", [self.x], [self.rhip._p_proj(self.r2.points["b"])])
+            "pr2" : ca.Function("pr2", [self.x], [self.rhip._p_proj(self.r2.points["b"])]),
+            "pltoexy" : ca.Function("pltoexy", [self.x], [self.l2.points["b"]]),
+            "prtoexy" : ca.Function("prtoexy", [self.x], [self.r2.points["b"]])
         }
 
     def buildEOMF(self, consMap, name=""):
@@ -129,7 +131,7 @@ class LeggedRobotX(ArticulateSystem):
             "legLc1":robotParam["lc1"],
             "legLc2":robotParam["lc2"],
             "torL":robotParam["L"],
-            "torW": 0.1,
+            "torW": robotParam["LW"],
             "torLL":robotParam["LL"],
             "torLc":robotParam.get("Lc", 0),
             "legM1":robotParam["m1"],
