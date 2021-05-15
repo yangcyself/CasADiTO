@@ -67,7 +67,6 @@ class Body2D(Body):
             name (string): The name of the body
             freeD (int): dim of freedom
             Fp (SX[3x1]): The position of the parent frame, defaut to DX(0,0,0)
-            Fdp (SX[3x1]): The velocity of the parent frame, defaut to DX(0,0,0)
             g ([type], optional): [description]. Defaults to Body2D.defaultG.
         """
         super().__init__(name, freeD)            
@@ -257,6 +256,90 @@ class Link2D(Body2D):
             [ca.vertcat(self.points["a"][:2].T,
                         self.points["b"][:2].T)], ["x"], ["ps"] )
         
+class Proj2d(Body2D):
+    """An 2d Body projects to Perpendicular 2d body. For example, 2d links rotates accords to a perpendicular axis
+        Note: must be **perpendicular** !!! As we assume here the mass products of inertia is zero
+    """
+    def __init__(self, bdy, name, freeD, Fp = None, g = None):
+        super().__init__(name, freeD, 0, 0, Fp = Fp, g=g)
+        self.bdy = bdy
+        self.child.append(bdy)
+        # bdy.parent = self # this line is not needed, as the variable in child does not depends on self
+        pass
+
+    def _p_proj(self, p):
+        """project from bdy's plane to self's plane
+            p (x,y): point
+        """
+        raise NotImplementedError
+
+    def _Mdp_perp(self, bdy):
+        """penpendicular velocity of the bdy system
+        """
+        raise NotImplementedError
+
+    def _I_perp(self, bdy):
+        """The perpendicular Inertia.
+        """
+        raise NotImplementedError
+
+    def _PE(self):
+        """The potential energy has to be redefined. 
+        """
+        def P(bdy):
+            p = - bdy.M * ca.dot(self.g, self._p_proj(bdy.Mp[:2]))
+            return p + ca.sum1(ca.vertcat( *[P(c) for c in bdy.child]))
+        return P(self.bdy)
+    
+    def _KE(self):
+        def perpE(bdy):
+            # calculate the energy caused by the perpendicular movement of the body
+            bdyE = 0.5 * self._I_perp(bdy) * self.Mdp[2]**2 + 0.5 * bdy.M * self._Mdp_perp(bdy)**2
+            return bdyE + ca.sum1(ca.vertcat( *[perpE(c) for c in bdy.child]))
+        return bdy.KE + perpE(self.bdy)
+
+class Proj2dRot(Proj2d):
+    def __init__(self, name, bdy, rotdir, Fp, g = None):
+        """
+        Args:
+            bdy (Body2D): An 2D link systems
+            rotdir (dx, dy b) dx dy is a normed verctor in the byd's plane. <[dx,dy], [px,py]> + b gets the distance from point p to the axis                
+                e.g. bdy in XY plane, rotation around x axis, rotdir = (0,1,0)
+        """
+        super().__init__(bdy, name, 1, Fp, g)
+        self.Fp = Fp
+        self.rotdir = rotdir
+
+    def move_X_p(self, l):
+        """return the position. The pos is (l,0,0) in Bframe
+        Args:
+            l (float): length
+        """
+        rB = self.Bp[2]
+        return self.Bp + l * ca.vertcat(ca.cos(rB), ca.sin(rB), 0)
+
+    def _Bp(self):
+        return self.Fp + ca.vertcat(0,0,self._q)
+
+    def _Mp(self):
+        return self._Bp
+
+    def _p_proj(self, p):
+        l = ca.dot(self.rotdir[:2], p) + self.rotdir[2]
+        return self.move_X_p(l)[:2]
+
+    def _Mdp_perp(self, bdy):
+        l = ca.dot(self.rotdir[:2], bdy.Mp[:2]) + self.rotdir[2]
+        return l * self.Mdp[2] # length * angle velocity
+        
+    def _I_perp(self, bdy):
+        """The perpendicular Inertia.
+        !!! ASSUME bdy only have length along it's r
+        """
+        r = bdy.Bp[2]
+        proj = ca.dot(self.rotdir[:2], ca.vertcat(ca.cos(r), ca.sin(r)))
+        return bdy.I * (proj) ** 2
+
 
 class ArticulateSystem:
     def __init__(self, root):
