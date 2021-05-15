@@ -2,8 +2,7 @@
 
 #include "tonlp.h"
 // #include "nlpGen.h"
-// #include "nlpGen/interface.h"
-#include "flatJump/interface.h"
+#include "generated/interface.h"
 #include <cmath>
 
 #include <cassert>

@@ -177,7 +177,7 @@ if __name__ == "__main__" :
     # opt.buildParseSolution("x_plot", lambda sol: sol["Xgen"]["x_plot"])
     # exit()
 
-    # opt.cppGen("cppIpopt/flatJump",parseFuncs=[
+    # opt.cppGen("cppIpopt/generated/flatJump",parseFuncs=[
     #     ("x_plot", lambda sol: sol["Xgen"]["x_plot"]),
     #     ("u_plot", lambda sol: sol["Ugen"]["u_plot"]),
     #     ("t_plot", lambda sol: sol["dTgen"]["t_plot"]),

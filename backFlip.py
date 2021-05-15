@@ -18,12 +18,12 @@ model = LeggedRobot2D.fromYaml("data/robotConfigs/JYminiLitev2.yaml")
 dT0 = 0.01
 # distance = model.params["torLL"] * 1.5
 initHeight = (model.params["legL2"] + model.params["legL1"])/2 # assume 30 angle of legs
-# distance = ca.SX.sym("distance",1)
+distance = ca.SX.sym("distance",1)
 
 X0 = np.array([0, 0 + initHeight,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
-XDes = np.array([0, 0 + initHeight , 2*np.math.pi ,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+XDes = np.array([distance, 0 + initHeight , 2*np.math.pi ,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0,0,    0,    0,    0])
 
 SchemeSteps = 50
@@ -110,6 +110,7 @@ opt.Xgen = xGenTerrianHoloCons(14, np.array(xlim), model.pFuncs.values(), lambda
 costU = opt.newhyperParam("costU")
 costDDQ = opt.newhyperParam("costDDQ")
 costQReg = opt.newhyperParam("costQReg")
+opt.newhyperParam(distance)
 
 opt.begin(x0=X0, u0=[1,125,1,125], F0=[0,100,0,100])
 
@@ -155,7 +156,17 @@ opt.step(lambda dx,x,u : EoMFuncs[(0,0)](x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"
 
 
 if __name__ == "__main__":
+
+    opt.cppGen("cppIpopt/generated/backFlip",parseFuncs=[
+        ("x_plot", lambda sol: sol["Xgen"]["x_plot"]),
+        ("u_plot", lambda sol: sol["Ugen"]["u_plot"]),
+        ("t_plot", lambda sol: sol["dTgen"]["t_plot"]),
+        ("terrain_plot", lambda sol: sol["Xgen"]["terrain_plot"])],
+        cmakeOpt={'libName': 'nlpBackFlip'})
+    exit()
+
     opt.setHyperParamValue({
+                        "distance":0,
                         "costU":0.01,
                         "costDDQ":0.0001,
                         "costQReg":0.1})
