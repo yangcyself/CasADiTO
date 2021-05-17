@@ -90,19 +90,11 @@ Xlift0 = X0.copy()
 Xlift0[2] = np.math.pi/6
 
 References = [
-    lambda i:( # start
-        X0,
-        [0,0,0,0,0,0,0,0,0,0]
-    ),
-    lambda i:( # lift
-        Xlift0,
-        [0,0,0, 0,0,0, 0,100,0,0]
-    ),
-    lambda i:( # fly
+    lambda i: X0, # start
+    lambda i: Xlift0, # lift
+    lambda i: # fly
         X0 + np.concatenate([np.array([distance/SchemeSteps*i, 
-        height/SchemeSteps*i + 0.1+i*(SchemeSteps-i)/(SchemeSteps**2/4)]), np.zeros(16)]),
-        [0,0,0, 0,0,0, 0,0,0,0]
-    ),
+        height/SchemeSteps*i + 0.1+i*(SchemeSteps-i)/(SchemeSteps**2/4)]), np.zeros(16)]) ,
     # lambda i:( # finish
     #     XDes,
     #     [1,125,1,150, 0,125,0,150]
@@ -137,17 +129,13 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     EOMF = EoMFuncs[cons]
     opt.dTgen.chMod(modName = name)
     for i in range(N):
-        x_0, u_0 = R(i)
+        x_0 = R(i)
         # x_0 = caSubsti(x_0, opt.hyperParams.keys(), opt.hyperParams.values())
 
         initSol = solveLinearCons(caFuncSubsti(EOMF, {"x":x_0}), [("ddq", np.zeros(9), 1e3)])
         opt.step(lambda dx,x,u : EOMF(x=x,u=u[:6],F=u[6:],ddq = dx[9:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
                 x0 = x_0, u0 = initSol["u"],F0 = initSol["F"])
         x_init.append(x_0)
-
-
-        # opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-        #         u_0, X0)
 
         opt.addCost(lambda x,u: costU*ca.dot(u,u))
         opt.addCost(lambda ddq1: costDDQ * ca.dot(ddq1[-6:],ddq1[-6:]))
@@ -176,7 +164,6 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
 
     if(FinalC is not None):
         opt.addConstraint(*FinalC)
-    break
 
 opt.step(lambda dx,x,u : EoMFuncs[(0,0)](x=x,u=u[:6],F=u[6:],ddq = dx[9:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
         x0 = caSubsti(XDes, opt.hyperParams.keys(), opt.hyperParams.values()), u0 = [0,0,0,0,0,0], F0=[0,0,0,0])
@@ -197,8 +184,8 @@ if __name__ == "__main__" :
     # exit()
 
     import matplotlib.pyplot as plt
-    # with Session(__file__,terminalLog = True) as ss:
-    if True:
+    with Session(__file__,terminalLog = True) as ss:
+    # if True:
         opt.setHyperParamValue({"distance": 0.5, 
                                 "costU":0.01,
                                 "costDDQ":0.0001,

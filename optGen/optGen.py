@@ -190,6 +190,8 @@ class optGen:
             return [m for z,s,m,v in self._hyperParams.values()]
         elif(isinstance(t, ca.SX) or t is ca.SX or isinstance(t, ca.DM) or t is ca.DM):
             return [s for z,s,m,v in self._hyperParams.values()]
+        if(t.is_empty()):
+            return [m for z,s,m,v in self._hyperParams.values()]
         else:
             raise ValueError("t should be 'name' or SX MX class or objects, but get %s"%(type(t)))
         

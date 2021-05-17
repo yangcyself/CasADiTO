@@ -105,7 +105,7 @@ ani = animation.FuncAnimation(
 
 # To save the animation, use e.g.
 #
-ani.save("data/animation/visSideRobot.mp4")
+# ani.save("data/animation/visSideRobot.mp4")
 #
 # or
 #
