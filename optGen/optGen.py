@@ -243,7 +243,7 @@ class optGen:
             c.loadSol({'x':parseRes[n]})
     
     def parseSol(self, sol):
-        parseType = sol if(isinstance(sol, ca.MX) or isinstance(sol, ca.SX)) else "value"
+        parseType = sol['x'] if(isinstance(sol['x'], ca.MX) or isinstance(sol['x'], ca.SX)) else "value"
         return { k: 
                 v if k not in self._child.keys()
                   else self._child[k].parseSol({'x':v})

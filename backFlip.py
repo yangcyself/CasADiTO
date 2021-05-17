@@ -129,7 +129,7 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
 
         opt.addCost(lambda x,u: costU*ca.dot(u[:4],u[:4]))
         opt.addCost(lambda ddq1: costDDQ * ca.dot(ddq1[-4:],ddq1[-4:]))
-        opt.addCost(lambda x: costQReg * ca.dot((x - X0)[2:],(x - X0)[2:]))
+        opt.addCost(lambda x: costQReg * ca.dot((x - X0)[3:],(x - X0)[3:]))
 
         def holoCons(x,u,F):
             MU = 0.4
@@ -157,13 +157,13 @@ opt.step(lambda dx,x,u : EoMFuncs[(0,0)](x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"
 
 if __name__ == "__main__":
 
-    opt.cppGen("cppIpopt/generated/backFlip",parseFuncs=[
-        ("x_plot", lambda sol: sol["Xgen"]["x_plot"]),
-        ("u_plot", lambda sol: sol["Ugen"]["u_plot"]),
-        ("t_plot", lambda sol: sol["dTgen"]["t_plot"]),
-        ("terrain_plot", lambda sol: sol["Xgen"]["terrain_plot"])],
-        cmakeOpt={'libName': 'nlpBackFlip'})
-    exit()
+    # opt.cppGen("cppIpopt/generated/backFlip",parseFuncs=[
+    #     ("x_plot", lambda sol: sol["Xgen"]["x_plot"]),
+    #     ("u_plot", lambda sol: sol["Ugen"]["u_plot"]),
+    #     ("t_plot", lambda sol: sol["dTgen"]["t_plot"]),
+    #     ("terrain_plot", lambda sol: sol["Xgen"]["terrain_plot"])],
+    #     cmakeOpt={'libName': 'nlpBackFlip'})
+    # exit()
 
     opt.setHyperParamValue({
                         "distance":0,

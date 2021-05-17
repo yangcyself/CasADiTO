@@ -296,7 +296,7 @@ class Proj2d(Body2D):
             # calculate the energy caused by the perpendicular movement of the body
             bdyE = 0.5 * self._I_perp(bdy) * self.Mdp[2]**2 + 0.5 * bdy.M * self._Mdp_perp(bdy)**2
             return bdyE + ca.sum1(ca.vertcat( *[perpE(c) for c in bdy.child]))
-        return bdy.KE + perpE(self.bdy)
+        return self.bdy.KE + perpE(self.bdy)
 
 class Proj2dRot(Proj2d):
     def __init__(self, name, bdy, rotdir, Fp, g = None):
@@ -322,7 +322,7 @@ class Proj2dRot(Proj2d):
         return self.Fp + ca.vertcat(0,0,self._q)
 
     def _Mp(self):
-        return self._Bp
+        return self._Bp()
 
     def _p_proj(self, p):
         l = ca.dot(self.rotdir[:2], p) + self.rotdir[2]

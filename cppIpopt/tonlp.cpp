@@ -2,7 +2,7 @@
 
 #include "tonlp.h"
 // #include "nlpGen.h"
-#include "generated/interface.h"
+#include "generated/backFlip/interface.h"
 #include <cmath>
 
 #include <cassert>

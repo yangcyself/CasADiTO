@@ -10,8 +10,8 @@ import sys
 import pandas as pd
 import numpy as np
 
-from model.leggedRobot2D import LeggedRobot2D
-model = LeggedRobot2D.fromYaml("data/robotConfigs/JYminiLitev2.yaml")
+from model.leggedRobotX import LeggedRobotX
+model = LeggedRobotX.fromYaml("data/robotConfigs/JYminiLitev2.yaml")
 
 
 if(len(sys.argv)<2):
@@ -28,8 +28,11 @@ with open(solFile, "rb") as f:
     sol_u= sol['Ugen']['u_plot'].full().T
     terrian = sol['Xgen']['terrain_plot'].full()
     Scheme = solraw["Scheme"]
-    # x_init = solraw["x_init"]
+    x_init = solraw["x_init"].full().T
     timeStamps = sol['dTgen']['t_plot'].full()
+
+print(sol_x[0])
+print(sol_x[1])
 
 
 print(sol.keys())
@@ -55,9 +58,13 @@ for cons, N, name in Scheme:
     for i in range(N):
         phase.append(name)
 
-
 # Animate
-fig, ax = plt.subplots()
+fig, (ax1, ax2) = plt.subplots(2,1, figsize=(4,8))
+# fig = plt.figure(figsize=(10,14))
+# ax1 = fig.add_axes((0, 0, 10, 10))
+# ax2 = fig.add_axes((0, 10, 4, 4))
+
+
 # line, = ax.plot(robotLines[0][:,0], robotLines[0][:,1])
 print("len(phase)：",len(phase))
 print("len(x_sim)",len(x_sim))
@@ -74,26 +81,31 @@ def animate(i):
         ind+=1
     # xsim = x_sim[ind]
     xsol = x_opt[ind]
-    ax.clear()
+    xini = x_init[ind]
+    ax1.clear()
     
-    linesol = model.visulize(xsol)
-    # lineini = model.visulize(xini)
+    linesol = model.visulize(xsol,ax1)
+    lineini = model.visulize(xini,ax1)
 
-    terrianLine = ax.plot(terrian[:,0],terrian[:,1])
+    terrianLine = ax1.plot(terrian[:,0],terrian[:,1])
 
-    til = ax.set_title(phase[ind])
-    # til = ax.set_title(phase[i%Total])
-    ax.set_xlim(-0.5,1.5)
-    ax.set_ylim(-0.5,1.5)
-    # return linesol,lineini,til
-    return linesol,til
+    til = ax1.set_title(phase[ind])
+    # til = ax1.set_title(phase[i%Total])
+    ax1.set_xlim(-0.5,1.5)
+    ax1.set_ylim(-0.5,1.5)
+
+
+    ax2.clear()
+    legl, legr = model.visulizeLocal(xsol,ax2)
+    return linesol,lineini,til, legl, legr
+    # return linesol,til
 
 ani = animation.FuncAnimation(
     fig, animate, frames= int(timeStamps[-1]/0.01), interval=25, blit=True, save_count=50)
 
 # To save the animation, use e.g.
 #
-ani.save("data/animation/collocation.mp4")
+ani.save("data/animation/visSideRobot.mp4")
 #
 # or
 #
@@ -101,7 +113,7 @@ ani.save("data/animation/collocation.mp4")
 #     fps=15, metadata=dict(artist='Me'), bitrate=1800)
 # ani.save("movie.mp4", writer=writer)
 
-saveSolution("out.csv", sol_x, sol_u, timeStamps.reshape(-1))
+# saveSolution("out.csv", sol_x, sol_u, timeStamps.reshape(-1))
 
 plt.show()
 

@@ -63,9 +63,18 @@ class LeggedRobotX(ArticulateSystem):
             "pl1" : ca.Function("pl1", [self.x], [self.lhip._p_proj(self.l1.points["b"])]),
             "pl2" : ca.Function("pl2", [self.x], [self.lhip._p_proj(self.l2.points["b"])]),
             "pr1" : ca.Function("pr1", [self.x], [self.rhip._p_proj(self.r1.points["b"])]),
-            "pr2" : ca.Function("pr2", [self.x], [self.rhip._p_proj(self.r2.points["b"])]),
-            "pltoexy" : ca.Function("pltoexy", [self.x], [self.l2.points["b"]]),
-            "prtoexy" : ca.Function("prtoexy", [self.x], [self.r2.points["b"]])
+            "pr2" : ca.Function("pr2", [self.x], [self.rhip._p_proj(self.r2.points["b"])])
+        }
+
+    @property
+    def pLocalFuncs(self):
+        """The position functions in the local frames (x,z frame) of each leg, where as the frame of root is y,z frame
+        """
+        return {
+            "pl1" : ca.Function("pl1", [self.x], [self.l1.points["b"]]),
+            "pl2" : ca.Function("pl2", [self.x], [self.l2.points["b"]]),
+            "pr1" : ca.Function("pr1", [self.x], [self.r1.points["b"]]),
+            "pr2" : ca.Function("pr2", [self.x], [self.r2.points["b"]]),
         }
 
     def buildEOMF(self, consMap, name=""):
@@ -97,7 +106,8 @@ class LeggedRobotX(ArticulateSystem):
         return ca.Function("%sEOMF"%name, [self.x,u,F,ddq], [g], ["x","u","F","ddq"], ["%sEOM"%name])
     
 
-    def visulize(self, x):
+    def visulize(self, x, ax = None):
+        ax = plt.gca() if ax is None else ax
         x = x[:self.dim]
         try:
             linkLine = self.linkLine_func_cache(x)
@@ -113,8 +123,30 @@ class LeggedRobotX(ArticulateSystem):
             self.linkLine_func_cache = ca.Function("linkLine_func", [self.q], [linkLine], ["xsym"], ["linkLine"])
             linkLine = self.linkLine_func_cache(x)
 
-        line, = plt.plot(linkLine[:,0], linkLine[:,1], marker = '.', ms = 5)
+        line, = ax.plot(linkLine[:,0], linkLine[:,1], marker = '.', ms = 5)
         return line
+
+    def visulizeLocal(self, x, ax = None):
+        ax = plt.gca() if ax is None else ax
+        x = x[:self.dim]
+        try:
+            linkLinel, linkLiner = self.linkLine_local_func_cache(x)
+            # np.concatenate([c.visPoints(self.root.x, x) for c in [self.cart] + self.links])
+        except AttributeError:
+            # xsym = ca.SX.sym("xsym", len(x))
+            linkLinel = ca.vertcat( self.l1.points["a"].T,
+                                    self.l1.points["b"].T, 
+                                    self.l2.points["b"].T)
+            linkLiner = ca.vertcat( self.r1.points["a"].T,
+                                    self.r1.points["b"].T, 
+                                    self.r2.points["b"].T)
+            self.linkLine_local_func_cache = ca.Function("linkLine_local_func", [self.q], [linkLinel, linkLiner], ["xsym"], ["linkLinel", "linkLiner"])
+            linkLinel, linkLiner = self.linkLine_local_func_cache(x)
+
+        linel, = ax.plot(linkLinel[:,0], linkLinel[:,1])
+        liner, = ax.plot(linkLiner[:,0], linkLiner[:,1])
+        return linel, liner
+
 
     @staticmethod
     def fromYaml(yamlFilePath):
