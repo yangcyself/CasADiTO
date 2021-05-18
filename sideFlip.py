@@ -19,6 +19,8 @@ initHeight = (model.params["legL2"] + model.params["legL1"])/2 # assume 30 angle
 distance = ca.SX.sym("distance",1)
 fleg_local_l = model.pLocalFuncs['pl2']
 fleg_local_r = model.pLocalFuncs['pr2']
+fleg_l = model.pLocalFuncs['pl2']
+fleg_r = model.pLocalFuncs['pr2']
 
 X0 = np.array([0, initHeight,0,   0.5*np.math.pi, -np.math.pi*5/6,np.math.pi*2/3,  0.5*np.math.pi, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0, 0,0,0, 0,0,0])
@@ -28,6 +30,8 @@ XDes = np.array([distance, initHeight , 2*np.math.pi,   0.5*np.math.pi, -np.math
          0,0,0, 0,0,0, 0,0,0])
 
 local_x_0 = fleg_local_l(X0)[0]
+contact_l = fleg_l(X0)
+contact_r = fleg_r(X0)
 # assert(local_x_0 == fleg_local_r(X0)[0])
 
 SchemeSteps = 50
@@ -83,15 +87,15 @@ Scheme = [ # list: (contact constaints, length)
 ]
 
 
-def rotaref(i):
+def rotaref(i,start,end):
     ret = np.zeros(18)
-    ret[2] = i * 2* np.math.pi/SchemeSteps/2
-    ret[11] = 2*  np.math.pi/(dT0 * SchemeSteps*2)
+    ret[2] = start + (end - start) * i/SchemeSteps
+    ret[11] = (end - start) / (dT0 * SchemeSteps)
     return ret
 
 def heightref(i):
     ret = np.zeros(18)
-    ret[1] = 0.7 * i*(SchemeSteps-i)/(SchemeSteps**2/4)
+    ret[1] = 0.3 * i*(SchemeSteps-i)/(SchemeSteps**2/4)
     return ret
 
 # X0_copy = X0.copy()
@@ -101,9 +105,8 @@ def heightref(i):
 References = [
     # lambda i: X0 ,
     lambda i: X0, # start
-    lambda i: X0 + rotaref(i), # lift
-    lambda i: X0 + rotaref(i+SchemeSteps) + heightref(i) # fly
-        
+    lambda i: X0 + rotaref(i, 0, ca.pi/8), # lift
+    lambda i: X0 + rotaref(i, ca.pi/8, 2*ca.pi) + heightref(i) # fly       
 ]
 
 stateFinalCons = [ # the constraints to enforce at the end of each state
@@ -167,6 +170,14 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         opt.addConstraint(
             lambda x: ca.vertcat(fleg_local_l(x)[0]-local_x_0, fleg_local_r(x)[0]-local_x_0), [0,0], [0,0]
         )
+        if(cons[0]):
+            opt.addConstraint(
+                lambda x: fleg_l(x)-contact_l, [0,0], [0,0]
+            )
+        if(cons[1]):
+            opt.addConstraint(
+                lambda x: fleg_r(x)-contact_r, [0,0], [0,0]
+            )
 
     if(FinalC is not None):
         opt.addConstraint(*FinalC)
@@ -208,7 +219,8 @@ if __name__ == "__main__" :
                 "verbose_init":True,
                 # "jac_g": gjacFunc
             "ipopt":{
-                "max_iter" : 20000, # unkown option
+                "max_iter" : 20000, 
+                "check_derivatives_for_naninf": "yes"
                 }
             })
         

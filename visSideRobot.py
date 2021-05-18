@@ -124,3 +124,14 @@ plt.figure()
 plt.plot(x_opt[:,:7])
 plt.legend(["x","y","th","q1","q2","q3","q4"])
 plt.show()
+
+plocalFuncr = model.pLocalFuncs['pr1']
+plocalFuncl = model.pLocalFuncs['pl1']
+
+pFuncr = model.pFuncs['pr2']
+pFuncl = model.pFuncs['pl2']
+# plt.plot(np.array([ [np.linalg.norm(plocalFuncl(x)), 
+#                     np.linalg.norm(plocalFuncr(x))] for x in x_opt]))
+plt.plot(np.array([ [pFuncl(x)[0], 
+                    pFuncr(x)[0]] for x in x_opt]))
+plt.show()
