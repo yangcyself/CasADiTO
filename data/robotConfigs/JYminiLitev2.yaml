@@ -27,17 +27,20 @@ lc2 : 0.12 # { _SHANK inertialz }
 j2 : 0.001372 # { _SHANKiyy 0.000686} * 2
 j2xx : 0.001372 # { _SHANKixx 0.000686} * 2
 
-tau1lim : 26
-tau2lim : 52 # 26
-tau3lim : 102 # 51
+tau0lim : 26
+tau1lim : 52 # 26
+tau2lim : 102 # 51
 
+ang0max : 0.523 ## 158/180*pi
+ang0min : -0.523 ## -28/180*pi
 ang1max : 2.76 ## 158/180*pi
 ang1min : -0.49 ## -28/180*pi
 ang2min : -2.84 ## -163/180*pi
 ang2max : -0.66 ## -38/180*pi
 
-dang1lim : 19
-dang2lim : 19
+dang0lim : 20
+dang1lim : 20
+dang2lim : 20
 
 param.fContact : 1
 param.bContact : 1

@@ -26,6 +26,36 @@ def saveSolution(filename, x_opt, u_opt, t):
             "dx", "dy", "dr", "dbh", "dbt", "dfh", "dft", 
             "ubh", "ubt", "ufh", "uft"])
 
+def saveXdirSolution(filename, x_opt, u_opt, t):
+    df_x = pd.DataFrame(x_opt, 
+        columns = ["x", "y", "r", "lhx", "lhy", "lk", "rhx", "rhy", "rk",
+                   "dx", "dy", "dr", "dlhx", "dlhy", "dlk", "drhx", "drhy", "drk"], 
+        index = t
+    )
+
+    df_u = pd.DataFrame(u_opt, 
+        columns = ["ulhx", "ulhy", "ulk", "urhx", "urhy", "urk"], 
+        index = t
+    )
+
+    df = pd.concat([df_x,df_u],axis = 1)
+    print(df.head())
+
+    # Frame shift
+    df["lhx"] = (df["lhx"] - np.math.pi/2)
+    df["rhx"] = df["rhx"] - np.math.pi/2
+    df["lhy"] = df["lhy"] + np.math.pi/2
+    df["rhy"] = df["rhy"] + np.math.pi/2
+
+    df["lhx"] = -df["lhx"]
+    df["dlhx"] = -df["dlhx"]
+    df["ulhx"] = -df["ulhx"]
+
+    df.to_csv(filename, index_label = "t", 
+            columns = ["x", "y", "r", "lhx", "lhy", "lk", "rhx", "rhy", "rk",
+            "dx", "dy", "dr", "dlhx", "dlhy", "dlk", "drhx", "drhy", "drk",
+            "ulhx", "ulhy", "ulk", "urhx", "urhy", "urk"])
+
 
 def save3Dsolution(filename, x_opt, u_opt, t):
     target_columns = [

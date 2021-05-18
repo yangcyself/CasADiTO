@@ -45,31 +45,31 @@ xlim = [
     [-np.inf,np.inf],
     [0,np.inf],
     [-ca.pi, ca.pi],
-    [0, ca.pi],
+    model.params["q0Lim"],
     model.params["q1Lim"],
     model.params["q2Lim"],
-    [0, ca.pi],
+    model.params["q0Lim"],
     model.params["q1Lim"],
     model.params["q2Lim"],
     [-100,100],
     [-100,100],
     [-100,100],
-    [-80,80], # some arbitrary number
+    model.params["dq0Lim"], # some arbitrary number
     model.params["dq1Lim"],
     model.params["dq2Lim"],
-    [-80,80],
+    model.params["dq0Lim"],
     model.params["dq1Lim"],
     model.params["dq2Lim"]
 ]
 
 
 ulim = [
+    np.array([-1, 1])*model.params["tau0lim"],
     np.array([-1, 1])*model.params["tau1lim"],
     np.array([-1, 1])*model.params["tau2lim"],
-    np.array([-1, 1])*model.params["tau3lim"],
+    np.array([-1, 1])*model.params["tau0lim"],
     np.array([-1, 1])*model.params["tau1lim"],
-    np.array([-1, 1])*model.params["tau2lim"],
-    np.array([-1, 1])*model.params["tau3lim"]
+    np.array([-1, 1])*model.params["tau2lim"]
 ]
 
 EoMFuncs = {

@@ -143,9 +143,9 @@ class LeggedRobot2D(ArticulateSystem):
             "q2Lim": [-robotParam["ang2max"], -robotParam["ang2min"]],
             "dq1Lim": [-robotParam["dang1lim"], robotParam["dang1lim"]],
             "dq2Lim": [-robotParam["dang2lim"], robotParam["dang2lim"]],
+            "tau0lim": robotParam["tau0lim"],
             "tau1lim": robotParam["tau1lim"],
             "tau2lim": robotParam["tau2lim"],
-            "tau3lim": robotParam["tau3lim"],
             "G":9.81,
         }
         return LeggedRobot2D(params)

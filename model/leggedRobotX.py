@@ -171,13 +171,15 @@ class LeggedRobotX(ArticulateSystem):
             "legI1":robotParam["j1xx"],
             "legI2":robotParam["j2xx"],
             "torI": robotParam["Jxx"], # NOTE: solve is quite slow because Jxx is small, if use J instead of Jxx, it will be a lot faster
+            "q0Lim": [ca.pi/2 + robotParam["ang0min"], ca.pi/2 + robotParam["ang0max"]],
             "q1Lim": [-ca.pi/2 - robotParam["ang1max"], -ca.pi/2 - robotParam["ang1min"]],
             "q2Lim": [-robotParam["ang2max"], -robotParam["ang2min"]],
+            "dq0Lim": [-robotParam["dang0lim"], robotParam["dang0lim"]],
             "dq1Lim": [-robotParam["dang1lim"], robotParam["dang1lim"]],
             "dq2Lim": [-robotParam["dang2lim"], robotParam["dang2lim"]],
+            "tau0lim": robotParam["tau0lim"],
             "tau1lim": robotParam["tau1lim"],
             "tau2lim": robotParam["tau2lim"],
-            "tau3lim": robotParam["tau3lim"],
             "G":9.81,
         }
         return LeggedRobotX(params)

@@ -17,9 +17,9 @@ l2 : 0.18
 lc2 : 0.09
 j2 : 0.0006
 
-tau1lim : 26
-tau2lim : 52 # 26
-tau3lim : 102 # 51
+tau0lim : 26
+tau1lim : 52 # 26
+tau2lim : 102 # 51
 
 ang1max : 2.76 ## 158/180*pi
 ang1min : -0.49 ## -28/180*pi

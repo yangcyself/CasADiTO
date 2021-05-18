@@ -61,10 +61,10 @@ xlim = [
 
 
 ulim = [
+    np.array([-1, 1])*model.params["tau1lim"],
     np.array([-1, 1])*model.params["tau2lim"],
-    np.array([-1, 1])*model.params["tau3lim"],
-    np.array([-1, 1])*model.params["tau2lim"],
-    np.array([-1, 1])*model.params["tau3lim"]
+    np.array([-1, 1])*model.params["tau1lim"],
+    np.array([-1, 1])*model.params["tau2lim"]
 ]
 
 EoMFuncs = {

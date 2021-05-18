@@ -4,7 +4,7 @@ import pickle as pkl
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-from vis import saveSolution
+from vis import saveXdirSolution
 
 import sys
 import pandas as pd
@@ -113,7 +113,7 @@ ani = animation.FuncAnimation(
 #     fps=15, metadata=dict(artist='Me'), bitrate=1800)
 # ani.save("movie.mp4", writer=writer)
 
-# saveSolution("out.csv", sol_x, sol_u, timeStamps.reshape(-1))
+saveXdirSolution("sideOut.csv", sol_x, sol_u, timeStamps.reshape(-1))
 
 plt.show()
 
