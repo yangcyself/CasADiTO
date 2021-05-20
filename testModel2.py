@@ -40,12 +40,12 @@ def getAleg(name):
     thigh = Link2D.Rot(name = "%sThigh"%name, Fp = ca.vertcat(0,0,0),
         la = 0, lb = params["legL1"], lc = params["legLc1"],
         M = params["legM1"], I = params["legI1"])
-    # shank = thigh.addChild(
-    #     Link2D.Rot, params["legL1"], name = "%sShank"%name,
-    #     la = 0, lb = params["legL2"], lc = params["legLc2"],
-    #     M = params["legM2"], I = params["legI2"]
-    # )
-    return [thigh,]# shank]
+    shank = thigh.addChild(
+        Link2D.Rot, params["legL1"], name = "%sShank"%name,
+        la = 0, lb = params["legL2"], lc = params["legLc2"],
+        M = params["legM2"], I = params["legI2"]
+    )
+    return [thigh, shank]
 
 llegs1 = getAleg("L")
 llegs2 = getAleg("L")
@@ -54,7 +54,7 @@ hipx1 = Link2D.Rot("hip",ca.DM([0,0,0]),0,0,0,0,0)
 vertLeg1 = hipx1.addChild(planeWrap3D.from2D, 0, bdy = llegs1[0], name="", 
 T = ca.DM([[0,1,0],
            [0,0,1],
-           [1,0,0]]))
+           [1,0,0]]),g = ca.DM([0,-9.81,0]))
 
 
 hipx2 = Proj2dRot("", llegs2[0],ca.DM([0,1,0]),ca.DM([0,0,0]))
@@ -75,9 +75,12 @@ hipx2 = Proj2dRot("", llegs2[0],ca.DM([0,1,0]),ca.DM([0,0,0]))
 
 KEfunc1 = ca.Function('f1', [hipx1.x, hipx1.dx] ,[hipx1.KE])
 KEfunc2 = ca.Function('f2', [hipx2.x, hipx2.dx] ,[hipx2.KE])
+PEfunc1 = ca.Function('f1', [hipx1.x, hipx1.dx] ,[hipx1.PE])
+PEfunc2 = ca.Function('f2', [hipx2.x, hipx2.dx] ,[hipx2.PE])
 
-randx_val = ca.DM.rand(2)
-randdx_val = ca.DM.rand(2)
+
+randx_val = ca.DM.rand(3)
+randdx_val = ca.DM.rand(3)
 print(KEfunc1(randx_val, randdx_val))
 print(KEfunc2(randx_val, randdx_val))
 
@@ -123,3 +126,16 @@ print()
 print(e22 + 0.5* hipx2.bdy.M * ca.dot(c1[:2],c1[:2]))
 # print(vertLeg.Bdp)
 
+print("\n\nTEST POTENTIAL ENERGY")
+
+print(PEfunc1(randx_val, randdx_val))
+print(PEfunc2(randx_val, randdx_val))
+mpfunc1 = ca.Function('mp1', [hipx1.x, hipx1.dx], [vertLeg1.Mp])
+# omgfunc1 = ca.Function('omg1', [hipx1.x, hipx1.dx], [vertLeg1.omega_b])
+# rotfunc1 = ca.Function('omg2', [hipx1.x, hipx1.dx], [0.5* vertLeg1.omega_b.T @ vertLeg1.I @ vertLeg1.omega_b])
+mpfunc2 = ca.Function('mp2', [hipx2.x, hipx2.dx], [hipx2.bdy.Mp, hipx2._p_proj(hipx2.bdy.Mp[:2])])
+# rotfunc2 = ca.Function('omg2', [hipx2.x, hipx2.dx], [0.5 * hipx2._I_perp(hipx2.bdy) * hipx2.Mdp[2]**2
+                                                    # ,0.5 * hipx2.bdy.I * hipx2.bdy.Mdp[2]**2])
+
+print(mpfunc1(randx_val, randdx_val))
+print(mpfunc2(randx_val, randdx_val))

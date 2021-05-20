@@ -262,6 +262,10 @@ class Proj2d(Body2D):
         super().__init__(name, freeD, 0, 0, Fp = Fp, g=g)
         self.bdy = bdy
         self.child.append(bdy)
+        def setzerogravty(c):
+            c.g *= 0
+            [setzerogravty(cc) for cc in c.child]
+        setzerogravty(bdy)
         # bdy.parent = self # this line is not needed, as the variable in child does not depends on self
         pass
 
@@ -351,7 +355,7 @@ class Body3D(Body):
             g ([type], optional): [description]. Defaults to Body2D.defaultG.
         """
         super().__init__(name, freeD)            
-        self.g = Body2D.defaultG if g is None else g #2D: the gravtition accleration
+        self.g = Body3D.defaultG if g is None else g
         self.Fp = ca.DM.eye(4) if Fp is None else Fp
         self.M = M
         self.I = I

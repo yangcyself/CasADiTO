@@ -36,9 +36,9 @@ class LeggedRobotX(ArticulateSystem):
 
         self.l1 = self.lhip.addChild(
             planeWrap3D.from2D, -params["legL0"], name="",
-            bdy = lleg[0],   T = ca.DM([[0,0,-1],
-                                        [0,1,0],
-                                        [1,0,0]])
+            bdy = lleg[0], g=ca.DM([0,-9.81,0]),  T = ca.DM([[0,0,-1],
+                                                             [0,1,0],
+                                                             [1,0,0]])
         )
 
         self.rhip = self.torso.addChild(
@@ -49,9 +49,9 @@ class LeggedRobotX(ArticulateSystem):
 
         self.r1 = self.rhip.addChild(
             planeWrap3D.from2D, params["legL0"], name="",
-            bdy = rleg[0],   T = ca.DM([[0,0,-1],
-                                        [0,1,0],
-                                        [1,0,0]])
+            bdy = rleg[0], g=ca.DM([0,-9.81,0]),  T = ca.DM([[0,0,-1],
+                                                             [0,1,0],
+                                                             [1,0,0]])
         )
 
         self.l2 = self.l1.child[0]
@@ -193,7 +193,7 @@ class LeggedRobotX(ArticulateSystem):
             "legI1":robotParam["j1xx"],
             "legI2":robotParam["j2xx"],
             "torI": robotParam["Jxx"], # NOTE: solve is quite slow because Jxx is small, if use J instead of Jxx, it will be a lot faster
-            "q0Lim": [ca.pi/2 + robotParam["ang0min"], ca.pi/2 + robotParam["ang0max"]], # q0 lim is important for a fast solution
+            "q0Lim": [robotParam["ang0min"], robotParam["ang0max"]], # q0 lim is important for a fast solution
             "q1Lim": [-ca.pi/2 - robotParam["ang1max"], -ca.pi/2 - robotParam["ang1min"]],
             "q2Lim": [-robotParam["ang2max"], -robotParam["ang2min"]],
             "dq0Lim": [-robotParam["dang0lim"], robotParam["dang0lim"]],
