@@ -26,11 +26,11 @@ distance = ca.SX.sym("distance",1)
 fleg_local_l = model.pLocalFuncs['pl2']
 fleg_local_r = model.pLocalFuncs['pr2']
 
-X0 = np.array([0, initHeight,0,   0.5*np.math.pi, -np.math.pi*5/6,np.math.pi*2/3,  0.5*np.math.pi, -np.math.pi*5/6,np.math.pi*2/3,
+X0 = np.array([0, initHeight,0,   0, -np.math.pi*5/6,np.math.pi*2/3,  0, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0, 0,0,0, 0,0,0])
 
 
-XDes = np.array([distance, initHeight ,0,   0.5*np.math.pi, -np.math.pi*5/6,np.math.pi*2/3,   0.5*np.math.pi, -np.math.pi*5/6,np.math.pi*2/3,
+XDes = np.array([distance, initHeight ,0,   0, -np.math.pi*5/6,np.math.pi*2/3,   0, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0, 0,0,0, 0,0,0])
 
 local_x_0 = fleg_local_l(X0)[0]
@@ -138,7 +138,7 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         x_init.append(x_0)
 
         opt.addCost(lambda x,u: costU*ca.dot(u,u))
-        opt.addCost(lambda ddq1: costDDQ * ca.dot(ddq1[-6:],ddq1[-6:]))
+        # opt.addCost(lambda ddq1: costDDQ * ca.dot(ddq1[-6:],ddq1[-6:]))
         opt.addCost(lambda x: costQReg * ca.dot((x - X0)[3:],(x - X0)[3:]))
         # opt.addCost(lambda x,u: 0.005*ca.dot(x[-4:],x[-4:]))
 
@@ -186,8 +186,8 @@ if __name__ == "__main__" :
     import matplotlib.pyplot as plt
     with Session(__file__,terminalLog = True) as ss:
     # if True:
-        opt.setHyperParamValue({"distance": 0.5, 
-                                "costU":0.01,
+        opt.setHyperParamValue({"distance": 0.2, 
+                                "costU":0.001,
                                 "costDDQ":0.0001,
                                 "costQReg":0.1})
     # if(True):
@@ -202,7 +202,7 @@ if __name__ == "__main__" :
                 "verbose_init":True,
                 # "jac_g": gjacFunc
             "ipopt":{
-                "max_iter" : 2000, # unkown option
+                "max_iter" : 20000, # unkown option
                 }
             })
         
