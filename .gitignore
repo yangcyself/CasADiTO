@@ -8,3 +8,6 @@ data/animation
 *.mp4
 nlpGen*
 cppIpopt/build
+cppIpopt/generated
+cppIpopt copy
+cppIpopt_bak
