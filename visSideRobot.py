@@ -97,6 +97,10 @@ def animate(i):
 
     ax2.clear()
     legl, legr = model.visulizeLocal(xsol,ax2)
+
+    ax2.set_xlim(-0.3,0.15)
+    ax2.set_ylim(-0.4,0.05)
+
     return linesol,lineini,til, legl, legr
     # return linesol,til
 

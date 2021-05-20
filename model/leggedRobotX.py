@@ -29,18 +29,34 @@ class LeggedRobotX(ArticulateSystem):
         rleg = getAleg("R")
 
         self.lhip = self.torso.addChild(
-            Proj2dRot, - params["torW"]/2, name = "LHip",
-            bdy = lleg[0], rotdir = ca.vertcat(0,1,0),  
-        ) 
+            Link2D.Rot, - params["torW"]/2, name = "LHip",
+            la = 0, lb = -params["legL0"], lc = -params["legLc0"],
+            M = params["legM0"], I = params["legI0"],  
+        )
+
+        self.l1 = self.lhip.addChild(
+            planeWrap3D.from2D, -params["legL0"], name="",
+            bdy = lleg[0],   T = ca.DM([[0,0,-1],
+                                        [0,1,0],
+                                        [1,0,0]])
+        )
 
         self.rhip = self.torso.addChild(
-            Proj2dRot,   params["torW"]/2, name = "RHip",
-            bdy = rleg[0], rotdir = ca.vertcat(0,1,0),  
+            Link2D.Rot, params["torW"]/2, name = "RHip",
+            la = 0, lb = params["legL0"], lc = params["legLc0"],
+            M = params["legM0"], I = params["legI0"],  
         )
-        self.l1, self.l2 = lleg
-        self.r1, self.r2 = rleg
-        
-        print(self.root.x)
+
+        self.r1 = self.rhip.addChild(
+            planeWrap3D.from2D, params["legL0"], name="",
+            bdy = rleg[0],   T = ca.DM([[0,0,-1],
+                                        [0,1,0],
+                                        [1,0,0]])
+        )
+
+        self.l2 = self.l1.child[0]
+        self.r2 = self.r1.child[0]
+
 
 
     @property
@@ -60,10 +76,10 @@ class LeggedRobotX(ArticulateSystem):
         return {
             "plTor" : ca.Function("plTor", [self.x], [self.torso.points["a"]]),
             "prTor" : ca.Function("prTor", [self.x], [self.torso.points["b"]]),
-            "pl1" : ca.Function("pl1", [self.x], [self.lhip._p_proj(self.l1.points["b"])]),
-            "pl2" : ca.Function("pl2", [self.x], [self.lhip._p_proj(self.l2.points["b"])]),
-            "pr1" : ca.Function("pr1", [self.x], [self.rhip._p_proj(self.r1.points["b"])]),
-            "pr2" : ca.Function("pr2", [self.x], [self.rhip._p_proj(self.r2.points["b"])])
+            "pl1" : ca.Function("pl1", [self.x], [self.l1._p_proj(self.l1.bdy.points["b"])]),
+            "pl2" : ca.Function("pl2", [self.x], [self.l2._p_proj(self.l2.bdy.points["b"])]),
+            "pr1" : ca.Function("pr1", [self.x], [self.r1._p_proj(self.r1.bdy.points["b"])]),
+            "pr2" : ca.Function("pr2", [self.x], [self.r2._p_proj(self.r2.bdy.points["b"])])
         }
 
     @property
@@ -71,10 +87,10 @@ class LeggedRobotX(ArticulateSystem):
         """The position functions in the local frames (x,z frame) of each leg, where as the frame of root is y,z frame
         """
         return {
-            "pl1" : ca.Function("pl1", [self.x], [self.l1.points["b"]]),
-            "pl2" : ca.Function("pl2", [self.x], [self.l2.points["b"]]),
-            "pr1" : ca.Function("pr1", [self.x], [self.r1.points["b"]]),
-            "pr2" : ca.Function("pr2", [self.x], [self.r2.points["b"]]),
+            "pl1" : ca.Function("pl1", [self.x], [self.l1.bdy.points["b"]]),
+            "pl2" : ca.Function("pl2", [self.x], [self.l2.bdy.points["b"]]),
+            "pr1" : ca.Function("pr1", [self.x], [self.r1.bdy.points["b"]]),
+            "pr2" : ca.Function("pr2", [self.x], [self.r2.bdy.points["b"]]),
         }
 
     def buildEOMF(self, consMap, name=""):
@@ -94,7 +110,7 @@ class LeggedRobotX(ArticulateSystem):
         F = ca.SX.sym("F",self.F_dim) #Fb, Ff
         u = ca.SX.sym("u", self.u_dim)
 
-        cons = [self.lhip._p_proj(self.l2.points["b"]), self.rhip._p_proj(self.r2.points["b"])]
+        cons = [self.l2._p_proj(self.l2.bdy.points["b"]), self.r2._p_proj(self.r2.bdy.points["b"])]
         consJ = [ca.jacobian(c,self.q) for c in cons]
         toeJac = ca.vertcat(*consJ)
 
@@ -114,12 +130,14 @@ class LeggedRobotX(ArticulateSystem):
             # np.concatenate([c.visPoints(self.root.x, x) for c in [self.cart] + self.links])
         except AttributeError:
             # xsym = ca.SX.sym("xsym", len(x))
-            linkLine = ca.vertcat(self.lhip._p_proj(self.l2.points["b"]).T, 
-                                 self.lhip._p_proj(self.l1.points["b"]).T,
+            linkLine = ca.vertcat(self.l2._p_proj(self.l2.bdy.points["b"]).T, 
+                                 self.l1._p_proj(self.l1.bdy.points["b"]).T,
+                                 self.lhip.points["b"].T,
                                  self.torso.points["a"].T,
                                  self.torso.points["b"].T,
-                                 self.rhip._p_proj(self.r1.points["b"]).T, 
-                                 self.rhip._p_proj(self.r2.points["b"]).T)
+                                 self.rhip.points["b"].T,
+                                 self.r1._p_proj(self.r1.bdy.points["b"]).T, 
+                                 self.r2._p_proj(self.r2.bdy.points["b"]).T)
             self.linkLine_func_cache = ca.Function("linkLine_func", [self.q], [linkLine], ["xsym"], ["linkLine"])
             linkLine = self.linkLine_func_cache(x)
 
@@ -134,12 +152,12 @@ class LeggedRobotX(ArticulateSystem):
             # np.concatenate([c.visPoints(self.root.x, x) for c in [self.cart] + self.links])
         except AttributeError:
             # xsym = ca.SX.sym("xsym", len(x))
-            linkLinel = ca.vertcat( self.l1.points["a"].T,
-                                    self.l1.points["b"].T, 
-                                    self.l2.points["b"].T)
-            linkLiner = ca.vertcat( self.r1.points["a"].T,
-                                    self.r1.points["b"].T, 
-                                    self.r2.points["b"].T)
+            linkLinel = ca.vertcat( self.l1.bdy.points["a"].T,
+                                    self.l1.bdy.points["b"].T, 
+                                    self.l2.bdy.points["b"].T)
+            linkLiner = ca.vertcat( self.r1.bdy.points["a"].T,
+                                    self.r1.bdy.points["b"].T, 
+                                    self.r2.bdy.points["b"].T)
             self.linkLine_local_func_cache = ca.Function("linkLine_local_func", [self.q], [linkLinel, linkLiner], ["xsym"], ["linkLinel", "linkLiner"])
             linkLinel, linkLiner = self.linkLine_local_func_cache(x)
 
@@ -158,16 +176,20 @@ class LeggedRobotX(ArticulateSystem):
                 print(exc)
                 exit()
         params = {
+            "legL0":robotParam["l0"],
             "legL1":robotParam["l1"],
             "legL2":robotParam["l2"],
+            "legLc0":robotParam["lc0"],
             "legLc1":robotParam["lc1"],
             "legLc2":robotParam["lc2"],
             "torW":robotParam["LW"],
             "torLL":robotParam["LLW"],
             "torLc":robotParam.get("LWc"),
+            "legM0":robotParam["m0"],
             "legM1":robotParam["m1"],
             "legM2":robotParam["m2"],
             "torM": robotParam["M"],
+            "legI0":robotParam["j0xx"],
             "legI1":robotParam["j1xx"],
             "legI2":robotParam["j2xx"],
             "torI": robotParam["Jxx"], # NOTE: solve is quite slow because Jxx is small, if use J instead of Jxx, it will be a lot faster
