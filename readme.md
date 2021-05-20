@@ -1,3 +1,3 @@
 # CasADiTo: Trajectory optimization framework based on CasADi
 
-This is a code
+Please checkout [Chinese version](docs/chinese/readme.md) here
