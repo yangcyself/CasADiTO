@@ -57,6 +57,18 @@ class Body:
     def PE(self):
         return ca.sum1(ca.vertcat(self._PE(), *[c.PE for c in self.child]))
 
+    def addChild(self, ChildType, **kwargs):
+        """add a Child `ChildType(**kwargs)`
+
+        Args:
+            ChildType ([Body]): A object constructor that returns a child Body2D
+        """
+        c = ChildType(**kwargs)
+        self.child.append(c)
+        c.parent = self
+        return c
+
+
 class Body2D(Body):
     defaultG = ca.vertcat(0, -9.81)
 
@@ -112,20 +124,6 @@ class Body2D(Body):
     
     def _PE(self):
         return - self.M * ca.dot(self.g, self.Mp[:2])
-
-
-    def addChild(self, ChildType, **kwargs):
-        """add a Child `ChildType(**kwargs)`
-
-        Args:
-            ChildType ([Body2D]): A object constructor that returns a child Body2D
-        """
-        c = ChildType(**kwargs)
-        if(not isinstance(c,Body2D)):
-            raise TypeError("Body2D must add Children of type Body2D, but get %s"%type(c).__name__)
-        self.child.append(c)
-        c.parent = self
-        return c
 
     def _visFunc(self, xr):
         """ ca.Function: build an function for visPoints"""
@@ -288,15 +286,15 @@ class Proj2d(Body2D):
         """
         def P(bdy):
             p = - bdy.M * ca.dot(self.g, self._p_proj(bdy.Mp[:2]))
-            return p + ca.sum1(ca.vertcat( *[P(c) for c in bdy.child]))
+            return p + ca.sum1(ca.vertcat(0, *[P(c) for c in bdy.child]))
         return P(self.bdy)
     
     def _KE(self):
         def perpE(bdy):
             # calculate the energy caused by the perpendicular movement of the body
             bdyE = 0.5 * self._I_perp(bdy) * self.Mdp[2]**2 + 0.5 * bdy.M * self._Mdp_perp(bdy)**2
-            return bdyE + ca.sum1(ca.vertcat( *[perpE(c) for c in bdy.child]))
-        return self.bdy.KE + perpE(self.bdy)
+            return bdyE + ca.sum1(ca.vertcat(0, *[perpE(c) for c in bdy.child])) # !!!ycy 1+DM([]) = [], thus sum1(vertcat) must provide a 0
+        return perpE(self.bdy)# because bdy is also child, thus its energy is added via child
 
 class Proj2dRot(Proj2d):
     def __init__(self, name, bdy, rotdir, Fp, g = None):
@@ -331,7 +329,7 @@ class Proj2dRot(Proj2d):
     def _Mdp_perp(self, bdy):
         l = ca.dot(self.rotdir[:2], bdy.Mp[:2]) + self.rotdir[2]
         return l * self.Mdp[2] # length * angle velocity
-        
+
     def _I_perp(self, bdy):
         """The perpendicular Inertia.
         !!! ASSUME bdy only have length along it's r
@@ -340,6 +338,126 @@ class Proj2dRot(Proj2d):
         proj = ca.dot(self.rotdir[:2], ca.vertcat(ca.cos(r), ca.sin(r)))
         return bdy.I * (proj) ** 2
 
+
+class Body3D(Body):
+    defaultG = ca.vertcat(0, 0, -9.81)
+    def __init__(self, name, freeD, M, I,  Fp = None, g = None):
+        """[summary]
+
+        Args:
+            name (string): The name of the body
+            freeD (int): dim of freedom
+            Fp (SX[4x4]): The transition matrix of parent frame(local to world). defaut to DX.eye(4)
+            g ([type], optional): [description]. Defaults to Body2D.defaultG.
+        """
+        super().__init__(name, freeD)            
+        self.g = Body2D.defaultG if g is None else g #2D: the gravtition accleration
+        self.Fp = ca.DM.eye(4) if Fp is None else Fp
+        self.M = M
+        self.I = I
+
+    def _Mp(self):
+        raise NotImplementedError
+
+    @property
+    def Mp(self):
+        """3D verctor: px, py, pz
+            Note: px, py, pz is the CoM position"""
+        return self._Mp()
+
+    @property
+    def Mdp(self):
+        """3D verctor: dpx, dpy, dpz
+            Note: px, py, pz is the CoM position"""
+        if(self.q.size(1)==0):
+            return ca.DM.zeros(3) if self.parent is None else self.parent.Mdp
+        return ca.jtimes(self.Mp, self.q, self.dq)
+    
+    def _Bp(self):
+        raise NotImplementedError
+
+    @property
+    def Bp(self):
+        """SX[4x4] of the Body's Frame"""
+        return self._Bp()
+
+    @property
+    def Bdp(self):
+        """SX[4x4] the time derivative"""
+        if(self.q.size(1)==0):
+            return ca.DM.zeros(4,4) if self.parent is None else self.parent.Mdp
+        return ca.jtimes(self.Bp, self.q, self.dq)
+
+    @property
+    def omega_b(self):
+        """SX(3) the rotation velocity in body frame
+        omega_ab^b = R_ab^{-1} \dot{R}_ab^{-1}
+        """
+        R = self.Bp[:3,:3]
+        dR = self.Bdp[:3,:3]
+        w_b = R.T @ dR
+        return ca.vertcat(w_b[2,1], w_b[0,2], w_b[0,1])
+
+    def _KE(self):
+        return (0.5*self.M * ca.dot(self.Mdp, self.Mdp) # velocity
+                + 0.5*self.omega_b.T@self.I@self.omega_b) # rotation
+    
+    def _PE(self):
+        return - self.M * ca.dot(self.g, self.Mp)
+
+class planeWrap3D(Body3D):
+    """The wrapper of a 2D object to an 3D object
+    """
+    @staticmethod
+    def FpProj(Fp):
+        """convert a 2d Fp to 3D Fp, assume the frame lies in xy plane
+        Args:
+            Fp ([SX[3]]): 
+        """
+        cr = ca.cos(Fp[2])
+        sr = ca.sin(Fp[2])
+        return ca.vertcat(ca.horzcat( cr, sr, 0, Fp[0]),
+                          ca.horzcat(-sr, cr, 0, Fp[1]),
+                          ca.horzcat(  0,  0, 1,     0),
+                          ca.horzcat(  0,  0, 0,     1))
+
+    @staticmethod
+    def ItransBar(I):
+        """convert 2D inertia into 3D inertia matrix of a Bar. Assume Bar is extended along local x axis
+        Args:
+            I ([double]): inertia
+        """
+        return ca.SX([[0, 0, 0], [0,I,0], [0,0,I]])
+
+    @staticmethod
+    def from2D(bdy, name, Fp, T, g = None, Itrans = None):
+        """return a object with Fp in axis
+        Args:
+            Fp (SX(3)): the Fp representation in 2D
+            T (SX(3,3)): The rotation matrix from the bdy's plane to the Fp's plane
+        """
+        T = ca.horzcat(ca.vertcat(T, ca.DM.zeros(1,3)), ca.vertcat(0,0,0,1))
+        return planeWrap3D(bdy, name, planeWrap3D.FpProj(Fp)@T, g, Itrans)
+
+    def __init__(self, bdy, name, Fp = None, g = None, Itrans = None):
+        # _Fp = Fp@planeWrap3D.FpProj(bdy.Fp)
+        Itrans = planeWrap3D.ItransBar if Itrans is None else Itrans
+        super().__init__("%s%s"%(name,bdy.name), bdy.freeD, bdy.M, Itrans(bdy.I), 
+                Fp = Fp, g=g)
+        self.bdy = bdy
+        self._q = bdy._q
+        self._dq = bdy._dq
+        newchilds = [planeWrap3D(c, name, Fp, g) for c in bdy.child]
+        for c in newchilds:
+            c.parent = self
+        self.child += newchilds
+
+    def _Bp(self):
+        return self.Fp @ planeWrap3D.FpProj(self.bdy.Bp)
+
+    def _Mp(self):
+        return (self.Fp @ ca.vertcat(self.bdy.Mp[:2],0,1))[:3]
+    
 
 class ArticulateSystem:
     def __init__(self, root):
