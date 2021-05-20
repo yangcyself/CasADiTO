@@ -21,11 +21,11 @@ fleg_local_r = model.pLocalFuncs['pr2']
 fleg_l = model.pLocalFuncs['pl2']
 fleg_r = model.pLocalFuncs['pr2']
 
-X0 = np.array([0, initHeight,0,   0.5*np.math.pi, -np.math.pi*5/6,np.math.pi*2/3,  0.5*np.math.pi, -np.math.pi*5/6,np.math.pi*2/3,
+X0 = np.array([0, initHeight,0,  0, -np.math.pi*5/6,np.math.pi*2/3, 0, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0, 0,0,0, 0,0,0])
 
 
-XDes = np.array([distance, initHeight , 2*np.math.pi,   0.5*np.math.pi, -np.math.pi*5/6,np.math.pi*2/3,   0.5*np.math.pi, -np.math.pi*5/6,np.math.pi*2/3,
+XDes = np.array([distance, initHeight , 2*np.math.pi,  0, -np.math.pi*5/6,np.math.pi*2/3,  0, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0, 0,0,0, 0,0,0])
 
 local_x_0 = fleg_local_l(X0)[0]
@@ -145,9 +145,9 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
                 x0 = x_0, u0 = initSol["u"],F0 = initSol["F"])
         x_init.append(x_0)
 
-        opt.addCost(lambda x,u: costU*ca.dot(u,u))
-        opt.addCost(lambda ddq1: costDDQ * ca.dot(ddq1[-6:],ddq1[-6:]))
-        opt.addCost(lambda x: costQReg * ca.dot((x - X0)[3:],(x - X0)[3:]))
+        # opt.addCost(lambda x,u: costU*ca.dot(u,u)) # these two lines need to be commented out
+        # opt.addCost(lambda ddq1: costDDQ * ca.dot(ddq1[-6:],ddq1[-6:])) # these two lines need to be commented out
+        opt.addCost(lambda x: costQReg * ca.dot((x - X0)[4:],(x - X0)[4:]))
         # opt.addCost(lambda x,u: 0.005*ca.dot(x[-4:],x[-4:]))
 
         # opt.addCost(lambda x: ca.dot(x[0],x[0]))
