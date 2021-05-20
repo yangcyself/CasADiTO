@@ -416,8 +416,8 @@ class planeWrap3D(Body3D):
         """
         cr = ca.cos(Fp[2])
         sr = ca.sin(Fp[2])
-        return ca.vertcat(ca.horzcat( cr, sr, 0, Fp[0]),
-                          ca.horzcat(-sr, cr, 0, Fp[1]),
+        return ca.vertcat(ca.horzcat( cr, -sr, 0, Fp[0]),
+                          ca.horzcat( sr, cr, 0, Fp[1]),
                           ca.horzcat(  0,  0, 1,     0),
                           ca.horzcat(  0,  0, 0,     1))
 
@@ -458,6 +458,8 @@ class planeWrap3D(Body3D):
     def _Mp(self):
         return (self.Fp @ ca.vertcat(self.bdy.Mp[:2],0,1))[:3]
     
+    def _p_proj(self, p):
+        return (self.Fp @ ca.vertcat(p[:2],0,1))[:2]
 
 class ArticulateSystem:
     def __init__(self, root):
