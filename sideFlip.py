@@ -7,7 +7,6 @@ from optGen.util import caSubsti, caFuncSubsti, substiSX2MX
 from model.leggedRobotX import LeggedRobotX
 from mathUtil import solveLinearCons
 import pickle as pkl
-from trajOptimizerHelper import *
 
 from ExperimentSecretary.Core import Session
 
@@ -52,7 +51,7 @@ xlim = [
     [-100,100],
     [-100,100],
     [-100,100],
-    model.params["dq0Lim"], # some arbitrary number
+    model.params["dq0Lim"],
     model.params["dq1Lim"],
     model.params["dq2Lim"],
     model.params["dq0Lim"],

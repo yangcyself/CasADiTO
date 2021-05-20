@@ -115,14 +115,18 @@ ani = animation.FuncAnimation(
 
 saveXdirSolution("sideOut.csv", sol_x, sol_u, timeStamps.reshape(-1))
 
-plt.show()
 
+print("ranges:")
+print(np.concatenate([np.min(x_opt[:,:7], axis = 0).reshape(1,-1), np.max(x_opt[:,:7], axis = 0).reshape(1,-1)], axis = 0))
+
+
+plt.show()
 plt.figure()
 plt.plot(u_opt)
 plt.legend(["u1","u2","u3","u4"])
 plt.figure()
 plt.plot(x_opt[:,:7])
-plt.legend(["x","y","th","q1","q2","q3","q4"])
+plt.legend(["x","y","th","q1","q2","q3","q4","q5","q6"])
 plt.show()
 
 plocalFuncr = model.pLocalFuncs['pr1']
