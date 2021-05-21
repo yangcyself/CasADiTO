@@ -11,18 +11,24 @@ J : 0.06865477
 # {INERTIAiyy 0.014357} + 2*({_HIPiyy 0.00024024} + {_HIPmass 0.428}×({HipXx 0.175} + {INERTIAx 0.046396}  − {_HIPx 0.0047})^2 ) + 2*({_HIPiyy 0.00024024} + {_HIPmass 0.428}×({HipXx 0.175} - {INERTIAx 0.046396}  − {_HIPx 0.0047})^2 )
 
 m : 5.298
-LW : 0.11 # 2* ({_HipX y: 0.055}
+# LW : 0.11 # 2* ({_HipX y: 0.055}
 LWc : -0.0017592
 LLW : 0.272 # 2* ({_HipX y: 0.055} + {_HipY y: 0.081})
-Jxx: 0.0095569 # INERTIA ixx
+# Jxx: 0.0095569 # INERTIA ixx
 # 0.0095569 + 2*(0.00014538 + 0.428×(0.055 -0.0091 + 0.0017592)^2) + 2*(0.00014538 + 0.428×(0.055 -0.0091 - 0.0017592)^2)
 
-m0 : 0.856 # {_HIPmass 0.428} * 2
-l0 : 0.081 # {_HipY y: 0.081})
-lc0: 0.0091
-j0: 0.00048048 # {HIP iyy 0.00024024} × 2
-j0xx: 0.00029076 # {_HIP ixx 0.00014538} × 2
+# m0 : 0.856 # {_HIPmass 0.428} * 2
+# l0 : 0.081 # {_HipY y: 0.081})
+lc0: -0.0091
+# j0: 0.00048048 # {HIP iyy 0.00024024} × 2
+# j0xx: 0.00029076 # {_HIP ixx 0.00014538} × 2
 
+# for test
+m0: 0
+j0xx: 0
+LW: 0.272
+l0: 0
+Jxx : 0.013750577
 
 m1 : 1.220 # {_THIGHmass 0.610}*2
 l1 : 0.18
@@ -36,9 +42,9 @@ lc2 : 0.12 # { _SHANK inertialz }
 j2 : 0.001372 # { _SHANKiyy 0.000686} * 2
 j2xx : 0.001372 # { _SHANKixx 0.000686} * 2
 
-tau0lim : 52
-tau1lim : 52 # 26
-tau2lim : 102 # 51
+# tau0lim : 52
+# tau1lim : 52 # 26
+# tau2lim : 102 # 51
 
 # real
 # ang0max : 0.523 
@@ -56,9 +62,9 @@ param.fContact : 1
 param.bContact : 1
 
 # ideal
-# tau0lim : 100
-# tau1lim : 100 # 26
-# tau2lim : 102 # 51
+tau0lim : 200
+tau1lim : 200 # 26
+tau2lim : 202 # 51
 
 ang0max : 1.2
 ang0min : -1.2

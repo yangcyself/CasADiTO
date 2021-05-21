@@ -18,7 +18,7 @@ print(fr(x_val))
 
 def x_f(i):
     add = ca.DM.zeros(18)
-    add[3] = i/100
+    add[8] = i/100
     return x_val + add
 
 # print(f(x_f(0)))
@@ -48,7 +48,7 @@ X0 = np.array([0, initHeight,0, 0.5*np.math.pi, -np.math.pi*5/6,np.math.pi*2/3, 
 # print(fleg_local_l(X0))
 # print(fleg_local_r(X0))
 
-consJ = ca.jacobian( model.rhip._p_proj(model.r2.points["b"]), model.q)
+consJ = ca.jacobian( model.r2._p_proj(model.r2.points["b"]), model.q)
 consJf = ca.Function("f", [model.x], [consJ])
 localConsJ = ca.jacobian( model.r2.points["b"], model.q)
 localConsJf = ca.Function("f", [model.x], [localConsJ])

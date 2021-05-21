@@ -1,7 +1,7 @@
 
 from model.articulateBody import *
 import yaml
-
+import numpy as np
 
 ConfigFile = "data/robotConfigs/JYminiLitev2.yaml"
 with open(ConfigFile, 'r') as stream:
@@ -36,6 +36,9 @@ params = {
     "G":9.81,
 }
 
+t12_3 = np.zeros(3)
+t12_3[0] = t12_3[0] = ca.pi/2
+
 def getAleg(name):
     thigh = Link2D.Rot(name = "%sThigh"%name, Fp = ca.vertcat(0,0,0),
         la = 0, lb = params["legL1"], lc = params["legLc1"],
@@ -55,9 +58,11 @@ vertLeg1 = hipx1.addChild(planeWrap3D.from2D, 0, bdy = llegs1[0], name="",
 T = ca.DM([[0,1,0],
            [0,0,1],
            [1,0,0]]),g = ca.DM([0,-9.81,0]))
+# T = ca.DM([[0,0,-1],
+#            [0,1,0],
+#            [1,0,0]]),g = ca.DM([0,-9.81,0]))
 
-
-hipx2 = Proj2dRot("", llegs2[0],ca.DM([0,1,0]),ca.DM([0,0,0]))
+hipx2 = Proj2dRot("hip", llegs2[0],ca.DM([0,1,0]),ca.DM([0,0,0]))
 
 
 # Tab = ca.SX([[1,0,0,0],
@@ -78,9 +83,12 @@ KEfunc2 = ca.Function('f2', [hipx2.x, hipx2.dx] ,[hipx2.KE])
 PEfunc1 = ca.Function('f1', [hipx1.x, hipx1.dx] ,[hipx1.PE])
 PEfunc2 = ca.Function('f2', [hipx2.x, hipx2.dx] ,[hipx2.PE])
 
+print("HIP1_X:", hipx1.x)
+print("HIP2_X:", hipx2.x)
 
 randx_val = ca.DM.rand(3)
 randdx_val = ca.DM.rand(3)
+# print(randx_val + t12_3)
 print(KEfunc1(randx_val, randdx_val))
 print(KEfunc2(randx_val, randdx_val))
 

@@ -11,3 +11,4 @@ cppIpopt/build
 cppIpopt/generated
 cppIpopt copy
 cppIpopt_bak
+.vscode

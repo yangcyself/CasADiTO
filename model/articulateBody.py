@@ -255,7 +255,10 @@ class Link2D(Body2D):
                         self.points["b"][:2].T)], ["x"], ["ps"] )
         
 class Proj2d(Body2D):
-    """An 2d Body projects to Perpendicular 2d body. For example, 2d links rotates accords to a perpendicular axis
+    """
+    !!!!!!!!!!!!!! DEPRECATED !!!!!!!!!!!!!
+    It is only correct when all moving in the projected space happens in perpendicular direction
+    An 2d Body projects to Perpendicular 2d body. For example, 2d links rotates accords to a perpendicular axis
         Note: must be **perpendicular** !!! As we assume here the mass products of inertia is zero
     """
     def __init__(self, bdy, name, freeD, Fp = None, g = None):
@@ -374,6 +377,7 @@ class Body3D(Body):
         """3D verctor: dpx, dpy, dpz
             Note: px, py, pz is the CoM position"""
         if(self.q.size(1)==0):
+            print("WARNNING: PARENT MDP of Body3D" )
             return ca.DM.zeros(3) if self.parent is None else self.parent.Mdp
         return ca.jtimes(self.Mp, self.q, self.dq)
     
@@ -389,6 +393,7 @@ class Body3D(Body):
     def Bdp(self):
         """SX[4x4] the time derivative"""
         if(self.q.size(1)==0):
+            print("WARNNING: PARENT MDP of Body3D" )
             return ca.DM.zeros(4,4) if self.parent is None else self.parent.Mdp
         return ca.jtimes(self.Bp, self.q, self.dq)
 
@@ -431,7 +436,10 @@ class planeWrap3D(Body3D):
         Args:
             I ([double]): inertia
         """
-        return ca.SX([[0, 0, 0], [0,I,0], [0,0,I]])
+        # return ca.SX([[0, 0, 0], [0,I,0], [0,0,I]])
+        return ca.vertcat(ca.horzcat(0,0,0),
+                          ca.horzcat(0,I,0),
+                          ca.horzcat(0,0,I))
 
     @staticmethod
     def from2D(bdy, name, Fp, T, g = None, Itrans = None):

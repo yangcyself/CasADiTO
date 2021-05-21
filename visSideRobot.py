@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 
 from model.leggedRobotX import LeggedRobotX
+# from model.leggedRobotX_bak import LeggedRobotX
 model = LeggedRobotX.fromYaml("data/robotConfigs/JYminiLitev2.yaml")
 
 

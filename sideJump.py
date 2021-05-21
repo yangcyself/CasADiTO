@@ -25,7 +25,8 @@ initHeight = (model.params["legL2"] + model.params["legL1"])/2 # assume 30 angle
 distance = ca.SX.sym("distance",1)
 fleg_local_l = model.pLocalFuncs['pl2']
 fleg_local_r = model.pLocalFuncs['pr2']
-
+fleg_l = model.pLocalFuncs['pl2']
+fleg_r = model.pLocalFuncs['pr2']
 X0 = np.array([0, initHeight,0,   0, -np.math.pi*5/6,np.math.pi*2/3,  0, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0, 0,0,0, 0,0,0])
 
@@ -34,6 +35,8 @@ XDes = np.array([distance, initHeight ,0,   0, -np.math.pi*5/6,np.math.pi*2/3,  
          0,0,0, 0,0,0, 0,0,0])
 
 local_x_0 = fleg_local_l(X0)[0]
+contact_l = fleg_l(X0)
+contact_r = fleg_r(X0)
 # assert(local_x_0 == fleg_local_r(X0)[0])
 
 SchemeSteps = 50
@@ -62,6 +65,7 @@ xlim = [
     model.params["dq2Lim"]
 ]
 
+print("XLIM:\n", np.array(xlim))
 
 ulim = [
     np.array([-1, 1])*model.params["tau0lim"],
@@ -91,7 +95,7 @@ Xlift0[2] = np.math.pi/6
 
 References = [
     lambda i: X0, # start
-    lambda i: Xlift0, # lift
+    lambda i: X0, # lift
     lambda i: # fly
         X0 + np.concatenate([np.array([distance/SchemeSteps*i, 
         height/SchemeSteps*i + 0.1+i*(SchemeSteps-i)/(SchemeSteps**2/4)]), np.zeros(16)]) ,
@@ -162,6 +166,15 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
             lambda x: ca.vertcat(fleg_local_l(x)[0]-local_x_0, fleg_local_r(x)[0]-local_x_0), [0,0], [0,0]
         )
 
+        if(cons[0]):
+            opt.addConstraint(
+                lambda x: fleg_l(x)-contact_l, [0,0], [0,0]
+            )
+        if(cons[1]):
+            opt.addConstraint(
+                lambda x: fleg_r(x)-contact_r, [0,0], [0,0]
+            )
+
     if(FinalC is not None):
         opt.addConstraint(*FinalC)
 
@@ -186,10 +199,10 @@ if __name__ == "__main__" :
     import matplotlib.pyplot as plt
     with Session(__file__,terminalLog = True) as ss:
     # if True:
-        opt.setHyperParamValue({"distance": 0.2, 
-                                "costU":0.001,
+        opt.setHyperParamValue({"distance": 0.05, 
+                                "costU":0.01,
                                 "costDDQ":0.0001,
-                                "costQReg":0.1})
+                                "costQReg":10})
     # if(True):
         x_init = opt.substHyperParam(ca.horzcat(*x_init))
 
