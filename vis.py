@@ -42,8 +42,6 @@ def saveXdirSolution(filename, x_opt, u_opt, t):
     print(df.head())
 
     # Frame shift
-    df["lhx"] = df["lhx"] - np.math.pi/2
-    df["rhx"] = df["rhx"] - np.math.pi/2
     df["lhy"] = df["lhy"] + np.math.pi/2
     df["rhy"] = df["rhy"] + np.math.pi/2
 
