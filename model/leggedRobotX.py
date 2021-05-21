@@ -188,7 +188,7 @@ class LeggedRobotX(ArticulateSystem):
             "legM0":robotParam["m0"],
             "legM1":robotParam["m1"],
             "legM2":robotParam["m2"],
-            "torM": robotParam["M"],
+            "torM": robotParam["m"],
             "legI0":robotParam["j0xx"],
             "legI1":robotParam["j1xx"],
             "legI2":robotParam["j2xx"],
