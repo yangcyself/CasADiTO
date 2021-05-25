@@ -25,6 +25,7 @@ dT = 0.01
 with open(solFile, "rb") as f:
     solraw = pkl.load(f)
     sol = solraw["sol"]
+    # sol_ddq = sol["ddq_plot"].full().T
     sol_x= sol['Xgen']['x_plot'].full().T
     sol_u= sol['Ugen']['u_plot'].full().T
     terrian = sol['Xgen']['terrain_plot'].full()
@@ -139,8 +140,6 @@ plocalFuncl = model.pLocalFuncs['pl1']
 
 pFuncr = model.pFuncs['pr2']
 pFuncl = model.pFuncs['pl2']
-# plt.plot(np.array([ [np.linalg.norm(plocalFuncl(x)), 
-#                     np.linalg.norm(plocalFuncr(x))] for x in x_opt]))
 plt.plot(np.array([ [pFuncl(x)[0], 
                     pFuncr(x)[0]] for x in x_opt]))
 plt.show()

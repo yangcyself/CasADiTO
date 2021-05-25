@@ -116,7 +116,7 @@ class LeggedRobotX(ArticulateSystem):
 
 
         g = self.EOM_func(self.q, self.dq, ddq, self.B @ u+toeJac.T @ F) # the EOM
-        g = ca.vertcat(g, *[ cJ @ ddq + ca.jtimes(cJ,self.q,self.dq)@self.dq for cJ,cm in zip(consJ,consMap) if cm])
+        g = ca.vertcat(g, *[1e6 * (cJ @ ddq + ca.jtimes(cJ,self.q,self.dq)@self.dq) for cJ,cm in zip(consJ,consMap) if cm])
         g = ca.vertcat(g, *[ F[i*2:i*2+2] for i,cm in enumerate(consMap) if not cm])
         g = ca.simplify(g)
         return ca.Function("%sEOMF"%name, [self.x,u,F,ddq], [g], ["x","u","F","ddq"], ["%sEOM"%name])
@@ -188,8 +188,7 @@ class LeggedRobotX(ArticulateSystem):
             "legM0":robotParam["m0"],
             "legM1":robotParam["m1"],
             "legM2":robotParam["m2"],
-            # "torM": robotParam["m"],
-            "torM": robotParam["M"],
+            "torM": robotParam["m"],
             "legI0":robotParam["j0xx"],
             "legI1":robotParam["j1xx"],
             "legI2":robotParam["j2xx"],

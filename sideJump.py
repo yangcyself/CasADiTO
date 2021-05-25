@@ -25,8 +25,6 @@ initHeight = (model.params["legL2"] + model.params["legL1"])/2 # assume 30 angle
 distance = ca.SX.sym("distance",1)
 fleg_local_l = model.pLocalFuncs['pl2']
 fleg_local_r = model.pLocalFuncs['pr2']
-fleg_l = model.pLocalFuncs['pl2']
-fleg_r = model.pLocalFuncs['pr2']
 X0 = np.array([0, initHeight,0,   0, -np.math.pi*5/6,np.math.pi*2/3,  0, -np.math.pi*5/6,np.math.pi*2/3,
          0,0,0, 0,0,0, 0,0,0])
 
@@ -35,8 +33,6 @@ XDes = np.array([distance, initHeight ,0,   0, -np.math.pi*5/6,np.math.pi*2/3,  
          0,0,0, 0,0,0, 0,0,0])
 
 local_x_0 = fleg_local_l(X0)[0]
-contact_l = fleg_l(X0)
-contact_r = fleg_r(X0)
 # assert(local_x_0 == fleg_local_r(X0)[0])
 
 SchemeSteps = 50
@@ -84,7 +80,7 @@ EoMFuncs = {
 
 Scheme = [ # list: (contact constaints, length)
     ((1,1), SchemeSteps, "start"),
-    ((1,0), SchemeSteps, "lift"),
+    # ((1,0), SchemeSteps, "lift"),
     ((0,0), SchemeSteps, "fly"),
     # ([model.phbLeg2], 3, "land"),
     # ((1,1), SchemeSteps, "finish")
@@ -95,10 +91,10 @@ Xlift0[2] = np.math.pi/6
 
 References = [
     lambda i: X0, # start
-    lambda i: X0, # lift
+    # lambda i: X0, # lift
     lambda i: # fly
         X0 + np.concatenate([np.array([distance/SchemeSteps*i, 
-        height/SchemeSteps*i + 0.1+i*(SchemeSteps-i)/(SchemeSteps**2/4)]), np.zeros(16)]) ,
+        height/SchemeSteps*i + 0.1*i*(SchemeSteps-i)/(SchemeSteps**2/4)]), np.zeros(16)]) ,
     # lambda i:( # finish
     #     XDes,
     #     [1,125,1,150, 0,125,0,150]
@@ -107,7 +103,7 @@ References = [
 
 stateFinalCons = [ # the constraints to enforce at the end of each state
     None, #(lambda x,u: x[1], [0], [np.inf]), # lift up body
-    None, #(lambda x,u: x[8], [0.5], [np.inf]), # have positive velocity
+    # None, #(lambda x,u: x[8], [0.5], [np.inf]), # have positive velocity
     #  #(lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1],
     #             #  model.JacFuncs["Jbtoe"](x)@x[7:], model.JacFuncs["Jbtoe"](x)@x[7:]), 
     #             #     [0]*6, [0]*6), # feet land
@@ -115,8 +111,8 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
 ]
 
 
-opt = TowrCollocationDefault(18, 6, 4, xlim, ulim, [[-200, 200]]*4, dT0)
-# opt = TowrCollocationVTiming(18, 6, 4, xlim, ulim, [[-200, 200]]*4, dT0, [dT0/100, dT0])
+# opt = TowrCollocationDefault(18, 6, 4, xlim, ulim, [[-200, 200]]*4, dT0)
+opt = TowrCollocationVTiming(18, 6, 4, xlim, ulim, [[-200, 200]]*4, dT0, [dT0/100, dT0])
 opt.Xgen = xGenTerrianHoloCons(18, np.array(xlim), model.pFuncs.values(), lambda p: p[1],
                 robustGap=[0 if p in ["pl2", "pr2"] else 0.02 for p in model.pFuncs.keys() ])
 
@@ -166,14 +162,6 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
             lambda x: ca.vertcat(fleg_local_l(x)[0]-local_x_0, fleg_local_r(x)[0]-local_x_0), [0,0], [0,0]
         )
 
-        if(cons[0]):
-            opt.addConstraint(
-                lambda x: fleg_l(x)-contact_l, [0,0], [0,0]
-            )
-        if(cons[1]):
-            opt.addConstraint(
-                lambda x: fleg_r(x)-contact_r, [0,0], [0,0]
-            )
 
     if(FinalC is not None):
         opt.addConstraint(*FinalC)
@@ -199,10 +187,10 @@ if __name__ == "__main__" :
     import matplotlib.pyplot as plt
     with Session(__file__,terminalLog = True) as ss:
     # if True:
-        opt.setHyperParamValue({"distance": 0.05, 
-                                "costU":0.01,
+        opt.setHyperParamValue({"distance": 0.1, 
+                                "costU":0.1,
                                 "costDDQ":0.0001,
-                                "costQReg":10})
+                                "costQReg":1})
     # if(True):
         x_init = opt.substHyperParam(ca.horzcat(*x_init))
 
