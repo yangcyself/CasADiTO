@@ -122,8 +122,12 @@ ani = animation.FuncAnimation(
 saveXdirSolution("sideOut.csv", sol_x, sol_u, timeStamps.reshape(-1))
 
 
-print("ranges:")
+print("Xranges:")
 print(np.concatenate([np.min(x_opt[:,:9], axis = 0).reshape(1,-1), np.max(x_opt[:,:9], axis = 0).reshape(1,-1)], axis = 0))
+
+
+print("Uranges:")
+print(np.concatenate([np.min(sol_u, axis = 0).reshape(1,-1), np.max(sol_u, axis = 0).reshape(1,-1)], axis = 0))
 
 
 plt.show()

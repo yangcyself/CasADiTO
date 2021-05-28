@@ -42,7 +42,8 @@ lc2 : 0.12 # { _SHANK inertialz }
 j2 : 0.001372 # { _SHANKiyy 0.000686} * 2
 j2xx : 0.001372 # { _SHANKixx 0.000686} * 2
 
-tau0lim : 52
+# tau0lim : 52
+tau0lim : 28
 tau1lim : 52 # 26
 tau2lim : 102 # 51
 
