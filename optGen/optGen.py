@@ -311,7 +311,7 @@ class optGen:
         """
         raise NotImplementedError
 
-    def cppGen(self, cppname, parseFuncs = None, genFolder = True, cmakeOpt = None):
+    def cppGen(self, cppname, expand=True, parseFuncs = None, genFolder = True, cmakeOpt = None):
         """Generate cpp files of the optimization problem. Specifically, the `_info` `f` `g` `grad_` `hessian` and prse functions
 
         Args:
@@ -327,6 +327,7 @@ class optGen:
         if(not genFolder):
             C = ca.CodeGenerator(cppname, cppOptions) # comments in the generated file
             def addFunction(f):
+                f = f.expand() if expand else f
                 C.add(f)
             def outputFile():
                 C.generate()
@@ -337,6 +338,7 @@ class optGen:
             except FileExistsError:
                 pass
             def addFunction(f):
+                f = f.expand() if expand else f
                 f.generate(f.name(), cppOptions)# casadi seems like not able to generate in subdir
                 shutil.move("%s.cpp"%f.name(), os.path.join(cppname, "%s.cpp"%f.name())) # this will overwrite if exist
                 shutil.move("%s.h"%f.name(), os.path.join(cppname, "%s.h"%f.name()))
@@ -348,7 +350,7 @@ class optGen:
                         f.write('#include "%s"\n'%h)
                 if(cmakeOpt is not None):
                     cmakeOption = {"projName": "casaditoGen",
-                                "cxxflag": '"-O0"',
+                                "cxxflag": '"-O1"',
                                 "libName": "nlpgen"}
                     cmakeOption.update(cmakeOpt)
                     with open(os.path.join(cppname, "CMakeLists.txt"), "w") as f:

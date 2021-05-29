@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 
 from model.leggedRobot2D import LeggedRobot2D
-model = LeggedRobot2D.fromYaml("data/robotConfigs/JYminiLite.yaml")
+model = LeggedRobot2D.fromYaml("data/robotConfigs/JYminiLitev2.yaml")
 
 
 if(len(sys.argv)<2):

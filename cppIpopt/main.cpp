@@ -29,8 +29,8 @@ int main(
       std::make_pair("costU", &hp_cost_u),
       std::make_pair("costDDQ", &hp_cost_ddq),
       std::make_pair("costQReg", &hp_cost_qreg),
-      std::make_pair("distance", &hp_dist)
-      // std::make_pair("terrainPoints", hp_terrainPoints)
+      // std::make_pair("distance", &hp_dist)
+      std::make_pair("terrainPoints", hp_terrainPoints)
    };
 
    SmartPtr<TNLP> mynlp = new TONLP(X,U,T, hp);
