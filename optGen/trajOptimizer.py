@@ -1,6 +1,6 @@
 from optGen.optGen import *
 from optGen.util import substiSX2MX
-class TowrCollocation(optGen):
+class Collocation(optGen):
     """The traj optimization builder using towr like integration algorithm
 
     The collocation method assumes the x is second order. x = [q,dq]
@@ -83,8 +83,9 @@ class TowrCollocation(optGen):
             "F" : Fk,       # F at step K
             "ddq1":None     # ddq at step K+1, fitted by Xs at step K and K+1
         })
+        return Xk, Uk, Fk
     
-    def step(self, dynF, x0, u0, F0, **kwargs):
+    def step(self, x0, u0, F0, **kwargs):
         self._sc += 1
         Xk_puls_1 = self._Xgen.step(step = self._sc, x0 = x0, **kwargs)
         Uk_puls_1 = self._Ugen.step(step = self._sc, u0 = u0, xk = Xk_puls_1, **kwargs)
@@ -95,6 +96,22 @@ class TowrCollocation(optGen):
         Xk = self._state["x"]
         Uk = self._state["u"]
         Fk = self._state["F"]
+        return Xk_puls_1, Uk_puls_1, Fk_puls_1, Xk, Uk, Fk, dt
+
+
+class TowrCollocation(Collocation):
+    def __init__(self, Xgen, Ugen, Fgen, dTgen):
+        super().__init__(Xgen, Ugen, Fgen, dTgen)
+    
+    def _begin(self, x0, u0, F0, **kwargs):
+        Xk, Uk, Fk =  super()._begin(x0, u0, F0, **kwargs)
+        self._state.update({
+            "ddq1":None     # ddq at step K+1, fitted by Xs at step K and K+1
+        })
+        return Xk, Uk, Fk
+    
+    def step(self, eomF, x0, u0, F0, **kwargs):
+        Xk_puls_1, Uk_puls_1, Fk_puls_1, Xk, Uk, Fk, dt = super().step(x0, u0, F0, **kwargs)
 
         q0 = Xk[:self._qDim]
         dq0 = Xk[self._qDim:]
@@ -109,7 +126,7 @@ class TowrCollocation(optGen):
 
         # dynamic constraint
         ddq0 = 2*a2 
-        g = dynF(ca.vertcat(dq0,ddq0), Xk, ca.vertcat(Uk, Fk))
+        g = eomF(ca.vertcat(dq0,ddq0), Xk, ca.vertcat(Uk, Fk))
         self._g.append(g)
         self._lbg.append([0]*g.size(1)) #size(1): the dim of axis0
         self._ubg.append([0]*g.size(1)) #size(1): the dim of axis0
@@ -126,6 +143,27 @@ class TowrCollocation(optGen):
             "u" : Uk_puls_1,
             "F" : Fk_puls_1,
             "ddq1":ddq1
+        })
+
+class EularCollocation(Collocation):
+    def __init__(self, Xgen, Ugen, Fgen, dTgen):
+        super().__init__(Xgen, Ugen, Fgen, dTgen)
+    
+
+    def step(self, dynF, x0, u0, F0, **kwargs):
+        Xk_puls_1, Uk_puls_1, Fk_puls_1, Xk, Uk, Fk, dt = super().step(x0, u0, F0, **kwargs)
+
+        # dynamic constraint
+        dxk = dynF(Xk, Uk, Fk)
+        g = Xk_puls_1 - (Xk + dxk * dt)
+        self._g.append(g)
+        self._lbg.append([0]*g.size(1)) #size(1): the dim of axis0
+        self._ubg.append([0]*g.size(1)) #size(1): the dim of axis0
+
+        self._state.update({
+            "x": Xk_puls_1,
+            "u" : Uk_puls_1,
+            "F" : Fk_puls_1,
         })
 
 
