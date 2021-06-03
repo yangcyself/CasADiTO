@@ -76,6 +76,20 @@ def solveCons(consFunc, targets, eps = 1e-6):
     return solParse(sol = sol["x"])
 
 
+def Rot(a,d):
+    """The rotation matrix of dimension d
+
+    Args:
+        a (SX): the angle
+        d (SX/DM): the omega direction. E.g. (0,0,1) for rot in z dir
+    """
+    d = ca.SX(d)
+    sk = ca.skew(d)
+    sk2 = d @ d.T - ca.DM.eye(3)
+    return ca.DM.eye(3) + sk * ca.sin(a) + sk2 * (1- ca.cos(a))
+
+et = ca.SX.sym('e', 3)
+ZYXRot = ca.Function("ZYXRot", [et], [Rot(et[2],[0,0,1]) @ Rot(et[1],[0,1,0]) @ Rot(et[0],[1,0,0])])
 
 
 if __name__ == "__main__":
