@@ -111,6 +111,10 @@ class TowrCollocation(Collocation):
         return Xk, Uk, Fk
     
     def step(self, eomF, x0, u0, F0, **kwargs):
+        """
+        Args:
+            eomF (Equation of Motion Function): (dx, x, u, F) -> g
+        """
         Xk_puls_1, Uk_puls_1, Fk_puls_1, Xk, Uk, Fk, dt = super().step(x0, u0, F0, **kwargs)
 
         q0 = Xk[:self._qDim]
@@ -126,7 +130,7 @@ class TowrCollocation(Collocation):
 
         # dynamic constraint
         ddq0 = 2*a2 
-        g = eomF(ca.vertcat(dq0,ddq0), Xk, ca.vertcat(Uk, Fk))
+        g = eomF(ca.vertcat(dq0,ddq0), Xk, Uk, Fk)
         self._g.append(g)
         self._lbg.append([0]*g.size(1)) #size(1): the dim of axis0
         self._ubg.append([0]*g.size(1)) #size(1): the dim of axis0
@@ -151,6 +155,10 @@ class EularCollocation(Collocation):
     
 
     def step(self, dynF, x0, u0, F0, **kwargs):
+        """
+        Args:
+            eomF (Dynamics Function): (x, u, F) -> dx
+        """
         Xk_puls_1, Uk_puls_1, Fk_puls_1, Xk, Uk, Fk, dt = super().step(x0, u0, F0, **kwargs)
 
         # dynamic constraint

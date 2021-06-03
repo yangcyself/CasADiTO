@@ -124,15 +124,15 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         # Uk = np.array(u_0)[:4]
         # dynSol = DynF(x = x_val, u = Uk)
         # x_val += dT * dynSol["dx"]
-        # opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+        # opt.step(lambda dx,x,u,F : EOMF(x=x,u=u,F=F,ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
         #         list(Uk) + list(dynSol["F0"].full().reshape(-1))+ list(dynSol["F1"].full().reshape(-1)), x_val.full().reshape(-1))
 
         initSol = model.solveCons(EOMF, [("x",x_0, 1e6), ("ddq", np.zeros(7), 1e3)])
-        opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+        opt.step(lambda dx,x,u,F : EOMF(x=x,u=u,F=F,ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
                 ca.veccat(initSol["u"],initSol["F"]).full().reshape(-1), x_0)
         x_init.append(x_0)
 
-        # opt.step(lambda dx,x,u : EOMF(x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+        # opt.step(lambda dx,x,u,F : EOMF(x=x,u=u,F=F,ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
         #         u_0, X0)
 
         opt.addCost(lambda x,u: 0.001*ca.dot(u[:4],u[:4]))
@@ -159,7 +159,7 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     if(FinalC is not None):
         opt.addConstraint(*FinalC)
 
-opt.step(lambda dx,x,u : EoMFuncs[(0,0)](x=x,u=u[:4],F=u[4:],ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+opt.step(lambda dx,x,u,F : EoMFuncs[(0,0)](x=x,u=u,F=F,ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
             [0,0,0,0, 0,0,0,0], XDes)
 
 def rounge_Kutta(x,u,dynF):

@@ -120,7 +120,7 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         # x_0 = caSubsti(x_0, opt.hyperParams.keys(), opt.hyperParams.values())
 
         initSol = solveLinearCons(caFuncSubsti(EOMF, {"x":x_0}), [("ddq", np.zeros(9), 1e3)])
-        opt.step(lambda dx,x,u : EOMF(x=x,u=u[:6],F=u[6:],ddq = dx[9:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+        opt.step(lambda dx,x,u,F : EOMF(x=x,u=u,F=F,ddq = dx[9:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
                 x0 = x_0, u0 = initSol["u"],F0 = initSol["F"])
         x_init.append(x_0)
 
@@ -154,7 +154,7 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     if(FinalC is not None):
         opt.addConstraint(*FinalC)
 
-opt.step(lambda dx,x,u : EoMFuncs[(0,0)](x=x,u=u[:6],F=u[6:],ddq = dx[9:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+opt.step(lambda dx,x,u,F : EoMFuncs[(0,0)](x=x,u=u,F=F,ddq = dx[9:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
         x0 = caSubsti(XDes, opt.hyperParams.keys(), opt.hyperParams.values()), u0 = [0,0,0,0,0,0], F0=[0,0,0,0])
 
 

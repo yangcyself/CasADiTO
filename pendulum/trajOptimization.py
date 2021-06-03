@@ -31,7 +31,7 @@ opt.begin(x0=X0, u0=[0.], F0 = [])
 
 
 for i in range(500):
-    opt.step(lambda dx,x,u : dynf(x,u) - dx[mDim:],
+    opt.step(lambda dx,x,u,F : dynf(x,u) - dx[mDim:],
             x0 = X0 + np.random.random(mDim*2) - np.random.random(mDim*2),# + np.array([0, i/200 * np.math.pi]+[0]*8),
             u0 = np.random.random(1) - np.random.random(1), F0 = [])
 
@@ -42,7 +42,7 @@ for i in range(500):
 # opt.addConstraint(lambda x: x-XDes, [0.]*mDim*2, [0.]*mDim*2)
 # opt.addConstraint(lambda x: (x-XDes)[0], [0.], [0.])
 
-opt.step(lambda dx,x,u : dynf(x,u) - dx[mDim:], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+opt.step(lambda dx,x,u,F : dynf(x,u) - dx[mDim:], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
         x0 = XDes, u0 = [0.], F0=[])
 
 
