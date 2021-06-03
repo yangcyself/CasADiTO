@@ -179,7 +179,7 @@ if __name__ == "__main__" :
         ("u_plot", lambda sol: sol["Ugen"]["u_plot"]),
         ("t_plot", lambda sol: sol["dTgen"]["t_plot"]),
         ("terrain_plot", lambda sol: sol["Xgen"]["terrain_plot"])],
-        cmakeOpt={'libName': 'nlpSideJmp'})
+        cmakeOpt={'libName': 'nlpSideJmp', 'cxxflag':'-O0'})
     exit()
 
     import matplotlib.pyplot as plt
