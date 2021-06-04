@@ -39,7 +39,7 @@ private:
 
 
 int HrlDynm(const double r[3], const double pc[6], const double Q[9], 
-            const double xold[3], const double pa[6], Eigen::MatrixXd& newx)
+            const double xold[3], const double pa[6], double newx[3])
 {
     static ipoptApp a;
     const auto app = a.app();
@@ -72,6 +72,9 @@ int HrlDynm(const double r[3], const double pc[6], const double Q[9],
 
 
     // std::cout<<"newx"<<a.newx<<std::endl;
-    newx = a.newx;
+    // newx = a.newx;
+    newx[0] = a.newx(0);
+    newx[1] = a.newx(1);
+    newx[2] = a.newx(2);
     return (int) status;
 }

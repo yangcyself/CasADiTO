@@ -115,7 +115,7 @@ if __name__ == "__main__":
 
     opt.cppGen("codogs/cpp/generated", expand=True, parseFuncs=[
         ("newx", lambda sol: sol["newx"])],
-        cmakeOpt={'libName': 'hrl', 'cxxflag':'"-O3"'})
+        cmakeOpt={'libName': 'hrl', 'cxxflag':'"-O3 -fPIC"'})
 
     # opt.setHyperParamValue({
     #     "r": ca.DM([1]),
