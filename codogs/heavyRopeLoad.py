@@ -22,17 +22,17 @@ class HeavyRopeLoad(optGen):
         """
         super().__init__()
         self.nc = nc
-        self.x = ca.SX.sym("x", 3)
+        self.x = ca.SX.sym("xold", 3)
         self.Q = ca.SX.sym("Q",3,3)
         self.r = ca.SX.sym("r", nc)
         self.pc = [ca.SX.sym("pc%d", 2) for i in range(self.nc)]
         self.pa = [ca.SX.sym("pa%d", 2) for i in range(self.nc)]
 
         self.newhyperParam(self.r, name="r")
-        self.pc_input = self.newhyperParam(ca.horzcat(*self.pc).T, name="pc")
+        self.pc_input = self.newhyperParam(ca.vertcat(*self.pc), name="pc")
         self.newhyperParam(self.Q, name="Q")
-        self.newhyperParam(self.x, name="x")
-        self.pa_input = self.newhyperParam(ca.horzcat(*self.pa).T, name="pa")
+        self.newhyperParam(self.x, name="xold")
+        self.pa_input = self.newhyperParam(ca.vertcat(*self.pa), name="pa")
     
         self.dx = ca.SX.sym("dx", 3)
 
@@ -46,6 +46,11 @@ class HeavyRopeLoad(optGen):
         self._lbg = [ca.DM([-ca.inf]*self.nc)]
         self._ubg = [ca.DM([0]*self.nc)]
         
+        x_w = (self.T_WB(self.x)@ca.vertcat(self.dx[:2], 1))[:2]
+        x_w = ca.vertcat(x_w, self.dx[2]+self.x[2])
+        self._parse.update({
+            "newx": lambda: x_w
+        })
 
     def T_WB(self, x):
         """The transition matrix from body frame to world frame
@@ -75,7 +80,7 @@ class HeavyRopeLoad(optGen):
         x,pa = ca.DM(x), ca.DM(pa)
         self.setHyperParamValue({
             "pa": pa, 
-            "x": x
+            "xold": x
         })
         res = self.solve(options=
             {"calc_f" : True,
@@ -93,9 +98,7 @@ class HeavyRopeLoad(optGen):
                 }
             })
         dx = res["x"]
-        x_w = (self.T_WB(x)@ca.vertcat(dx[:2], 1))[:2]
-        
-        return ca.vertcat(x_w, dx[2]+x[2])
+        return res['newx']
         
 
     @property
@@ -108,14 +111,20 @@ class HeavyRopeLoad(optGen):
 
 if __name__ == "__main__":
     import numpy as np
-    opt = HeavyRopeLoad(nc=1)
-    opt.setHyperParamValue({
-        "r": ca.DM([1]),
-        "pc": ca.DM([[-1,1]]), 
-        "pa": ca.DM([[1,0]]), 
-        "Q": np.diag([1,1,1]), 
-        "x": ca.DM([0,0,0])
-    })
+    opt = HeavyRopeLoad(nc=3)
+
+    opt.cppGen("codogs/cpp/generated", expand=True, parseFuncs=[
+        ("newx", lambda sol: sol["newx"])],
+        cmakeOpt={'libName': 'hrl', 'cxxflag':'"-O3"'})
+
+    # opt.setHyperParamValue({
+    #     "r": ca.DM([1]),
+    #     "pc": ca.DM([[-1,1]]), 
+    #     "pa": ca.DM([[1,0]]), 
+    #     "Q": np.diag([1,1,1]), 
+    #     "xold": ca.DM([0,0,0])
+    # })
+
     # res = opt.solve(options=
     #         {"calc_f" : True,
     #         "calc_g" : True,
@@ -136,17 +145,17 @@ if __name__ == "__main__":
     # print(pfunc(x))
     # print(ca.norm_2(pfunc(x).full() - p))
 
-    def T_WB(x):
-        """The transition matrix from body frame to world frame
-        """
-        r = x[2]
-        s,c = ca.sin(r), ca.cos(r)
-        return ca.vertcat(ca.horzcat(c, -s, x[0]),
-                          ca.horzcat(s,  c, x[1]),
-                          ca.horzcat(0,  0, 1))
+    # def T_WB(x):
+    #     """The transition matrix from body frame to world frame
+    #     """
+    #     r = x[2]
+    #     s,c = ca.sin(r), ca.cos(r)
+    #     return ca.vertcat(ca.horzcat(c, -s, x[0]),
+    #                       ca.horzcat(s,  c, x[1]),
+    #                       ca.horzcat(0,  0, 1))
 
-    pa = [0.1,4]
-    x = [-2, 3, -ca.pi/2]
-    print((ca.inv(T_WB(x))@ca.vertcat(pa, 1))[:2])
-    x = opt.dynam(x, [pa])
-    print(x)
+    # pa = [0.1,4]
+    # x = [-2, 3, -ca.pi/2]
+    # print((ca.inv(T_WB(x))@ca.vertcat(pa, 1))[:2])
+    # x = opt.dynam(x, [pa])
+    # print(x)

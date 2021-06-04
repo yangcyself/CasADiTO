@@ -13,12 +13,12 @@ m = HeavyRopeLoad(nc = 2)
 x = ca.DM([-1,0,0])
 m.setHyperParamValue({
     "r": ca.DM([1, 0.5]),
-    "pc": ca.DM([[-1,1],
-                 [1, 0]]), 
-    "pa": ca.DM([[-2.5,1],
-                 [0,0]]), 
+    "pc": ca.DM([-1,1,
+                 1, 0]), 
+    "pa": ca.DM([-2.5,1,
+                0,0]), 
     "Q": np.diag([1,1,1]), 
-    "x": x
+    "xold": x
 })
 
 x_plot = []
@@ -28,8 +28,8 @@ pa2_plot = []
 for i in range(1000):
     try:
         r = i/300
-        pa1 = ca.DM([[-3*ca.cos(r) , 1+3*ca.sin(r)]])
-        pa2 = ca.DM([[0.5-0.5*ca.cos(r), 0.5*ca.sin(r)]])
+        pa1 = ca.DM([-3*ca.cos(r) , 1+3*ca.sin(r)])
+        pa2 = ca.DM([0.5-0.5*ca.cos(r), 0.5*ca.sin(r)])
         x = m.dynam(x, ca.vertcat(pa1, pa2))
 
         x_plot.append(x)
