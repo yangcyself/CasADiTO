@@ -14,7 +14,7 @@ class uGenSRB(uGenDefault):
             terrain_norm (function: (P:vec3)->(n:vec3) ): return the norm vector of terrain
         """
         uDim = 6 * nc
-        super().__init__(uDim, ca.DM([-ca.inf, ca.inf]*uDim))
+        super().__init__(uDim, ca.DM([[-ca.inf, ca.inf]]*uDim))
         self.nc = nc
         self.terrain = terrain
         self.terrain_norm = terrain_norm
@@ -42,8 +42,8 @@ class uGenSRB(uGenDefault):
         Args:
             u0 ([DM]): a vector (p_0, f_0, p_1, f_1, ...)
         """
-        pcK = [ca.SX.sym("pc%d_%d"%(step, i), 3) for i in range(self.nc)]
-        fcK = [ca.SX.sym("fc%d_%d"%(step, i), 3) for i in range(self.nc)]
+        pcK = [ca.MX.sym("pc%d_%d"%(step, i), 3) for i in range(self.nc)]
+        fcK = [ca.MX.sym("fc%d_%d"%(step, i), 3) for i in range(self.nc)]
         Uk = ca.vertcat(*[ ca.vertcat(pc, fc) for pc, fc in zip(pcK, fcK)])
         self._w.append(Uk)
         self._lbw.append(self._uLim[:,0])
@@ -56,7 +56,7 @@ class uGenSRB(uGenDefault):
         # add constraint: contact points does not move
         if(self._state["pclist"] is not None):
             pcK_1 = self._state["pclist"]
-            g = ca.vertcat(ca.SX([]), *[p - q for p,q,c in zip(pcK, pcK_1,self.contactMap) if c])
+            g = ca.vertcat(ca.MX([]), *[p - q for p,q,c in zip(pcK, pcK_1,self.contactMap) if c])
             self._g.append(g)
             self._lbg.append([0]*g.size(1))
             self._ubg.append([0]*g.size(1))
@@ -73,12 +73,13 @@ class uGenSRB(uGenDefault):
 
         # add inequality constraints:
         tnorms = [self.tryCallWithHyperParam(self.terrain_norm, {"p": p}) for p in pcK]
-        g = ca.vertcat(*[(self.mu * ca.dot(f,n)) - ca.norm_2(f - n * ca.dot(f,n))
-                        for f,n,c in zip(fcK, tnorms, self.contactMap) if c], # zero force float 
+        g = ca.vertcat(*[(self.mu * ca.dot(f,n))**2 - ca.norm_2(f - n * ca.dot(f,n))**2
+                        for f,n,c in zip(fcK, tnorms, self.contactMap) if c], # friction cone square
+                       *[ca.dot(f,n) 
+                        for f,n,c in zip(fcK, tnorms, self.contactMap) if c], # support force direction
                        *[self.tryCallWithHyperParam(self.terrain, {"p" : p} )
                         for p,c in zip(pcK, self.contactMap) if not c] # float above ground constraint
                         )
-
         self._g.append(g)
         self._lbg.append([0]*g.size(1))
         self._ubg.append([ca.inf]*g.size(1))
