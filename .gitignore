@@ -7,8 +7,8 @@ data/animation
 *.csv
 *.mp4
 nlpGen*
-cppIpopt/build
-cppIpopt/generated
+*generated
 cppIpopt copy
 cppIpopt_bak
 .vscode
+*build
