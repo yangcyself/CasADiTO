@@ -152,13 +152,13 @@ class optGen:
         self._hyperParams.update(hp)
         [c.updateHyperParams(self._hyperParams) for c in self._child.values()]
 
-    def newhyperParam(self, hp, shape=None):
+    def newhyperParam(self, hp, shape=None, name=None):
         """Add a new hyper parameter to the system. Return the SX version
 
         Args:
             hp (string or ca.SX): the hp of the hyperparam
             shape (tuple, optional): the shape. Defaults to (1,1).
-
+            name: (only when hp is ca.SX)the name of the hyper parameter.
         Returns:
             [SX]: SX version of the hyper parameter
         """
@@ -168,7 +168,8 @@ class optGen:
             self._hyperParams[hp] = (shape, ca.SX.sym(hp, *shape), ca.MX.sym("%s_mx"%hp, *shape), None)
             ret = self._hyperParams[hp][1]
         elif(isinstance(hp, ca.SX)):
-            self._hyperParams[getName(hp)] = (hp.size(), hp, ca.MX.sym("%s_mx"%getName(hp), *hp.size()), None)
+            name = getName(hp) if name is None else name
+            self._hyperParams[name] = (hp.size(), hp, ca.MX.sym("%s_mx"%name, *hp.size()), None)
             ret = hp
         else:
             raise TypeError("the hp should be eitehr a string or a SX, but got %s"%str(type(hp)))
