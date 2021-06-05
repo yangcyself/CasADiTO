@@ -5,7 +5,7 @@
 #include <vector>
 #include <utility>
 #include <cstring> //memcpy
-
+#include "stdio.h"
 /**
  * A wrapper class of ipopt app, takes care of all the init work
  */
@@ -26,6 +26,7 @@ public:
                 std::make_pair("Q", Q),
                 std::make_pair("xold", xold),
                 std::make_pair("pa", pa)})) {
+        std::printf("***IPOPT APP SUCCEFFULLY LOADED***\n");
         _app->Options()->SetNumericValue("tol", 1e-7);
         _app->Options()->SetStringValue("mu_strategy", "monotone"); // from casadi document, IMPORTANT! related to coredump
         _app->Options()->SetIntegerValue ("print_level", 0); // from casadi document, IMPORTANT! related to coredump
