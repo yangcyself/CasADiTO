@@ -190,7 +190,7 @@ class xGenDefault(optGen):
         pass
     
     def step(self, step, x0, **kwargs):
-        Xk = ca.MX.sym('X%d'%step, self._xDim)
+        Xk = optGen.VARTYPE.sym('X%d'%step, self._xDim)
         self._w.append(Xk)
         if(step == 0): # init state
             self._lbw.append(x0)
@@ -257,7 +257,7 @@ class uGenDefault(optGen):
         pass
     
     def step(self, step, u0, **kwargs):
-        Uk = ca.MX.sym('U%d'%step, self._uDim)
+        Uk = optGen.VARTYPE.sym('U%d'%step, self._uDim)
         self._w.append(Uk)
         self._lbw.append(self._uLim[:,0])
         self._ubw.append(self._uLim[:,1])
@@ -283,7 +283,7 @@ class FGenDefault(optGen):
     def step(self, step, F0, **kwargs):
         if(not self._FDim):
             return []
-        Fk = ca.MX.sym('F%d'%step, self._FDim)
+        Fk = optGen.VARTYPE.sym('F%d'%step, self._FDim)
         self._w.append(Fk)
         self._lbw.append(self._FLim[:,0])
         self._ubw.append(self._FLim[:,1])
@@ -318,7 +318,7 @@ class dTGenVariable(dTGenDefault):
         self.curent_dt = None
     
     def chMod(self, modName, *args, **kwargs):
-        T = ca.MX.sym('dT_%s'%modName, 1)
+        T = optGen.VARTYPE.sym('dT_%s'%modName, 1)
         self._w.append(T)
         self._lbw.append([self._dtLim[0]])
         self._ubw.append([self._dtLim[1]])

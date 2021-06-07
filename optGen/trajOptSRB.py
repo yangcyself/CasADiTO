@@ -14,7 +14,9 @@ class uGenSRB(uGenDefault):
             terrain_norm (function: (P:vec3)->(n:vec3) ): return the norm vector of terrain
         """
         uDim = 6 * nc
-        super().__init__(uDim, ca.DM([[-ca.inf, ca.inf]]*uDim))
+        uLim = ca.DM([[-ca.inf, ca.inf], [-ca.inf, ca.inf], [-ca.inf, ca.inf], 
+                      [-200, 200], [-200, 200], [-200, 200]]*nc)
+        super().__init__(uDim, uLim)
         self.nc = nc
         self.terrain = terrain
         self.terrain_norm = terrain_norm
@@ -56,8 +58,8 @@ class uGenSRB(uGenDefault):
         Args:
             u0 ([DM]): a vector (p_0, f_0, p_1, f_1, ...)
         """
-        pcK = [ca.MX.sym("pc%d_%d"%(step, i), 3) for i in range(self.nc)]
-        fcK = [ca.MX.sym("fc%d_%d"%(step, i), 3) for i in range(self.nc)]
+        pcK = [optGen.VARTYPE.sym("pc%d_%d"%(step, i), 3) for i in range(self.nc)]
+        fcK = [optGen.VARTYPE.sym("fc%d_%d"%(step, i), 3) for i in range(self.nc)]
         Uk = ca.vertcat(*[ ca.vertcat(pc, fc) for pc, fc in zip(pcK, fcK)])
         self._w.append(Uk)
         self._lbw.append(self._uLim[:,0])
@@ -70,7 +72,7 @@ class uGenSRB(uGenDefault):
         # add constraint: contact points does not move
         if(self._state["pclist"] is not None):
             pcK_1 = self._state["pclist"]
-            g = ca.vertcat(ca.MX([]), *[p - q for p,q,c in zip(pcK, pcK_1,self.contactMap) if c])
+            g = ca.vertcat(optGen.VARTYPE([]), *[p - q for p,q,c in zip(pcK, pcK_1,self.contactMap) if c])
             self._g.append(g)
             self._lbg.append([0]*g.size(1))
             self._ubg.append([0]*g.size(1))

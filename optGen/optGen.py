@@ -34,6 +34,7 @@ hyperParams (dict: {name: (shape, SX, MX)}): e.g. the distance for the robot to 
     
 """
 class optGen:
+    VARTYPE = ca.MX
     def __init__(self):
         self._w = []    # variable
         self._w0 = []
