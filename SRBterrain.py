@@ -1,3 +1,10 @@
+"""
+Tricky tuning of the problem:
+0a7695b7ea59a44e1bae2bb21990ac9df23cee13
+    1. The dT should not be that short, otherwise the jac of dynamic constraint has too little gradient on u
+    2. to move along x, set u0's force to 10,0,0 yeilds the solution, 0,0,0 cannot, 0,0,10 nether
+"""
+
 from model.singleRigidBody import singleRigidBody
 from optGen.trajOptSRB import *
 from optGen.helpers import pointsTerrian2D
@@ -9,19 +16,21 @@ model = singleRigidBody({"m":10, "I": 1}, nc = 4)
 dT0 = 0.01
 terrain = lambda p: p[2]
 terrain_norm = lambda p: ca.DM([0,0,1])
-distance = 10
+distance = 1
 
-X0 = ca.DM([0, 0, 0.5, 0, 0, 0,      0, 0, 0,  0, 0, 0])
-XDes = ca.DM([distance, 0, 0.5, 0, 0, 0,      0, 0, 0,  0, 0, 0])
+X0 = ca.DM([0, 0, 0.2, 0, 0, 0,      0, 0, 0,  0, 0, 0])
+XDes = ca.DM([distance, 0, 0.2, 0, 0, 0,      0, 0, 0,  0, 0, 0])
 
 lx = 0.2
 ly = 0.1
 u0 = ca.DM([
-     lx,  ly, 0,  0, 0, 10,
-     lx, -ly, 0,  0, 0, 10,
-    -lx,  ly, 0,  0, 0, 10,
-    -lx, -ly, 0,  0, 0, 10,
+     lx,  ly, 0,  10, 0, 0,
+     lx, -ly, 0,  10, 0, 0,
+    -lx,  ly, 0,  10, 0, 0,
+    -lx, -ly, 0,  10, 0, 0,
 ])
+
+optGen.VARTYPE = ca.SX
 
 SchemeSteps = 20
 Scheme = [ # list: (contact constaints, length)
@@ -78,7 +87,7 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
     None, # step_r1 
     None, # step_l2 
     None, # step_r2 
-    (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
+    (lambda x,u: (x - XDes)[:6], [0]*6, [0]*6) # arrive at desire state
 ]
 
 opt = SRBoptDefault(12, [[-ca.inf, ca.inf]]*12 , 4, dT0, terrain, terrain_norm, 0.4)
@@ -104,18 +113,22 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         opt.step(lambda x,u,F : DYNF(x,u),
                 x_0, u_0, ca.DM([]))
 
-        opt.addCost(lambda u: 1*   ca.dot(u-u_0,u-u_0))
-        opt.addCost(lambda x: 0.1 * ca.dot(x - x_0, x - x_0))
+        # opt.addCost(lambda u: 1*   ca.dot(u-u_0,u-u_0))
+        # opt.addCost(lambda x: 0.0001 * ca.dot(x - x_0, x - x_0))
+        opt.addCost(lambda x: 10 * ca.dot((x - x_0)[3:6], (x - x_0)[3:6])) # regularize on the orientation of x
 
 
         # leg to body distance
         opt.addConstraint(
             lambda x,u: ca.vertcat(*[ca.dot(u[6*i:6*i+3]-x[:3], u[6*i:6*i+3]-x[:3]) for i in range(4)]), 
-                    [0.05]*4, [0.4] * 4
+                    [0.05**2]*4, [0.4**2] * 4
         )
 
     if(FinalC is not None):
         opt.addConstraint(*FinalC)
+
+# jac_g = ca.jacobian(ca.vertcat(*opt._g), opt.w)
+# opt._parse.update({"g_jac": lambda: jac_g})
 
 
 if __name__=="__main__":
@@ -128,7 +141,7 @@ if __name__=="__main__":
                 "verbose_init":True,
                 # "jac_g": gjacFunc
             "ipopt":{
-                "max_iter" : 2000, # unkown option
+                "max_iter" : 1000, # unkown option
                 }
             })
     dumpname = os.path.abspath(os.path.join("./data/nlpSol", "SRB%d.pkl"%time.time()))
