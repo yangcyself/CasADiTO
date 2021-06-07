@@ -69,6 +69,7 @@ class optGen:
         self._parse = {
             "_w": lambda: ca.vertcat(*self._w),
             "_g": lambda: ca.vertcat(*self._g),
+            "_gb": lambda: ca.horzcat(ca.vertcat(*self._lbg), ca.vertcat(*self._ubg)),
             "_J": lambda: self._J
         }
 

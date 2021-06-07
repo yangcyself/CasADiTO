@@ -5,7 +5,7 @@ from optGen.trajOptimizer import *
 
 
 class uGenSRB(uGenDefault):
-    def __init__(self, nc, terrain, terrain_norm, mu):
+    def __init__(self, nc, terrain, terrain_norm, mu, debug=True):
         """the input generater for Single Rigid Body traj opt
             The u of SRB problem is [p_c, F_c]
         Args:
@@ -23,9 +23,23 @@ class uGenSRB(uGenDefault):
         self._pc_plot = [] # for plotting contact points
         self._fc_plot = [] # for plotting contact force
         self._parse.update({
-            "pc_plot": lambda: ca.vertcat(*self._pc_plot),
-            "fc_plot": lambda: ca.vertcat(*self._pc_plot)
+            "pc_plot": lambda: ca.horzcat(*self._pc_plot),
+            "fc_plot": lambda: ca.horzcat(*self._pc_plot)
         })
+
+        self.debug = debug
+        if(self.debug):
+            self._gdb0_plot = [] # collecting the `g` debug information 0
+            self._gdb1_plot = [] # collecting the `g` debug information 1
+            self._gdb2_plot = [] # collecting the `g` debug information 2
+            # self._gdb3_plot = [] # collecting the `g` debug information 3
+
+            self._parse.update({
+                "gdb0_plot": lambda: ca.vertcat(*self._gdb0_plot),
+                "gdb1_plot": lambda: ca.vertcat(*self._gdb1_plot),
+                "gdb2_plot": lambda: ca.vertcat(*self._gdb2_plot)
+                # "gdb3_plot": lambda: ca.vertcat(*self._gdb3_plot),
+            })  
 
     def _begin(self, **kwargs):
         self._state.update({
@@ -60,6 +74,7 @@ class uGenSRB(uGenDefault):
             self._g.append(g)
             self._lbg.append([0]*g.size(1))
             self._ubg.append([0]*g.size(1))
+            if self.debug: self._gdb0_plot.append(g)
 
         # add equality constraints:
         g = ca.vertcat(*[f for f,c in zip(fcK, self.contactMap) 
@@ -70,6 +85,7 @@ class uGenSRB(uGenDefault):
         self._g.append(g)
         self._lbg.append([0]*g.size(1))
         self._ubg.append([0]*g.size(1))
+        if self.debug: self._gdb1_plot.append(g)
 
         # add inequality constraints:
         tnorms = [self.tryCallWithHyperParam(self.terrain_norm, {"p": p}) for p in pcK]
@@ -83,6 +99,7 @@ class uGenSRB(uGenDefault):
         self._g.append(g)
         self._lbg.append([0]*g.size(1))
         self._ubg.append([ca.inf]*g.size(1))
+        if self.debug: self._gdb2_plot.append(g)
 
         self._state.update({
             "pclist": pcK,
