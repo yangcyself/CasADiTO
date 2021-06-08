@@ -104,3 +104,14 @@ def MXinSXop(op, a, SXandMX):
                             list(asx.keys()) + [n for n,s,m in SXandMX], ["out"])
     return opsx_func(*[v for v in a.values() if v is not None], *[m for n,s,m in SXandMX])
 
+def dict_ca2np(dic):
+    """convert all casadi elements of a dict to numpy array. 
+    This is useful for generating pickle file for python env with no casadi installed
+
+    Args:
+        dic (dict): a dict with casadi DM
+    """
+    return {
+        k: v.full() if isinstance(v, ca.DM) else dict_ca2np(v) if isinstance(v,dict) else v
+        for k,v in dic.items()
+    }

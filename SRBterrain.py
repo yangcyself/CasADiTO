@@ -10,6 +10,7 @@ from optGen.trajOptSRB import *
 from optGen.helpers import pointsTerrian2D
 import time
 import pickle as pkl
+from optGen.util import dict_ca2np
 
 model = singleRigidBody({"m":10, "I": 1}, nc = 4)
 
@@ -147,7 +148,7 @@ if __name__=="__main__":
     dumpname = os.path.abspath(os.path.join("./data/nlpSol", "SRB%d.pkl"%time.time()))
     with open(dumpname, "wb") as f:
         pkl.dump({
-            "sol":res,
+            "sol":dict_ca2np(res),
             "Scheme":Scheme,
             # "x_init":x_init
-        }, f)
+        }, f,protocol=2)
