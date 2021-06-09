@@ -75,7 +75,8 @@ for i in range(NSteps):
 
 **下面以`optGen\trajOptimizer.py`中`TowrCollocation`**为例
 
-一个`TowrCollocation` 对象会有四个子对象，分别为 `Xgen`, `Ugen`, `Fgen`, `dTgen`。 顾名思义，这些子对象分别负责声明机器人状态，输入，约束外力，时间步长几种变量。之所以采用这种模块化的设计，是因为这样只用更改一个模块就可以构建不同的轨迹优化问题。 例如 `TowrCollocationDefault` 和 `TowrCollocationVTiming` 之间的区别在于 `dTgen`是否要将每个阶段的步长设为变量，这二者分别使用了 `dTGenVariable` 和 `dTGenDefault`
+一个`TowrCollocation` 对象会有四个子对象，分别为 `Xgen`, `Ugen`, `Fgen`, `dTgen`。 顾名思义，这些子对象分别负责声明机器人状态，输入，约束外力，时间步长几种变量。之所以采用这种模块化的设计，是因为这样只用更改一个模块就可以构建不同的轨迹优化问题。 例如 `TowrCollocationDefault` 和 `TowrCollocationVTiming` 之间的区别在于 `dTgen`是否要将每个阶段的步长设为变量，这二者分别使用了 `dTGenVariable` 和 `dTGenDefault`。
+模块化可以极大地方便算法的开发和测试，还以`towrCollocation`为例，`towrCollocation`只负责把`ddq = f(x,u,F,dt)`的动力学约束加入到优化问题里面，但至于`dt`是一个优化变量，还是一个常数，还是一个超参数，这是由`dTgen`来决定的，改变`dt`的类型完全不会影响其他模块的功能和实现
 
 优化问题的构建过程中，`opt`会维护一个存放当前*状态*的字典`opt._state`，例如`TowrCollocation`每一步的状态就有`"x", "u", "F", "ddq1"`
 

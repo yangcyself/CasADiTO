@@ -93,14 +93,15 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
 
 opt = SRBoptDefault(12, [[-ca.inf, ca.inf]]*12 , 4, dT0, terrain, terrain_norm, 0.4)
 
-opt.begin(x0=X0, u0=u0, F0=[])
+# this chMod is needed for uGenSRB2
+opt.begin(x0=X0, u0=u0, F0=[],  contactMap=Scheme[0][0])
 DYNF = model.Dyn()
 
 x_val = X0
 # x_init = [X0]
 for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     opt.dTgen.chMod(modName = name)
-    opt.Ugen.chMod(modName = name, contactMap=cons)
+    opt.Ugen.chMod(modName = name, contactMap=cons, pc0 = [ t[3:6] for t in ca.vertsplit( R(N/2)[1], 6)])
     for i in range(N):
         x_0, u_0 = R(i)
         # x_0 = caSubsti(x_0, opt.hyperParams.keys(), opt.hyperParams.values())
@@ -116,13 +117,13 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
 
         # opt.addCost(lambda u: 1*   ca.dot(u-u_0,u-u_0))
         # opt.addCost(lambda x: 0.0001 * ca.dot(x - x_0, x - x_0))
-        opt.addCost(lambda x: 10 * ca.dot((x - x_0)[3:6], (x - x_0)[3:6])) # regularize on the orientation of x
+        # opt.addCost(lambda x: 10 * ca.dot((x - x_0)[3:6], (x - x_0)[3:6])) # regularize on the orientation of x
 
 
         # leg to body distance
         opt.addConstraint(
-            lambda x,u: ca.vertcat(*[ca.dot(u[6*i:6*i+3]-x[:3], u[6*i:6*i+3]-x[:3]) for i in range(4)]), 
-                    [0.05**2]*4, [0.4**2] * 4
+            lambda x,u: ca.vertcat(*[ca.dot(u[6*i:6*i+3]-x[:3], u[6*i:6*i+3]-x[:3]) for i,c in enumerate(cons) if c]), 
+                    [0.05**2]*np.sum(cons), [0.4**2] * np.sum(cons)
         )
 
     if(FinalC is not None):
