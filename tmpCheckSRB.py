@@ -2,6 +2,26 @@ from model.singleRigidBody import singleRigidBody as model
 import casadi as ca
 import numpy as np
 import mathUtil
+
+from mathUtil import solveLinearCons
+from optGen.util import caSubsti, caFuncSubsti, substiSX2MX
+m = model({"m":10, "I": 1}, nc = 4)
+
+eom = m.EOM_ufdx()
+
+cons = {"x":ca.DM.rand(12)}
+cons.update({
+    "fc%d"%i: ca.DM.rand(3) for i in range(4) 
+})
+# cons.update({
+#     "fc%i": ca.DM.rand(3) for i in range(4) 
+# })
+consDyn_ = caFuncSubsti(eom, cons)
+res = solveLinearCons(consDyn_, [("dx", np.zeros(12), 1e3)])
+print(res)
+# print(ca.simplify( res["u"][0]))
+exit()
+
 m = model({"m":10, "I": 1}, nc = 0)
 
 print(m.LTH().size())

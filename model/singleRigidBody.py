@@ -77,6 +77,19 @@ class singleRigidBody:
                         )
         return ca.Function('EOMF', [self.x, u], [dx], ["x", "u"], ['dx'])
 
+    def EOM_ufdx(self):
+        # return the dynamic function (dx, x, pc0, pc1, ..., fc0, fc1, ...) 
+        dyn = self.Dyn()
+        plist = [ca.SX.sym("pc%d"%i, 3) for i in range(self.nc)]
+        pname = ["pc%d"%i for i in range(self.nc)]
+        flist = [ca.SX.sym("fc%d"%i, 3) for i in range(self.nc)]
+        fname = ["fc%d"%i for i in range(self.nc)]
+        u = ca.vertcat(*[ ca.vertcat(p,f) for p,f in zip(plist, flist)])
+        dx = ca.SX.sym("dx", 2*self.dim)
+        return ca.Function("eom", [dx, self.x]+plist+flist, [dyn(self.x, u) - dx],
+            ["dx", "x"]+pname+fname, ["g"])
+
+
     def visulize(self, x, ax = None):
         pass
 

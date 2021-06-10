@@ -10,7 +10,8 @@ from optGen.trajOptSRB import *
 from optGen.helpers import pointsTerrian2D
 import time
 import pickle as pkl
-from optGen.util import dict_ca2np
+from mathUtil import solveLinearCons
+from optGen.util import dict_ca2np, caSubsti, caFuncSubsti, substiSX2MX
 
 model = singleRigidBody({"m":10, "I": 1}, nc = 4)
 
@@ -96,6 +97,7 @@ opt = SRBoptDefault(12, [[-ca.inf, ca.inf]]*12 , 4, dT0, terrain, terrain_norm, 
 # this chMod is needed for uGenSRB2
 opt.begin(x0=X0, u0=u0, F0=[],  contactMap=Scheme[0][0])
 DYNF = model.Dyn()
+EOMF = model.EOM_ufdx()
 
 x_val = X0
 # x_init = [X0]
@@ -106,18 +108,29 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         x_0, u_0 = R(i)
         # x_0 = caSubsti(x_0, opt.hyperParams.keys(), opt.hyperParams.values())
 
+        initcons = {"x":x_0}
+        initcons.update({
+            "pc%d"%i: u_0[6*i:6*i+3] for i in range(4) 
+        })
+        initcons.update({
+            "fc%d"%i: ca.DM([0,0,0]) for i,c in enumerate(cons) if not c
+        })
+        consDyn_ = caFuncSubsti(EOMF, initcons)
+        initSol = solveLinearCons(consDyn_, [("dx", np.zeros(12), 1e3)])
+        for i,c in enumerate(cons):
+            if c: u_0[6*i+3:6*i+6] = ca.DM(initSol['fc%d'%i])
+
         # initSol = solveLinearCons(caFuncSubsti(EOMF, {"x":x_0}), [("ddq", np.zeros(7), 1e3)])
         # opt.step(lambda dx,x,u,F : EOMF(x=x,u=u,F=F,ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
         #         x0 = x_0, u0 = initSol["u"],F0 = initSol["F"])
         # # x_init.append(x_0)
-
 
         opt.step(lambda x,u,F : DYNF(x,u),
                 x_0, u_0, ca.DM([]))
 
         # opt.addCost(lambda u: 1*   ca.dot(u-u_0,u-u_0))
         # opt.addCost(lambda x: 0.0001 * ca.dot(x - x_0, x - x_0))
-        # opt.addCost(lambda x: 10 * ca.dot((x - x_0)[3:6], (x - x_0)[3:6])) # regularize on the orientation of x
+        opt.addCost(lambda x: 10 * ca.dot((x - x_0)[3:6], (x - x_0)[3:6])) # regularize on the orientation of x
 
 
         # leg to body distance
@@ -129,8 +142,8 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     if(FinalC is not None):
         opt.addConstraint(*FinalC)
 
-# jac_g = ca.jacobian(ca.vertcat(*opt._g), opt.w)
-# opt._parse.update({"g_jac": lambda: jac_g})
+jac_g = ca.jacobian(ca.vertcat(*opt._g), opt.w)
+opt._parse.update({"g_jac": lambda: jac_g})
 
 
 if __name__=="__main__":
@@ -143,7 +156,25 @@ if __name__=="__main__":
                 "verbose_init":True,
                 # "jac_g": gjacFunc
             "ipopt":{
-                "max_iter" : 1000, # unkown option
+                "max_iter"  : 4000,
+                "mu_init"   : 1e-1, # default 1e-1 # single 1: 1236 iter Solved To Acceptable Level, single 1e-2: larger slack & memory
+                # "warm_start_init_point" : "yes", # default no: single yes 1349 iter
+                # "bound_frac": 0.4999, # default 0.01, set to 0.4999 needs 1307 iter
+                # "start_with_resto": "yes",
+                # "mumps_mem_percent":2000, # default 1000
+                # "mumps_pivtol": 1e-4, #default 1e-6
+                # alpha for y 只有 safer 或者是min可以避免slack问题
+                "alpha_for_y": [                # default primal, set to safer-min-dual-infeas 2076 iter to acceptable
+                                "primal", # 0 use primal step size
+                                "bound-mult", # 1 use step size for the bound multipliers (good for LPs)
+                                "min", # 2 use the min of primal and bound multipliers
+                                "max", # 3 use the max of primal and bound multipliers
+                                "full", # 4 take a full step of size one
+                                "min-dual-infeas", # 5 choose step size minimizing new dual infeasibility
+                                "safer-min-dual-infeas", # 6 like "min_dual_infeas", but safeguarded by "min" and "max"
+                                "primal-and-full", # 7 use the primal step size, and full step if delta_x <= alpha_for_y_tol
+                                "dual-and-full", # 8 use the dual step size, and full step if delta_x <= alpha_for_y_tol
+                                "acceptor"][0] # 9 Call LSAcceptor to get step size for y
                 }
             })
     dumpname = os.path.abspath(os.path.join("./data/nlpSol", "SRB%d.pkl"%time.time()))
