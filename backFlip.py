@@ -164,33 +164,35 @@ if __name__ == "__main__":
     #     ("terrain_plot", lambda sol: sol["Xgen"]["terrain_plot"])],
     #     cmakeOpt={'libName': 'nlpBackFlip'})
     # exit()
+    with Session(__file__,terminalLog = False) as ss:
+        opt.setHyperParamValue({
+                            "distance":0,
+                            "costU":0.01,
+                            "costDDQ":0.0001,
+                            "costQReg":0.1})
+        res = opt.solve(options=
+            {"calc_f" : True,
+            "calc_g" : True,
+            "calc_lam_x" : True,
+            "calc_multipliers" : True,
+            "expand" : True,
+                "verbose_init":True,
+                # "jac_g": gjacFunc
+            "ipopt":{
+                "max_iter" : 2000, # unkown option
+                }
+            })
 
-    opt.setHyperParamValue({
-                        "distance":0,
-                        "costU":0.01,
-                        "costDDQ":0.0001,
-                        "costQReg":0.1})
-    res = opt.solve(options=
-        {"calc_f" : True,
-        "calc_g" : True,
-        "calc_lam_x" : True,
-        "calc_multipliers" : True,
-        "expand" : True,
-            "verbose_init":True,
-            # "jac_g": gjacFunc
-        "ipopt":{
-            "max_iter" : 2000, # unkown option
-            }
-        })
+        dumpname = os.path.abspath(os.path.join("./data/nlpSol", "backFlip%d.pkl"%time.time()))
 
-    dumpname = os.path.abspath(os.path.join("./data/nlpSol", "backFlip%d.pkl"%time.time()))
+        with open(dumpname, "wb") as f:
+            pkl.dump({
+                "sol":res,
+                "Scheme":Scheme,
+                "x_init":x_init
+            }, f)
 
-    with open(dumpname, "wb") as f:
-        pkl.dump({
-            "sol":res,
-            "Scheme":Scheme,
-            "x_init":x_init
-        }, f)
+        ss.add_info("solutionPkl",dumpname)
+        ss.add_info("Scheme",Scheme)
+        ss.add_info("sol_sec",res['exec_sec'])
 
-    # ss.add_info("solutionPkl",dumpname)
-    # ss.add_info("Scheme",Scheme)

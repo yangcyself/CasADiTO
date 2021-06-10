@@ -12,6 +12,8 @@ import time
 import pickle as pkl
 from mathUtil import solveLinearCons
 from optGen.util import dict_ca2np, caSubsti, caFuncSubsti, substiSX2MX
+from ExperimentSecretary.Core import Session
+
 
 model = singleRigidBody({"m":10, "I": 1}, nc = 4)
 
@@ -95,7 +97,8 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
     None, # step_r1 
     None, # step_l2 
     None, # step_r2 
-    (lambda x,u: (x - XDes)[:12], [0]*12, [0]*12) # arrive at desire state
+    # (lambda x,u: (x - XDes)[:12], [0]*12, [0]*12) # arrive at desire state
+    (lambda x,u: (x - XDes)[:6], [0]*6, [0]*6) # arrive at desire state
 ]
 
 opt = SRBoptDefault(12, [[-ca.inf, ca.inf]]*12 , 4, dT0, terrain, terrain_norm, 0.4)
@@ -157,41 +160,46 @@ opt._parse.update({"g_jac": lambda: jac_g})
 
 
 if __name__=="__main__":
-    opt.setHyperParamValue({"costPcNorm": 0.1, 
-                            "costOri":10})
-    res = opt.solve(options=
-            {"calc_f" : True,
-            "calc_g" : True,
-            "calc_lam_x" : True,
-            "calc_multipliers" : True,
-            "expand" : True,
-                "verbose_init":True,
-                # "jac_g": gjacFunc
-            "ipopt":{
-                "max_iter"  : 4000,
-                "mu_init"   : 1e-1, # default 1e-1 # single 1: 1236 iter Solved To Acceptable Level, single 1e-2: larger slack & memory
-                # "warm_start_init_point" : "yes", # default no: single yes 1349 iter
-                # "bound_frac": 0.4999, # default 0.01, set to 0.4999 needs 1307 iter
-                # "start_with_resto": "yes", # default no
-                # "mumps_mem_percent":2000, # default 1000
-                # "mumps_pivtol": 1e-4, #default 1e-6
-                "alpha_for_y": [ # 只有primal效果最好
-                                "primal",                   # 0 use primal step size
-                                "bound-mult",               # 1 use step size for the bound multipliers (good for LPs)
-                                "min",                      # 2 use the min of primal and bound multipliers
-                                "max",                      # 3 use the max of primal and bound multipliers
-                                "full",                     # 4 take a full step of size one
-                                "min-dual-infeas",          # 5 choose step size minimizing new dual infeasibility
-                                "safer-min-dual-infeas",    # 6 like "min_dual_infeas", but safeguarded by "min" and "max"
-                                "primal-and-full",          # 7 use the primal step size, and full step if delta_x <= alpha_for_y_tol
-                                "dual-and-full",            # 8 use the dual step size, and full step if delta_x <= alpha_for_y_tol
-                                "acceptor"][0]              # 9 Call LSAcceptor to get step size for y
-                }
-            })
-    dumpname = os.path.abspath(os.path.join("./data/nlpSol", "SRB%d.pkl"%time.time()))
-    with open(dumpname, "wb") as f:
-        pkl.dump({
-            "sol":dict_ca2np(res),
-            "Scheme":Scheme,
-            # "x_init":x_init
-        }, f,protocol=2)
+    with Session(__file__,terminalLog = False) as ss:
+        opt.setHyperParamValue({"costPcNorm": 0.1, 
+                                "costOri":10})
+        res = opt.solve(options=
+                {"calc_f" : True,
+                "calc_g" : True,
+                "calc_lam_x" : True,
+                "calc_multipliers" : True,
+                "expand" : True,
+                    "verbose_init":True,
+                    # "jac_g": gjacFunc
+                "ipopt":{
+                    "max_iter"  : 4000,
+                    "mu_init"   : 1e-1, # default 1e-1 # single 1: 1236 iter Solved To Acceptable Level, single 1e-2: larger slack & memory
+                    # "warm_start_init_point" : "yes", # default no: single yes 1349 iter
+                    # "bound_frac": 0.4999, # default 0.01, set to 0.4999 needs 1307 iter
+                    # "start_with_resto": "yes", # default no
+                    # "mumps_mem_percent":2000, # default 1000
+                    # "mumps_pivtol": 1e-4, #default 1e-6
+                    "alpha_for_y": [ # 只有primal效果最好
+                                    "primal",                   # 0 use primal step size
+                                    "bound-mult",               # 1 use step size for the bound multipliers (good for LPs)
+                                    "min",                      # 2 use the min of primal and bound multipliers
+                                    "max",                      # 3 use the max of primal and bound multipliers
+                                    "full",                     # 4 take a full step of size one
+                                    "min-dual-infeas",          # 5 choose step size minimizing new dual infeasibility
+                                    "safer-min-dual-infeas",    # 6 like "min_dual_infeas", but safeguarded by "min" and "max"
+                                    "primal-and-full",          # 7 use the primal step size, and full step if delta_x <= alpha_for_y_tol
+                                    "dual-and-full",            # 8 use the dual step size, and full step if delta_x <= alpha_for_y_tol
+                                    "acceptor"][0]              # 9 Call LSAcceptor to get step size for y
+                    }
+                })
+        dumpname = os.path.abspath(os.path.join("./data/nlpSol", "SRB%d.pkl"%time.time()))
+        with open(dumpname, "wb") as f:
+            pkl.dump({
+                "sol":dict_ca2np(res),
+                "Scheme":Scheme,
+                # "x_init":x_init
+            }, f,protocol=2)
+        ss.add_info("solutionPkl",dumpname)
+        ss.add_info("Scheme",Scheme)
+        ss.add_info("sol_sec",res['exec_sec'])
+        ss.add_info("Note","Robot Walk six steps")

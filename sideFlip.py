@@ -191,7 +191,7 @@ if __name__ == "__main__" :
     # exit()
 
     import matplotlib.pyplot as plt
-    with Session(__file__,terminalLog = True) as ss:
+    with Session(__file__,terminalLog = False) as ss:
     # if True:
         opt.setHyperParamValue({"distance": 0, 
                                 "costU":0.01,
@@ -224,4 +224,5 @@ if __name__ == "__main__" :
             }, f)
 
         ss.add_info("solutionPkl",dumpname)
+        ss.add_info("sol_sec",res['exec_sec'])
         ss.add_info("Scheme",Scheme)

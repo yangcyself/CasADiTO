@@ -234,4 +234,5 @@ if __name__ == "__main__" :
 
         ss.add_info("solutionPkl",dumpname)
         ss.add_info("Scheme",Scheme)
+        ss.add_info("sol_sec",res['exec_sec'])
         ss.add_info("Note","Generate CPP and Compare the Result!")
