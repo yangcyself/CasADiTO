@@ -3,6 +3,7 @@ import casadi as ca
 import numpy as np
 import os
 import shutil
+import time
 
 """[optGen]: optimization problem generator
 Contains cost, variable, and constraints. 
@@ -280,12 +281,15 @@ class optGen:
 
     def solve(self, options = None):
         solver = self.buildSolver(options = options)
+        start_time = time.time()
         self._sol = solver( x0=self.substHyperParam(self.w0),
                             lbx=self.substHyperParam(self.lbw),
                             ubx=self.substHyperParam(self.ubw),
                             lbg=self.substHyperParam(self.lbg),
                             ubg=self.substHyperParam(self.ubg))
+        exec_seconds = time.time() - start_time
         self._sol.update(self.parseSol(self._sol))
+        self._sol["exec_sec"]= exec_seconds
         return self._sol
 
     # Add constriant of the state of last step

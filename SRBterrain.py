@@ -25,6 +25,12 @@ XDes = ca.DM([distance, 0, 0.2, 0, 0, 0,      0, 0, 0,  0, 0, 0])
 
 lx = 0.2
 ly = 0.1
+pc_B_norm = np.array([
+    [lx,  ly, -0.2],
+    [lx, -ly, -0.2],
+    [-lx,  ly, -0.2],
+    [-lx, -ly, -0.2]
+])
 u0 = ca.DM([
      lx,  ly, 0,  10, 0, 0,
      lx, -ly, 0,  10, 0, 0,
@@ -37,12 +43,12 @@ optGen.VARTYPE = ca.SX
 SchemeSteps = 20
 Scheme = [ # list: (contact constaints, length)
     ((1,1,1,1), SchemeSteps, "start"),
-    ((1,0,1,0), SchemeSteps, "step_l0"),
-    ((0,1,0,1), SchemeSteps, "step_r0"),
-    ((1,0,1,0), SchemeSteps, "step_l1"),
-    ((0,1,0,1), SchemeSteps, "step_r1"),
-    ((1,0,1,0), SchemeSteps, "step_l2"),
-    ((0,1,0,1), SchemeSteps, "step_r2"),
+    ((1,0,0,1), SchemeSteps, "step_l0"),
+    ((0,1,1,0), SchemeSteps, "step_r0"),
+    ((1,0,0,1), SchemeSteps, "step_l1"),
+    ((0,1,1,0), SchemeSteps, "step_r1"),
+    ((1,0,0,1), SchemeSteps, "step_l2"),
+    ((0,1,1,0), SchemeSteps, "step_r2"),
     ((1,1,1,1), SchemeSteps, "stop")
 ]
 
@@ -89,10 +95,12 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
     None, # step_r1 
     None, # step_l2 
     None, # step_r2 
-    (lambda x,u: (x - XDes)[:6], [0]*6, [0]*6) # arrive at desire state
+    (lambda x,u: (x - XDes)[:12], [0]*12, [0]*12) # arrive at desire state
 ]
 
 opt = SRBoptDefault(12, [[-ca.inf, ca.inf]]*12 , 4, dT0, terrain, terrain_norm, 0.4)
+costPcNorm = opt.newhyperParam("costPcNorm")
+costOri = opt.newhyperParam("costOri")
 
 # this chMod is needed for uGenSRB2
 opt.begin(x0=X0, u0=u0, F0=[],  contactMap=Scheme[0][0])
@@ -120,20 +128,22 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         for i,c in enumerate(cons):
             if c: u_0[6*i+3:6*i+6] = ca.DM(initSol['fc%d'%i])
 
-        # initSol = solveLinearCons(caFuncSubsti(EOMF, {"x":x_0}), [("ddq", np.zeros(7), 1e3)])
-        # opt.step(lambda dx,x,u,F : EOMF(x=x,u=u,F=F,ddq = dx[7:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-        #         x0 = x_0, u0 = initSol["u"],F0 = initSol["F"])
-        # # x_init.append(x_0)
-
         opt.step(lambda x,u,F : DYNF(x,u),
                 x_0, u_0, ca.DM([]))
 
-        # opt.addCost(lambda u: 1*   ca.dot(u-u_0,u-u_0))
-        # opt.addCost(lambda x: 0.0001 * ca.dot(x - x_0, x - x_0))
-        opt.addCost(lambda x: 10 * ca.dot((x - x_0)[3:6], (x - x_0)[3:6])) # regularize on the orientation of x
+        # adding this constraint increases the solving time, from 600 iter to 1100 iter
+        # opt.addCost(lambda u: 0.1*   ca.norm_2(ca.vertcat(*[t[3:6] for t,c in zip(ca.vertsplit(u,6), cons) if c]) )**2)
+        # add this constraint increase the solving time
+        # opt.addCost(lambda x: 0.01 * ca.dot((x - x_0)[6:], (x - x_0)[6:])) # regularize on the velocity of x
+
+        # adding this constraint reduces the solving time from 600 iter to 345 iter
+        opt.addCost(lambda x,u: costPcNorm *   ca.norm_2(ca.vertcat(*[t[0:3]-x[:3] -B
+                    for t,c,B in zip(ca.vertsplit(u,6), cons, pc_B_norm) if c]) )**2 )
+        # adding this constraint prevents stuck at local infisible
+        opt.addCost(lambda x: costOri * ca.dot((x - x_0)[3:6], (x - x_0)[3:6])) # regularize on the orientation of x
 
 
-        # leg to body distance
+        # leg to body distance: this constraint improves the solution time
         opt.addConstraint(
             lambda x,u: ca.vertcat(*[ca.dot(u[6*i:6*i+3]-x[:3], u[6*i:6*i+3]-x[:3]) for i,c in enumerate(cons) if c]), 
                     [0.05**2]*np.sum(cons), [0.4**2] * np.sum(cons)
@@ -147,6 +157,8 @@ opt._parse.update({"g_jac": lambda: jac_g})
 
 
 if __name__=="__main__":
+    opt.setHyperParamValue({"costPcNorm": 0.1, 
+                            "costOri":10})
     res = opt.solve(options=
             {"calc_f" : True,
             "calc_g" : True,
@@ -160,21 +172,20 @@ if __name__=="__main__":
                 "mu_init"   : 1e-1, # default 1e-1 # single 1: 1236 iter Solved To Acceptable Level, single 1e-2: larger slack & memory
                 # "warm_start_init_point" : "yes", # default no: single yes 1349 iter
                 # "bound_frac": 0.4999, # default 0.01, set to 0.4999 needs 1307 iter
-                # "start_with_resto": "yes",
+                # "start_with_resto": "yes", # default no
                 # "mumps_mem_percent":2000, # default 1000
                 # "mumps_pivtol": 1e-4, #default 1e-6
-                # alpha for y 只有 safer 或者是min可以避免slack问题
-                "alpha_for_y": [                # default primal, set to safer-min-dual-infeas 2076 iter to acceptable
-                                "primal", # 0 use primal step size
-                                "bound-mult", # 1 use step size for the bound multipliers (good for LPs)
-                                "min", # 2 use the min of primal and bound multipliers
-                                "max", # 3 use the max of primal and bound multipliers
-                                "full", # 4 take a full step of size one
-                                "min-dual-infeas", # 5 choose step size minimizing new dual infeasibility
-                                "safer-min-dual-infeas", # 6 like "min_dual_infeas", but safeguarded by "min" and "max"
-                                "primal-and-full", # 7 use the primal step size, and full step if delta_x <= alpha_for_y_tol
-                                "dual-and-full", # 8 use the dual step size, and full step if delta_x <= alpha_for_y_tol
-                                "acceptor"][0] # 9 Call LSAcceptor to get step size for y
+                "alpha_for_y": [ # 只有primal效果最好
+                                "primal",                   # 0 use primal step size
+                                "bound-mult",               # 1 use step size for the bound multipliers (good for LPs)
+                                "min",                      # 2 use the min of primal and bound multipliers
+                                "max",                      # 3 use the max of primal and bound multipliers
+                                "full",                     # 4 take a full step of size one
+                                "min-dual-infeas",          # 5 choose step size minimizing new dual infeasibility
+                                "safer-min-dual-infeas",    # 6 like "min_dual_infeas", but safeguarded by "min" and "max"
+                                "primal-and-full",          # 7 use the primal step size, and full step if delta_x <= alpha_for_y_tol
+                                "dual-and-full",            # 8 use the dual step size, and full step if delta_x <= alpha_for_y_tol
+                                "acceptor"][0]              # 9 Call LSAcceptor to get step size for y
                 }
             })
     dumpname = os.path.abspath(os.path.join("./data/nlpSol", "SRB%d.pkl"%time.time()))
