@@ -136,7 +136,7 @@ class uGenSRB2(uGenDefault):
     def _begin(self, contactMap, u0, **kwargs):
         self.contactMap = [False] * self.nc
         self.contactPos = [ca.DM([0,0,0])] * self.nc # DM 0,0,0 for the positions that are not contacted
-        self.chMod("begin", contactMap, [ t[3:6] for t in ca.vertsplit(u0, 6)])
+        self.chMod("begin", contactMap, [ t[:3] for t in ca.vertsplit(u0, 6)])
 
     def chMod(self, modName, contactMap, pc0, *args, **kwargs):
         assert(len(contactMap) == self.nc)

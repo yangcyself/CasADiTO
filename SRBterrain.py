@@ -42,7 +42,7 @@ u0 = ca.DM([
 
 optGen.VARTYPE = ca.SX
 
-SchemeSteps = 20
+SchemeSteps = 10
 Scheme = [ # list: (contact constaints, length)
     ((1,1,1,1), SchemeSteps, "start"),
     ((1,0,0,1), SchemeSteps, "step_l0"),
@@ -114,7 +114,7 @@ x_val = X0
 # x_init = [X0]
 for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     opt.dTgen.chMod(modName = name)
-    opt.Ugen.chMod(modName = name, contactMap=cons, pc0 = [ t[3:6] for t in ca.vertsplit( R(N/2)[1], 6)])
+    opt.Ugen.chMod(modName = name, contactMap=cons, pc0 = [ t[:3] for t in ca.vertsplit( R(N/2)[1], 6)])
     for i in range(N):
         x_0, u_0 = R(i)
         # x_0 = caSubsti(x_0, opt.hyperParams.keys(), opt.hyperParams.values())
