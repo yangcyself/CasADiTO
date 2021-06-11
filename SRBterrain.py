@@ -34,10 +34,10 @@ pc_B_norm = np.array([
     [-lx, -ly, -0.2]
 ])
 u0 = ca.DM([
-     lx,  ly, 0,  10, 0, 0,
-     lx, -ly, 0,  10, 0, 0,
-    -lx,  ly, 0,  10, 0, 0,
-    -lx, -ly, 0,  10, 0, 0,
+     lx,  ly, 0,  0, 0, 0,
+     lx, -ly, 0,  0, 0, 0,
+    -lx,  ly, 0,  0, 0, 0,
+    -lx, -ly, 0,  0, 0, 0,
 ])
 
 optGen.VARTYPE = ca.SX
@@ -65,27 +65,27 @@ References = [
     ),
     lambda i:( # step_r0
         X0+ca.DM([(SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      0, 0, 0,  0, 0, 0]), 
-        u0+ca.vertcat(*[ca.DM([(SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0])]*4)
+        u0+ca.vertcat(*[ca.DM([(SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4)
     ),
     lambda i:( # step_l1
         X0+ca.DM([(2*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      0, 0, 0,  0, 0, 0]), 
-        u0+ca.vertcat(*[ca.DM([(2*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0])]*4)
+        u0+ca.vertcat(*[ca.DM([(2*SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4)
     ),
     lambda i:( # step_r1
         X0+ca.DM([(3*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      0, 0, 0,  0, 0, 0]), 
-        u0+ca.vertcat(*[ca.DM([(3*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0])]*4)
+        u0+ca.vertcat(*[ca.DM([(3*SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4)
     ),
     lambda i:( # step_l2
         X0+ca.DM([(4*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      0, 0, 0,  0, 0, 0]), 
-        u0+ca.vertcat(*[ca.DM([(4*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0])]*4)
+        u0+ca.vertcat(*[ca.DM([(4*SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4)
     ),
     lambda i:( # step_r2
         X0+ca.DM([(5*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      0, 0, 0,  0, 0, 0]), 
-        u0+ca.vertcat(*[ca.DM([(5*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0])]*4)
+        u0+ca.vertcat(*[ca.DM([(5*SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4)
     ),
     lambda i:( # stop
         XDes,
-        u0    
+        u0+ca.vertcat(*[ca.DM([(5*SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4)
     )
 ]
 
@@ -157,7 +157,6 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
 
 jac_g = ca.jacobian(ca.vertcat(*opt._g), opt.w)
 opt._parse.update({"g_jac": lambda: jac_g})
-
 
 if __name__=="__main__":
     with Session(__file__,terminalLog = False) as ss:
