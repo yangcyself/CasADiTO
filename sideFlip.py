@@ -4,6 +4,7 @@ import time
 from optGen.trajOptimizer import *
 from optGen.helpers import pointsTerrian2D
 from optGen.util import caSubsti, caFuncSubsti, substiSX2MX
+from optGen.solutionLoader import SolLoader
 # from model.leggedRobotX_bak import LeggedRobotX
 from model.leggedRobotX import LeggedRobotX
 from mathUtil import solveLinearCons
@@ -13,8 +14,12 @@ from ExperimentSecretary.Core import Session
 
 
 model = LeggedRobotX.fromYaml("data/robotConfigs/JYminiLitev2.yaml")
+
+# Load a existing solution to use it as initialization
+solload = SolLoader("data/nlpSol/sideFlip1621923681.pkl")
+Tcount = 0
 # input dims: [ux4,Fbx2,Ffx2]
-dT0 = 0.01
+dT0 = 0.0025
 initHeight = (model.params["legL2"] + model.params["legL1"])/2 # assume 30 angle of legs
 distance = ca.SX.sym("distance",1)
 fleg_local_l = model.pLocalFuncs['pl2']
@@ -34,7 +39,7 @@ XDes = np.array([distance, initHeight , 2*np.math.pi,
 local_x_0 = fleg_local_l(X0)[0]
 # assert(local_x_0 == fleg_local_r(X0)[0])
 
-SchemeSteps = 50
+SchemeSteps = 200
 height = 0
 
 # XDes = substiSX2MX(XDes, [distance], [distance_mx])
@@ -121,7 +126,7 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
 
 
 # opt = TowrCollocationDefault(18, 6, 4, xlim, ulim, [[-200, 200]]*4, dT0)
-opt = TowrCollocationVTiming(18, 6, 4, xlim, ulim, [[-200, 200]]*4, dT0, [dT0/100, dT0])
+opt = TowrCollocationVTiming(18, 6, 4, xlim, ulim, [[-200, 200]]*4, dT0, [dT0/100, dT0*1.5])
 opt.Xgen = xGenTerrianHoloCons(18, np.array(xlim), model.pFuncs.values(), lambda p: p[1],
                 robustGap=[0 if p in ["pl2", "pr2"] else 0.02 for p in model.pFuncs.keys() ])
 
@@ -141,9 +146,17 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         x_0 = R(i)
         # x_0 = caSubsti(x_0, opt.hyperParams.keys(), opt.hyperParams.values())
 
-        initSol = solveLinearCons(caFuncSubsti(EOMF, {"x":x_0}), [("ddq", np.zeros(9), 1e3)])
+        # # use solveLinear Cons to initialize
+        # initSol = solveLinearCons(caFuncSubsti(EOMF, {"x":x_0}), [("ddq", np.zeros(9), 1e3)])
+        # opt.step(lambda dx,x,u,F : EOMF(x=x,u=u,F=F,ddq = dx[9:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+        #         x0 = x_0, u0 = initSol["u"],F0 = initSol["F"])
+
+        # use solLoader to initialize
+        Tcount+=dT0
+        initSol = solload.itp(Tcount)
         opt.step(lambda dx,x,u,F : EOMF(x=x,u=u,F=F,ddq = dx[9:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-                x0 = x_0, u0 = initSol["u"],F0 = initSol["F"])
+                x0 = initSol["x"], u0 = initSol["u"],F0 = initSol["F"])
+
         x_init.append(x_0)
 
         opt.addCost(lambda x,u: costU*ca.dot(u,u)) # these two lines need to be commented out
