@@ -1,8 +1,7 @@
 """
 Tricky tuning of the problem:
-0a7695b7ea59a44e1bae2bb21990ac9df23cee13
-    1. The dT should not be that short, otherwise the jac of dynamic constraint has too little gradient on u
-    2. to move along x, set u0's force to 10,0,0 yeilds the solution, 0,0,0 cannot, 0,0,10 nether
+The init solve of u is very important
+Give X0 a average velocity improves the solving speed
 """
 
 from model.singleRigidBody import singleRigidBody
@@ -60,27 +59,27 @@ References = [
         u0    
     ),
     lambda i:( # step_l0
-        X0+ca.DM([i*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      0, 0, 0,  0, 0, 0]), 
+        X0+ca.DM([i*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      distance/(6*SchemeSteps)/dT0, 0, 0,  0, 0, 0]), 
         u0+ca.vertcat(*[ca.DM([i*distance/(6*SchemeSteps), 0, 0, 0, 0, 0])]*4)
     ),
     lambda i:( # step_r0
-        X0+ca.DM([(SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      0, 0, 0,  0, 0, 0]), 
+        X0+ca.DM([(SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      distance/(6*SchemeSteps)/dT0, 0, 0,  0, 0, 0]), 
         u0+ca.vertcat(*[ca.DM([(SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4)
     ),
     lambda i:( # step_l1
-        X0+ca.DM([(2*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      0, 0, 0,  0, 0, 0]), 
+        X0+ca.DM([(2*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      distance/(6*SchemeSteps)/dT0, 0, 0,  0, 0, 0]), 
         u0+ca.vertcat(*[ca.DM([(2*SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4)
     ),
     lambda i:( # step_r1
-        X0+ca.DM([(3*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      0, 0, 0,  0, 0, 0]), 
+        X0+ca.DM([(3*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      distance/(6*SchemeSteps)/dT0, 0, 0,  0, 0, 0]), 
         u0+ca.vertcat(*[ca.DM([(3*SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4)
     ),
     lambda i:( # step_l2
-        X0+ca.DM([(4*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      0, 0, 0,  0, 0, 0]), 
+        X0+ca.DM([(4*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      distance/(6*SchemeSteps)/dT0, 0, 0,  0, 0, 0]), 
         u0+ca.vertcat(*[ca.DM([(4*SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4)
     ),
     lambda i:( # step_r2
-        X0+ca.DM([(5*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      0, 0, 0,  0, 0, 0]), 
+        X0+ca.DM([(5*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      distance/(6*SchemeSteps)/dT0, 0, 0,  0, 0, 0]), 
         u0+ca.vertcat(*[ca.DM([(5*SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4)
     ),
     lambda i:( # stop
@@ -130,7 +129,6 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         initSol = solveLinearCons(consDyn_, [("dx", np.zeros(12), 1e3)])
         for i,c in enumerate(cons):
             if c: u_0[6*i+3:6*i+6] = ca.DM(initSol['fc%d'%i])
-
         opt.step(lambda x,u,F : DYNF(x,u),
                 x_0, u_0, ca.DM([]))
 
@@ -161,7 +159,7 @@ opt._parse.update({"g_jac": lambda: jac_g})
 if __name__=="__main__":
     with Session(__file__,terminalLog = False) as ss:
         opt.setHyperParamValue({"costPcNorm": 0.1, 
-                                "costOri":10})
+                                "costOri":1})
         res = opt.solve(options=
                 {"calc_f" : True,
                 "calc_g" : True,
