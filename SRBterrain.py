@@ -13,16 +13,23 @@ from mathUtil import solveLinearCons
 from optGen.util import dict_ca2np, caSubsti, caFuncSubsti, substiSX2MX
 from ExperimentSecretary.Core import Session
 
+from initializer.polynomInit import PolynomInit
 
 model = singleRigidBody({"m":10, "I": 1}, nc = 4)
 
-dT0 = 0.01
+dT0 = 0.02
 terrain = lambda p: p[2]
 terrain_norm = lambda p: ca.DM([0,0,1])
 distance = 1
+SchemeSteps = 5
 
 X0 = ca.DM([0, 0, 0.2, 0, 0, 0,      0, 0, 0,  0, 0, 0])
 XDes = ca.DM([distance, 0, 0.2, 0, 0, 0,      0, 0, 0,  0, 0, 0])
+
+initer = PolynomInit()
+initer.addKeyState(0, X0.full().reshape(-1))
+initer.addKeyState(dT0*SchemeSteps*8, XDes.full().reshape(-1))
+
 
 lx = 0.2
 ly = 0.1
@@ -41,7 +48,7 @@ u0 = ca.DM([
 
 optGen.VARTYPE = ca.SX
 
-SchemeSteps = 10
+
 Scheme = [ # list: (contact constaints, length)
     ((1,1,1,1), SchemeSteps, "start"),
     ((1,0,0,1), SchemeSteps, "step_l0"),
@@ -54,38 +61,22 @@ Scheme = [ # list: (contact constaints, length)
 ]
 
 References = [
-    lambda i:( # start
-        X0,
-        u0    
-    ),
-    lambda i:( # step_l0
-        X0+ca.DM([i*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      distance/(6*SchemeSteps)/dT0, 0, 0,  0, 0, 0]), 
-        u0+ca.vertcat(*[ca.DM([i*distance/(6*SchemeSteps), 0, 0, 0, 0, 0])]*4)
-    ),
-    lambda i:( # step_r0
-        X0+ca.DM([(SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      distance/(6*SchemeSteps)/dT0, 0, 0,  0, 0, 0]), 
-        u0+ca.vertcat(*[ca.DM([(SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4)
-    ),
-    lambda i:( # step_l1
-        X0+ca.DM([(2*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      distance/(6*SchemeSteps)/dT0, 0, 0,  0, 0, 0]), 
-        u0+ca.vertcat(*[ca.DM([(2*SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4)
-    ),
-    lambda i:( # step_r1
-        X0+ca.DM([(3*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      distance/(6*SchemeSteps)/dT0, 0, 0,  0, 0, 0]), 
-        u0+ca.vertcat(*[ca.DM([(3*SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4)
-    ),
-    lambda i:( # step_l2
-        X0+ca.DM([(4*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      distance/(6*SchemeSteps)/dT0, 0, 0,  0, 0, 0]), 
-        u0+ca.vertcat(*[ca.DM([(4*SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4)
-    ),
-    lambda i:( # step_r2
-        X0+ca.DM([(5*SchemeSteps + i)*distance/(6*SchemeSteps), 0, 0, 0, 0, 0,      distance/(6*SchemeSteps)/dT0, 0, 0,  0, 0, 0]), 
+    lambda i:# start
+        u0,
+    lambda i:# step_l0
+        u0+ca.vertcat(*[ca.DM([i*distance/(6*SchemeSteps), 0, 0, 0, 0, 0])]*4),
+    lambda i:# step_r0
+        u0+ca.vertcat(*[ca.DM([(SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4),
+    lambda i:# step_l1
+        u0+ca.vertcat(*[ca.DM([(2*SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4),
+    lambda i:# step_r1
+        u0+ca.vertcat(*[ca.DM([(3*SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4),
+    lambda i:# step_l2
+        u0+ca.vertcat(*[ca.DM([(4*SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4),
+    lambda i:# step_r2
+        u0+ca.vertcat(*[ca.DM([(5*SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4),
+    lambda i:# stop
         u0+ca.vertcat(*[ca.DM([(5*SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4)
-    ),
-    lambda i:( # stop
-        XDes,
-        u0+ca.vertcat(*[ca.DM([(5*SchemeSteps + i)*distance/(5.5*SchemeSteps), 0, 0, 0, 0, 0])]*4)
-    )
 ]
 
 stateFinalCons = [ # the constraints to enforce at the end of each state
@@ -113,11 +104,13 @@ x_val = X0
 # x_init = [X0]
 for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
     opt.dTgen.chMod(modName = name)
-    opt.Ugen.chMod(modName = name, contactMap=cons, pc0 = [ t[:3] for t in ca.vertsplit( R(N/2)[1], 6)])
+    opt.Ugen.chMod(modName = name, contactMap=cons, pc0 = [ t[:3] for t in ca.vertsplit( R(N/2), 6)])
     for i in range(N):
-        x_0, u_0 = R(i)
-        # x_0 = caSubsti(x_0, opt.hyperParams.keys(), opt.hyperParams.values())
 
+        u_0 = R(i)
+        # x_0 = caSubsti(x_0, opt.hyperParams.keys(), opt.hyperParams.values())
+        xinit = initer.itp(opt._sc * dT0)
+        x_0 = ca.vertcat(xinit['q'], xinit['dq'])
         initcons = {"x":x_0}
         initcons.update({
             "pc%d"%i: u_0[6*i:6*i+3] for i in range(4) 
@@ -126,7 +119,7 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
             "fc%d"%i: ca.DM([0,0,0]) for i,c in enumerate(cons) if not c
         })
         consDyn_ = caFuncSubsti(EOMF, initcons)
-        initSol = solveLinearCons(consDyn_, [("dx", np.zeros(12), 1e3)])
+        initSol = solveLinearCons(consDyn_, [("dx", ca.vertcat(xinit['dq'], xinit['ddq']) , 1e3)])
         for i,c in enumerate(cons):
             if c: u_0[6*i+3:6*i+6] = ca.DM(initSol['fc%d'%i])
         opt.step(lambda x,u,F : DYNF(x,u),
