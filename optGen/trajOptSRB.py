@@ -136,9 +136,9 @@ class uGenSRB2(uGenDefault):
     def _begin(self, contactMap, u0, **kwargs):
         self.contactMap = [False] * self.nc
         self.contactPos = [ca.DM([0,0,0])] * self.nc # DM 0,0,0 for the positions that are not contacted
-        self.chMod("begin", contactMap, [ t[:3] for t in ca.vertsplit(u0, 6)])
+        self.chMod("begin", contactMap, [ t[:3] for t in ca.vertsplit(u0, 6)], fix=False)
 
-    def chMod(self, modName, contactMap, pc0, *args, **kwargs):
+    def chMod(self, modName, contactMap, pc0, fix=False, *args, **kwargs):
         assert(len(contactMap) == self.nc)
         # generate new variables according to the change of the contact map
         self.contactPos = [
@@ -150,8 +150,12 @@ class uGenSRB2(uGenDefault):
         pp0 = [(p,p0) for p,p0,c0,c1 in zip(self.contactPos, pc0, self.contactMap, contactMap) if c1 and not c0]
         var = ca.vertcat(* [p for p,p0 in pp0])
         self._w.append(var)
-        self._lbw.append([-ca.inf] * var.size(1))
-        self._ubw.append([ca.inf] * var.size(1))
+        if(fix):
+            self._lbw.append(ca.vertcat(* [p0 for p,p0 in pp0]))
+            self._ubw.append(ca.vertcat(* [p0 for p,p0 in pp0]))
+        else:
+            self._lbw.append([-ca.inf] * var.size(1))
+            self._ubw.append([ca.inf] * var.size(1))
         self._w0.append(ca.vertcat(* [p0 for p,p0 in pp0]))
         self.contactMap = contactMap
 
