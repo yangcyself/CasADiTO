@@ -1,3 +1,10 @@
+"""
+Experience:
+
+About the initSol, the solved u_0 have negative force. Don't modify that u_0
+Directly feed in the infeasible u_0 converges in 3s. However, feed after clip converges in 23s
+"""
+
 from model.singleRigidBody import singleRigidBody
 from optGen.trajOptSRB import *
 from optGen.helpers import pointsTerrian2D
@@ -95,6 +102,7 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         consDyn_ = caFuncSubsti(EOMF, initcons)
         initSol = solveLinearCons(consDyn_, [("dx", ca.vertcat(xinit['dq'], xinit['ddq']) , 1e3)])
         for i,c in enumerate(cons):
+            # if c: u_0[6*i+3:6*i+6] = ca.fmax(0, ca.DM(initSol['fc%d'%i]))
             if c: u_0[6*i+3:6*i+6] = ca.DM(initSol['fc%d'%i])
         opt.step(lambda x,u,F : DYNF(x,u),
                 x_0, u_0, ca.DM([]))
