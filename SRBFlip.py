@@ -1,8 +1,11 @@
 """
 Experience:
 
-About the initSol, the solved u_0 have negative force. Don't modify that u_0
+- About the initSol, the solved u_0 have negative force. Don't modify that u_0
 Directly feed in the infeasible u_0 converges in 3s. However, feed after clip converges in 23s
+
+- About the leg_to_body_distance. Adding this constraint may speed up the solving than soly adding the cost of diviation from foot
+from 10s to 3s
 """
 
 from model.singleRigidBody import singleRigidBody
@@ -69,7 +72,7 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
     None, # start 
     None, # start 
     # (lambda x,u: (x - XDes)[:12], [0]*12, [0]*12) # arrive at desire state
-    (lambda x,u: (x - XDes)[:6], [0]*6, [0]*6) # arrive at desire state
+    (lambda x,u: (x - XDes)[1:6], [0]*5, [0]*5) # arrive at desire state
 ]
 
 opt = SRBoptDefault(12, [[-ca.inf, ca.inf]]*12 , 4, dT0, terrain, terrain_norm, 0.4)
@@ -134,7 +137,7 @@ opt._parse.update({"g_jac": lambda: jac_g})
 
 if __name__=="__main__":
     with Session(__file__,terminalLog = False) as ss:
-        opt.setHyperParamValue({"costPcNorm": 0.1, 
+        opt.setHyperParamValue({"costPcNorm": 99, 
                                 "costOri":1})
         res = opt.solve(options=
                 {"calc_f" : True,
