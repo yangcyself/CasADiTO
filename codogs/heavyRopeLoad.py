@@ -104,8 +104,7 @@ class HeavyRopeLoad(optGen):
                 for pc in self.pc]).T
         # ["pc"][3] returns the value of the symbol
         p = ca.substitute([p], [self.pc_input], [self._hyperParams["pc"][3]] )[0]
-        return ca.Function("pcFunc", [self.x], 
-        [p])
+        return ca.Function("pcFunc", [self.x], [p])
 
 if __name__ == "__main__":
     import numpy as np
