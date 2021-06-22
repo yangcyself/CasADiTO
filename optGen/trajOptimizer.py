@@ -175,6 +175,87 @@ class EularCollocation(Collocation):
         })
 
 
+class KKT_TO(Collocation):
+    """The trajectory optimization that enforces a KKT condition every step
+    """
+    def __init__(self, Xgen, Ugen, Fgen, dTgen):
+        super().__init__(Xgen, Ugen, Fgen, dTgen)
+
+
+    def step(self, intF, Func0, Func1, Func2, x0, u0, F0, **kwargs):
+        """
+        Args:
+            intF (integral Function): (x, dx) -> newx
+            Func0 (KKT cost function for dx)
+            Func1 (KKT neq constraints for dx)
+            Func2 (KKT eq constraints for dx)
+        """
+        Xk_puls_1, Uk_puls_1, Fk_puls_1, Xk, Uk, Fk, dt = super().step(x0, u0, F0, **kwargs)
+
+        ## Add variable dx
+        dxk = optGen.VARTYPE.sym('dx%d'%step, self.Xgen._xDim)
+        self._w.append(dxk)
+        self._lbw.append([-ca.inf]*self.Xgen._xDim)
+        self._ubw.append([-ca.inf]*self.Xgen._xDim)
+        self._w0.append([0]*self.Xgen._xDim)
+        self._state["dx"] = dxk
+
+        # constraints on step K
+        f0 = Func0(**self._state)
+        f1 = Func1(**self._state)
+        f2 = Func2(**self._state)
+
+        # Add primal conditions
+        self._g.append(f1)
+        self._lbg.append([0]*f1.size(1)) #size(1): the dim of axis0
+        self._ubg.append([ca.inf]*f1.size(1)) #size(1): the dim of axis0
+
+        self._g.append(f2)
+        self._lbg.append([0]*f2.size(1)) #size(1): the dim of axis0
+        self._ubg.append([0]*f2.size(1)) #size(1): the dim of axis0
+
+
+        ## Add variable Lambda: dual variable for neq cons
+        ml = optGen.VARTYPE.sym('lam%d'%step, f1.size(1))
+        self._w.append(ml)
+        self._lbw.append([0]*f1.size(1))
+        self._ubw.append([-ca.inf]*f1.size(1))
+        self._w0.append([0]*f1.size(1))
+
+        ## Add variable mu: dual variable for eq cons
+        mu = optGen.VARTYPE.sym('mu%d'%step, f2.size(1))
+        self._w.append(mu)
+        self._lbw.append([-ca.inf]*f2.size(1))
+        self._ubw.append([-ca.inf]*f2.size(1))
+        self._w0.append([0]*f2.size(1))
+
+
+        ## Add Stationarity Constraint
+        jacL = ca.jacobian(f0, dxk) + ca.jtimes(f1, dxk, ml, True) + ca.jtimes(f2, dxk, mu, True)
+        self._g.append(jacL)
+        self._lbg.append([0]*jacL.size(1)) #size(1): the dim of axis0
+        self._ubg.append([0]*jacL.size(1)) #size(1): the dim of axis0
+
+        ## Add Complementary Slackness
+        comS = ca.dot(ml, f1)
+        self._g.append(comS)
+        self._lbg.append([0]*comS.size(1)) #size(1): the dim of axis0
+        self._ubg.append([0]*comS.size(1)) #size(1): the dim of axis0
+
+
+        g = Xk_puls_1 - intF(Xk, dxk)
+        self._g.append(g)
+        self._lbg.append([0]*g.size(1)) #size(1): the dim of axis0
+        self._ubg.append([0]*g.size(1)) #size(1): the dim of axis0
+
+
+        self._state.update({
+            "x": Xk_puls_1,
+            "u" : Uk_puls_1,
+            "F" : Fk_puls_1,
+        })
+
+
 class xGenDefault(optGen):
     def __init__(self, xDim, xLim):
         super().__init__()
@@ -345,3 +426,4 @@ def TowrCollocationVTiming(xDim, uDim, FDim, xLim, uLim, FLim, dt, dtLim):
         Fgen = FGenDefault(FDim, np.array(FLim)),
         dTgen= dTGenVariable(dt, np.array(dtLim))
     )
+
