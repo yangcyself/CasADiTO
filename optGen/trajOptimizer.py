@@ -397,7 +397,7 @@ class FGenDefault(optGen):
     
     def step(self, step, F0, **kwargs):
         if(not self._FDim):
-            return []
+            return ca.DM([])
         Fk = optGen.VARTYPE.sym('F%d'%step, self._FDim)
         self._w.append(Fk)
         self._lbw.append(self._FLim[:,0])

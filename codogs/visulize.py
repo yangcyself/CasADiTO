@@ -21,23 +21,17 @@ with open(solFile, "rb") as f:
     solraw = pkl.load(f)
     sol = solraw["sol"]
     nc = solraw["nc"]
+    r = solraw["r"]
+    pc = solraw["pc"]
     # sol_ddq = sol["ddq_plot"].full().T
     sol_x= sol['Xgen']['x_plot'].full().T
     sol_u= sol['Ugen']['u_plot'].full().T
 
 model = HeavyRopeLoad(nc)
 model.setHyperParamValue({
-    # "r": ca.DM([1, 1, 1]),
-    "r": ca.DM([1]),
-    "pc": ca.DM([1,0]),
-    # "pc": ca.DM([-1,0, 
-    #               1,0,
-    #               0,1]), 
-    # "pa": ca.DM([0,0, # not used
-    #              0,0,
-    #              0,0]), 
-    # "Q": np.diag([1,1,1]), 
-    # "xold": ca.DM([0,0,0])
+    "r": r,
+    "pc": pc,
+
 })
 
 pfuncs = model.pFuncs

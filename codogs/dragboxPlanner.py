@@ -53,30 +53,48 @@ opt =  KKT_TO(
 
 X0 = ca.DM([0,0,0])
 Xdes = ca.DM([5,0,0])
-pa0 = ca.DM([1,2])
-pc_input = ca.DM([1,0])
+pa0 = ca.DM([-1,2])
+pc_input = ca.DM([-1,0])
 Q = np.diag([1,1,1])
 r = ca.DM([2])
 STEPS = 50
+
+model.setHyperParamValue({
+    "r": r,
+    "pc": pc_input,
+})
 
 opt.begin(x0=X0, u0=pa0, F0=ca.DM([]))
 opt.addConstraint(lambda u: u-pa0, ca.DM([0,0]), ca.DM([0,0]))
 u_last = pa0
 
+pfuncs = model.pFuncs
 for i in range(STEPS):
     opt.step(model.integralFunc, 
     Func0 = lambda dx: model.Jfunc(dx, Q), 
     Func1 = lambda x,dx,u: model.gfunc(x,dx,pc_input,u, r), 
     Func2 = None, 
-    x0 = Xdes*i/STEPS, u0 = ca.DM([10,0])*i/STEPS, F0=ca.DM([]))
+    x0 = X0, u0 = pa0, F0=ca.DM([]))
     opt.addCost(lambda x: ca.norm_2(x-Xdes)**2)
+
+    def tmpf(x,u):
+        normDirs = [-ca.vertcat(ca.cos(x[2]), ca.sin(x[2])),
+                    ]
+        return ca.vertcat(*[
+            ca.dot(a - c.T, n)
+            for a,c,n in zip(ca.vertsplit(u,2), ca.vertsplit(pfuncs(x),1), normDirs)
+        ])
+    # constraint for rope not collide with box
+    opt.addConstraint(tmpf, 
+        ca.DM([0]*NC), ca.DM([ca.inf]*NC))
+
     # opt.addCost(lambda u: 1e-3 * ca.norm_2(u-u_last)**2)
     u_last = opt._state['u']
     # if(i==40 and "ml" in opt._state.keys()):
         # opt.addConstraint(lambda ml: ml, ca.DM([1e-2]), ca.DM([1e-2])) # have solution
         # opt.addConstraint(lambda ml: ml, ca.DM([1e-2]), ca.DM([10])) # do not have solution
 
-opt.addConstraint(lambda x: ca.norm_2((x-Xdes)[:3])**2, ca.DM([-ca.inf]), ca.DM([0]))
+opt.addConstraint(lambda x: ca.norm_2((x-Xdes)[:2])**2, ca.DM([-ca.inf]), ca.DM([0]))
 
 if __name__ == "__main__":
 
@@ -106,5 +124,7 @@ if __name__ == "__main__":
     with open(dumpname, "wb") as f:
         pkl.dump({
             "sol":res,
-            "nc": NC
+            "nc": NC,
+            "pc": pc_input,
+            "r": r
         }, f)
