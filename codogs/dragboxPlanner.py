@@ -51,7 +51,7 @@ opt =  KKT_TO(
 
 X0 = ca.DM([0,0,0])
 Xdes = ca.DM([1,0,0])
-pa0 = ca.DM([3,0])
+pa0 = ca.DM([2.5,0])
 pc_input = ca.DM([1,0])
 Q = np.diag([1,1,1])
 r = ca.DM([2])
@@ -64,8 +64,9 @@ for i in range(STEPS):
     Func0 = lambda dx: model.Jfunc(dx, Q), 
     Func1 = lambda x,dx,u: model.gfunc(x,dx,pc_input,u, r), 
     Func2 = None, 
-    x0 = Xdes*i/STEPS, u0 = pa0+ca.DM([1,0])*i/STEPS, F0=ca.DM([]))
+    x0 = Xdes*i/STEPS, u0 = pa0+ca.DM([0.5,0])*i/STEPS, F0=ca.DM([]))
     opt.addCost(lambda x: ca.norm_2(x-Xdes)**2)
+# opt.addConstraint(lambda x: ca.norm_2((x-Xdes)[:2])**2, ca.DM([-ca.inf]), ca.DM([0]))
 
 if __name__ == "__main__":
 
@@ -86,7 +87,7 @@ if __name__ == "__main__":
     print(res['_w'])
     print("Uplot\n" ,res["Ugen"]["u_plot"].full().T)
     print("Xplot\n" ,res["Xgen"]["x_plot"].full().T)
-    # print(res['ml_plot'].full().T)
+    print(res['ml_plot'].full().T)
     # print(res['jacL_plot'].full().T)
     # print(res['comS_plot'].full().T)
     # print(res['g'])

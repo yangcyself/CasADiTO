@@ -225,11 +225,29 @@ class KKT_TO(Collocation):
 
 
         ## Add variable Lambda: dual variable for neq cons
+        #>>> Exp Lambda
+        # ml_ = optGen.VARTYPE.sym('lam%d'%self._sc, f1.size(1))
+        # self._w.append(ml_)
+        # self._lbw.append([-1e2]*f1.size(1))
+        # self._ubw.append([ca.inf]*f1.size(1))
+        # self._w0.append([0]*f1.size(1))
+        # ml = ca.exp(ml_)
+        #--- 1/x Lambda
+        # ml_ = optGen.VARTYPE.sym('lam%d'%self._sc, f1.size(1))
+        # self._w.append(ml_)
+        # self._lbw.append([1e-2]*f1.size(1))
+        # self._ubw.append([ca.inf]*f1.size(1))
+        # self._w0.append([1e-2]*f1.size(1))
+        # ml = 1/ml_
+        #--- raw Lambda
         ml = optGen.VARTYPE.sym('lam%d'%self._sc, f1.size(1))
         self._w.append(ml)
         self._lbw.append([0]*f1.size(1))
         self._ubw.append([ca.inf]*f1.size(1))
         self._w0.append([0]*f1.size(1))
+        #---
+        # self._J+= ca.sum1(1/(ml+0.001))
+        #<<<
         self._ml_plot.append(ml)
 
 
