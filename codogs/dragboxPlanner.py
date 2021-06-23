@@ -8,7 +8,7 @@ from codogs.heavyRopeLoad import HeavyRopeLoad
 from optGen.trajOptimizer import *
 import pickle as pkl
 
-NC = 1
+NC = 3
 xDim = 3
 xLim = ca.DM([[-ca.inf, ca.inf]]*xDim) 
 model = HeavyRopeLoad(nc = NC)
@@ -52,11 +52,11 @@ opt =  KKT_TO(
 
 
 X0 = ca.DM([0,0,0])
-Xdes = ca.DM([5,0,0])
-pa0 = ca.DM([-1,2])
-pc_input = ca.DM([-1,0])
+Xdes = ca.DM([2,2,0.4])
+pa0 = ca.DM([-1,0,  0,1,  0,-1])
+pc_input = ca.DM([-1,0, 0,1, 0,-1])
 Q = np.diag([1,1,1])
-r = ca.DM([2])
+r = ca.DM([1,1,1])
 STEPS = 50
 
 model.setHyperParamValue({
@@ -65,7 +65,7 @@ model.setHyperParamValue({
 })
 
 opt.begin(x0=X0, u0=pa0, F0=ca.DM([]))
-opt.addConstraint(lambda u: u-pa0, ca.DM([0,0]), ca.DM([0,0]))
+opt.addConstraint(lambda u: u-pa0, ca.DM.zeros(pa0.size()), ca.DM.zeros(pa0.size()))
 u_last = pa0
 
 pfuncs = model.pFuncs
@@ -79,6 +79,8 @@ for i in range(STEPS):
 
     def tmpf(x,u):
         normDirs = [-ca.vertcat(ca.cos(x[2]), ca.sin(x[2])),
+                    ca.vertcat(-ca.sin(x[2]), ca.cos(x[2])),
+                    ca.vertcat(ca.sin(x[2]), -ca.cos(x[2])),
                     ]
         return ca.vertcat(*[
             ca.dot(a - c.T, n)
@@ -88,13 +90,14 @@ for i in range(STEPS):
     opt.addConstraint(tmpf, 
         ca.DM([0]*NC), ca.DM([ca.inf]*NC))
 
-    # opt.addCost(lambda u: 1e-3 * ca.norm_2(u-u_last)**2)
+    # opt.addCost(lambda u: 1e-3 * ca.norm_2(u-u_last)**2) # CANNOT ADD THIS COST
+    # opt.addCost(lambda ml: 1e-3 * ml**2) # CANNOT ADD THIS COST
     u_last = opt._state['u']
     # if(i==40 and "ml" in opt._state.keys()):
         # opt.addConstraint(lambda ml: ml, ca.DM([1e-2]), ca.DM([1e-2])) # have solution
         # opt.addConstraint(lambda ml: ml, ca.DM([1e-2]), ca.DM([10])) # do not have solution
 
-opt.addConstraint(lambda x: ca.norm_2((x-Xdes)[:2])**2, ca.DM([-ca.inf]), ca.DM([0]))
+opt.addConstraint(lambda x: ca.norm_2((x-Xdes)[:3])**2, ca.DM([-ca.inf]), ca.DM([0]))
 
 if __name__ == "__main__":
 

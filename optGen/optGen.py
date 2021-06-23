@@ -294,7 +294,9 @@ class optGen:
 
     # Add constriant of the state of last step
     def addConstraint(self, func, lb, ub):
-        self._g.append(self.tryCallWithHyperParam(kwargFunc(func), self._state))
+        g = self.tryCallWithHyperParam(kwargFunc(func), self._state)
+        assert g.size(1)==lb.size(1)==ub.size(1), "constraint's dim is not the same with bound"
+        self._g.append(g)
         self._lbg.append(lb)
         self._ubg.append(ub)
     
