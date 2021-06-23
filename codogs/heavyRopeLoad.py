@@ -47,26 +47,26 @@ class HeavyRopeLoad(optGen):
         self._ubg = [ca.DM([0]*self.nc)]
         
         x_w = (self.T_WB(self.x)@ca.vertcat(self.dx[:2], 1))[:2]
-        x_w = ca.vertcat(x_w, self.dx[2]+self.x[2])
+        self.x_w = ca.vertcat(x_w, self.dx[2]+self.x[2])
         self._parse.update({
-            "newx": lambda: x_w
+            "newx": lambda: self.x_w
         })
 
     @property
     def Jfunc(self):
-        return ca.Function("J", [self.dx, self.Q], [self._J], ["dx", "Q"], ["J"])
+        return ca.Function("J", [self.dx, self.Q], [self.J], ["dx", "Q"], ["J"])
 
     @property
     def gfunc(self):
-        return ca.Function("g", [self.x, self.dx, self.pc_input, self.pa_input], [self._g], 
-                                ["oldx", "dx", "pc_input", "pa_input"], ["g"])
+        return ca.Function("g", [self.x, self.dx, self.pc_input, self.pa_input, self.r], [self.g], 
+                                ["oldx", "dx", "pc", "pa", "r"], ["g"])
 
     @property
-    def intefunc(self):
+    def integralFunc(self):
         """An integral function for x+dx = newx
         """
         return ca.Function("dyn", [self.x, self.dx], [self.x_w], 
-                                ["oldx", "dx"], ["newx"])
+                                ["x", "dx"], ["newx"])
 
 
     def T_WB(self, x):

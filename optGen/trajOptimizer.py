@@ -180,6 +180,16 @@ class KKT_TO(Collocation):
     """
     def __init__(self, Xgen, Ugen, Fgen, dTgen):
         super().__init__(Xgen, Ugen, Fgen, dTgen)
+        self._ml_plot=[]
+        self._mu_plot=[]
+        self._jacL_plot=[]
+        self._comS_plot=[]
+        self._parse.update({
+            "ml_plot": lambda: ca.horzcat(*self._ml_plot),
+            "mu_plot": lambda: ca.horzcat(*self._mu_plot),
+            "jacL_plot": lambda: ca.horzcat(*self._jacL_plot),
+            "comS_plot": lambda: ca.horzcat(*self._comS_plot)
+        })
 
 
     def step(self, intF, Func0, Func1, Func2, x0, u0, F0, **kwargs):
@@ -191,24 +201,23 @@ class KKT_TO(Collocation):
             Func2 (KKT eq constraints for dx)
         """
         Xk_puls_1, Uk_puls_1, Fk_puls_1, Xk, Uk, Fk, dt = super().step(x0, u0, F0, **kwargs)
-
         ## Add variable dx
-        dxk = optGen.VARTYPE.sym('dx%d'%step, self.Xgen._xDim)
+        dxk = optGen.VARTYPE.sym('dx%d'%self._sc, self.Xgen._xDim)
         self._w.append(dxk)
         self._lbw.append([-ca.inf]*self.Xgen._xDim)
-        self._ubw.append([-ca.inf]*self.Xgen._xDim)
-        self._w0.append([0]*self.Xgen._xDim)
+        self._ubw.append([ca.inf]*self.Xgen._xDim)
+        self._w0.append(x0)
         self._state["dx"] = dxk
 
         # constraints on step K
-        f0 = Func0(**self._state)
-        f1 = Func1(**self._state)
-        f2 = Func2(**self._state)
+        f0 = kwargFunc(Func0)(**self._state)
+        f1 = kwargFunc(Func1)(**self._state) if Func1 is not None else ca.DM([0])
+        f2 = kwargFunc(Func2)(**self._state) if Func2 is not None else ca.DM([0])
 
         # Add primal conditions
         self._g.append(f1)
-        self._lbg.append([0]*f1.size(1)) #size(1): the dim of axis0
-        self._ubg.append([ca.inf]*f1.size(1)) #size(1): the dim of axis0
+        self._lbg.append([-ca.inf]*f1.size(1)) #size(1): the dim of axis0
+        self._ubg.append([0]*f1.size(1)) #size(1): the dim of axis0
 
         self._g.append(f2)
         self._lbg.append([0]*f2.size(1)) #size(1): the dim of axis0
@@ -216,31 +225,37 @@ class KKT_TO(Collocation):
 
 
         ## Add variable Lambda: dual variable for neq cons
-        ml = optGen.VARTYPE.sym('lam%d'%step, f1.size(1))
+        ml = optGen.VARTYPE.sym('lam%d'%self._sc, f1.size(1))
         self._w.append(ml)
         self._lbw.append([0]*f1.size(1))
-        self._ubw.append([-ca.inf]*f1.size(1))
+        self._ubw.append([ca.inf]*f1.size(1))
         self._w0.append([0]*f1.size(1))
+        self._ml_plot.append(ml)
+
 
         ## Add variable mu: dual variable for eq cons
-        mu = optGen.VARTYPE.sym('mu%d'%step, f2.size(1))
+        mu = optGen.VARTYPE.sym('mu%d'%self._sc, f2.size(1))
         self._w.append(mu)
         self._lbw.append([-ca.inf]*f2.size(1))
-        self._ubw.append([-ca.inf]*f2.size(1))
+        self._ubw.append([ca.inf]*f2.size(1))
         self._w0.append([0]*f2.size(1))
+        self._mu_plot.append(mu)
 
 
         ## Add Stationarity Constraint
-        jacL = ca.jacobian(f0, dxk) + ca.jtimes(f1, dxk, ml, True) + ca.jtimes(f2, dxk, mu, True)
+        jacL = ca.gradient(f0, dxk) + ca.jtimes(f1, dxk, ml, True) + ca.jtimes(f2, dxk, mu, True)
         self._g.append(jacL)
         self._lbg.append([0]*jacL.size(1)) #size(1): the dim of axis0
         self._ubg.append([0]*jacL.size(1)) #size(1): the dim of axis0
+        self._jacL_plot.append(jacL)
+
 
         ## Add Complementary Slackness
-        comS = ca.dot(ml, f1)
+        comS = ml*f1
         self._g.append(comS)
         self._lbg.append([0]*comS.size(1)) #size(1): the dim of axis0
         self._ubg.append([0]*comS.size(1)) #size(1): the dim of axis0
+        self._comS_plot.append(comS)
 
 
         g = Xk_puls_1 - intF(Xk, dxk)
