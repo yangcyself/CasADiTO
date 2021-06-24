@@ -26,6 +26,8 @@ with open(solFile, "rb") as f:
     # sol_ddq = sol["ddq_plot"].full().T
     sol_x= sol['Xgen']['x_plot'].full().T
     sol_u= sol['Ugen']['u_plot'].full().T
+    sol_lam = sol["ml_plot"].full().T
+    sol_lam = np.vstack([np.zeros([1,nc]),sol_lam])
 
     print(np.all(sol["_gb"][:,0].full()<sol["_g"].full()+1e-6))
     print(np.all(sol["_g"].full()<sol["_gb"][:,1].full()+1e-6))
@@ -44,6 +46,7 @@ def animate(i):
     ind = i%len(sol_x)
     xsol = sol_x[ind]
     usol = sol_u[ind]
+    mlsol = sol_lam[ind]
     ax.clear()
     
     sth = np.sin(xsol[2])
@@ -55,8 +58,8 @@ def animate(i):
                   np.array([sth*hl+cth*hw, -sth*hl+cth*hw, -sth*hl-cth*hw, sth*hl-cth*hw, sth*hl+cth*hw])+xsol[1])
     pcs = pfuncs(xsol)
     lines=[
-        ax.plot([pcs[i,0], usol[2*i]],[pcs[i,1], usol[2*i+1]], label="rope%d"%i)
-        for i in range(nc)
+        ax.plot([pcs[i,0], usol[2*i]],[pcs[i,1], usol[2*i+1]], label="rope%d"%i, lw=(1+ml/(ml+1e-2)))
+        for i,ml in enumerate(mlsol)
     ]
     ax.legend()
 

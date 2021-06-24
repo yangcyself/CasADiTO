@@ -52,7 +52,7 @@ opt =  KKT_TO(
 
 
 X0 = ca.DM([0,0,0])
-Xdes = ca.DM([2,2,0.4])
+Xdes = ca.DM([2,0,3.14])
 pa0 = ca.DM([-1,0,  0,1,  0,-1])
 pc_input = ca.DM([-1,0, 0,1, 0,-1])
 Q = np.diag([1,1,1])
@@ -90,6 +90,9 @@ for i in range(STEPS):
     opt.addConstraint(tmpf, 
         ca.DM([0]*NC), ca.DM([ca.inf]*NC))
 
+    opt.addConstraint(lambda dx: ca.norm_2(dx)**2, 
+        ca.DM([-ca.inf]), ca.DM([0.3**2]))
+    
     # opt.addCost(lambda u: 1e-3 * ca.norm_2(u-u_last)**2) # CANNOT ADD THIS COST
     # opt.addCost(lambda ml: 1e-3 * ml**2) # CANNOT ADD THIS COST
     u_last = opt._state['u']
