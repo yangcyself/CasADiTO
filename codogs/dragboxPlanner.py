@@ -11,7 +11,7 @@ import pickle as pkl
 NC = 3
 xDim = 3
 xLim = ca.DM([[-ca.inf, ca.inf]]*xDim) 
-STEPS = 50
+STEPS = 30
 model = HeavyRopeLoad(nc = NC)
 
 class uGenXYmove(uGenDefault):
@@ -43,6 +43,16 @@ class uGenXYmove(uGenDefault):
         })
         return Uk
 
+def lineCons(a,b,n, f):
+    """Return the constraint on a line, the line is evenly distributed with n points
+
+    Args:
+        a (SX/MX): point
+        b (SX/MX): point
+        n (int): number of points on the line
+        f ((SX[2])->g): The constraint, g will be constrainted to be less than zero
+    """
+    return ca.vertcat(*[ f(a+(i/(n-1)*(b-a)))for i in range(n)])
 
 opt =  KKT_TO(
     Xgen = xGenDefault(xDim, xLim),
@@ -58,6 +68,10 @@ pa0 = opt.newhyperParam("pa0", (2*NC,))
 pc = opt.newhyperParam("pc", (2*NC,))
 Q = opt.newhyperParam("Q", (3,3))
 r = opt.newhyperParam("r", (NC,))
+normAng = opt.newhyperParam("normAng", (NC,))
+cinlinderObstacles = [ # the x,y,r of obstacles
+    (4.5, 0, 1)
+]
 
 
 opt.begin(x0=X0, u0=pa0, F0=ca.DM([]))
@@ -72,12 +86,13 @@ for i in range(STEPS):
     Func2 = None, 
     x0 = X0, u0 = pa0, F0=ca.DM([]))
     opt.addCost(lambda x: ca.norm_2(x-Xdes)**2)
+    # opt.addCost(lambda u: 1e-3 * ca.norm_2(u-u_last)**2) # CANNOT ADD THIS COST
+    # opt.addCost(lambda ml: 1e-3 * ml**2) # CANNOT ADD THIS COST
 
     def tmpf(x,u):
-        normDirs = [-ca.vertcat(ca.cos(x[2]), ca.sin(x[2])),
-                    ca.vertcat(-ca.sin(x[2]), ca.cos(x[2])),
-                    ca.vertcat(ca.sin(x[2]), -ca.cos(x[2])),
-                    ]
+        normDirs = [ca.vertcat(ca.cos(x[2]+normAng[0]), ca.sin(x[2]+normAng[0])),
+                    ca.vertcat(ca.cos(x[2]+normAng[1]), ca.sin(x[2]+normAng[1])),
+                    ca.vertcat(ca.cos(x[2]+normAng[2]), ca.sin(x[2]+normAng[2]))]
         return ca.vertcat(*[
             ca.dot(a - c.T, n)
             for a,c,n in zip(ca.vertsplit(u,2), ca.vertsplit(pfuncs(x,pc),1), normDirs)
@@ -89,9 +104,14 @@ for i in range(STEPS):
     opt.addConstraint(lambda dx: ca.norm_2(dx)**2, 
         ca.DM([-ca.inf]), ca.DM([0.3**2]))
     
-    # opt.addCost(lambda u: 1e-3 * ca.norm_2(u-u_last)**2) # CANNOT ADD THIS COST
-    # opt.addCost(lambda ml: 1e-3 * ml**2) # CANNOT ADD THIS COST
-    u_last = opt._state['u']
+    for obs_x, obs_y, obs_r in cinlinderObstacles:
+        for i in range(NC):
+            opt.addConstraint(lambda x,u: lineCons(
+                pfuncs(x,pc)[i,:].T, u[2*i:2*i+2], 5, lambda p: obs_r**2 - ca.norm_2(p-ca.DM([obs_x, obs_y]))**2
+            ), ca.DM([-ca.inf]*5), ca.DM([0]*5))
+        
+
+    # u_last = opt._state['u']
     # if(i==40 and "ml" in opt._state.keys()):
         # opt.addConstraint(lambda ml: ml, ca.DM([1e-2]), ca.DM([1e-2])) # have solution
         # opt.addConstraint(lambda ml: ml, ca.DM([1e-2]), ca.DM([10])) # do not have solution
@@ -106,6 +126,7 @@ if __name__ == "__main__":
     pc = ca.DM([-1,0, 0,1, 0,-1])
     Q = np.diag([1,1,1])
     r = ca.DM([1,1,1])
+    normAng = ca.DM([ca.pi,ca.pi/2,-ca.pi/2])
 
     opt.setHyperParamValue({
         "X0" :X0,
@@ -113,7 +134,8 @@ if __name__ == "__main__":
         "pa0" :pa0,
         "pc" :pc,
         "Q" :Q,
-        "r" :r
+        "r" :r,
+        "normAng": normAng
     })
 
     res = opt.solve(options=
@@ -148,5 +170,7 @@ if __name__ == "__main__":
             "pa0" :pa0,
             "pc" :pc,
             "Q" :Q,
-            "r" :r
+            "r" :r,
+            "normAng": normAng,
+            "obstacles":cinlinderObstacles
         }, f)

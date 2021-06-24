@@ -22,6 +22,7 @@ with open(solFile, "rb") as f:
     sol = solraw["sol"]
     nc = solraw["nc"]
     r = solraw["r"]
+    obs_list = solraw['obstacles']
     pc = solraw["pc"]
     # sol_ddq = sol["ddq_plot"].full().T
     sol_x= sol['Xgen']['x_plot'].full().T
@@ -61,7 +62,14 @@ def animate(i):
         ax.plot([pcs[i,0], usol[2*i]],[pcs[i,1], usol[2*i+1]], label="rope%d"%i, lw=(1+ml/(ml+1e-2)))
         for i,ml in enumerate(mlsol)
     ]
+
+    for obs_x, obs_y, obs_r in obs_list:
+        ax.plot(obs_x+np.array([np.cos(2*ca.pi*i/19) for i in range(20)]),
+                obs_y+np.array([np.sin(2*ca.pi*i/19) for i in range(20)]))
     ax.legend()
+
+    # Obstacles
+
 
     ax.set_xlim(-8,8)
     ax.set_ylim(-8,8)
