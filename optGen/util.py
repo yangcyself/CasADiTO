@@ -115,3 +115,7 @@ def dict_ca2np(dic):
         k: v.full() if isinstance(v, ca.DM) else dict_ca2np(v) if isinstance(v,dict) else v
         for k,v in dic.items()
     }
+
+
+def list2ca(a):
+    return ca.vertcat(*[ca.horzcat(*[c for c in r]) for r in a])
