@@ -68,6 +68,14 @@ class HeavyRopeLoad(optGen):
         return ca.Function("dyn", [self.x, self.dx], [self.x_w], 
                                 ["x", "dx"], ["newx"])
 
+    @property
+    def pcfunc(self):
+        """Note! this is different from `pFuncs` as it do not perform substitute
+        """
+        p = ca.horzcat(*[ (self.T_WB(self.x)@ca.vertcat(pc, 1))[:2] 
+                for pc in self.pc]).T
+        return ca.Function("pcFunc", [self.x, self.pc_input], [p])
+
 
     def T_WB(self, x):
         """The transition matrix from body frame to world frame
@@ -124,7 +132,7 @@ class HeavyRopeLoad(optGen):
                 for pc in self.pc]).T
         # ["pc"][3] returns the value of the symbol
         p = ca.substitute([p], [self.pc_input], [self._hyperParams["pc"][3]] )[0]
-        return ca.Function("pcFunc", [self.x], [p])
+        return ca.Function("pFuncs", [self.x], [p])
 
 if __name__ == "__main__":
     import numpy as np

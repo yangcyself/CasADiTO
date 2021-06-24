@@ -11,6 +11,7 @@ import pickle as pkl
 NC = 3
 xDim = 3
 xLim = ca.DM([[-ca.inf, ca.inf]]*xDim) 
+STEPS = 50
 model = HeavyRopeLoad(nc = NC)
 
 class uGenXYmove(uGenDefault):
@@ -51,28 +52,23 @@ opt =  KKT_TO(
 )
 
 
-X0 = ca.DM([0,0,0])
-Xdes = ca.DM([2,0,3.14])
-pa0 = ca.DM([-1,0,  0,1,  0,-1])
-pc_input = ca.DM([-1,0, 0,1, 0,-1])
-Q = np.diag([1,1,1])
-r = ca.DM([1,1,1])
-STEPS = 50
+X0 = opt.newhyperParam("X0", (xDim,))
+Xdes = opt.newhyperParam("Xdes", (xDim,))
+pa0 = opt.newhyperParam("pa0", (2*NC,))
+pc = opt.newhyperParam("pc", (2*NC,))
+Q = opt.newhyperParam("Q", (3,3))
+r = opt.newhyperParam("r", (NC,))
 
-model.setHyperParamValue({
-    "r": r,
-    "pc": pc_input,
-})
 
 opt.begin(x0=X0, u0=pa0, F0=ca.DM([]))
 opt.addConstraint(lambda u: u-pa0, ca.DM.zeros(pa0.size()), ca.DM.zeros(pa0.size()))
 u_last = pa0
 
-pfuncs = model.pFuncs
+pfuncs = model.pcfunc
 for i in range(STEPS):
     opt.step(model.integralFunc, 
     Func0 = lambda dx: model.Jfunc(dx, Q), 
-    Func1 = lambda x,dx,u: model.gfunc(x,dx,pc_input,u, r), 
+    Func1 = lambda x,dx,u: model.gfunc(x,dx,pc,u, r), 
     Func2 = None, 
     x0 = X0, u0 = pa0, F0=ca.DM([]))
     opt.addCost(lambda x: ca.norm_2(x-Xdes)**2)
@@ -84,7 +80,7 @@ for i in range(STEPS):
                     ]
         return ca.vertcat(*[
             ca.dot(a - c.T, n)
-            for a,c,n in zip(ca.vertsplit(u,2), ca.vertsplit(pfuncs(x),1), normDirs)
+            for a,c,n in zip(ca.vertsplit(u,2), ca.vertsplit(pfuncs(x,pc),1), normDirs)
         ])
     # constraint for rope not collide with box
     opt.addConstraint(tmpf, 
@@ -103,6 +99,22 @@ for i in range(STEPS):
 opt.addConstraint(lambda x: ca.norm_2((x-Xdes)[:3])**2, ca.DM([-ca.inf]), ca.DM([0]))
 
 if __name__ == "__main__":
+
+    X0 = ca.DM([0,0,0])
+    Xdes = ca.DM([2,0,3.14])
+    pa0 = ca.DM([-1,0,  0,1,  0,-1])
+    pc = ca.DM([-1,0, 0,1, 0,-1])
+    Q = np.diag([1,1,1])
+    r = ca.DM([1,1,1])
+
+    opt.setHyperParamValue({
+        "X0" :X0,
+        "Xdes" :Xdes,
+        "pa0" :pa0,
+        "pc" :pc,
+        "Q" :Q,
+        "r" :r
+    })
 
     res = opt.solve(options=
         {"calc_f" : True,
@@ -131,6 +143,10 @@ if __name__ == "__main__":
         pkl.dump({
             "sol":res,
             "nc": NC,
-            "pc": pc_input,
-            "r": r
+            "X0" :X0,
+            "Xdes" :Xdes,
+            "pa0" :pa0,
+            "pc" :pc,
+            "Q" :Q,
+            "r" :r
         }, f)

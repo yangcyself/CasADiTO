@@ -210,9 +210,9 @@ class KKT_TO(Collocation):
         self._state["dx"] = dxk
 
         # constraints on step K
-        f0 = kwargFunc(Func0)(**self._state)
-        f1 = kwargFunc(Func1)(**self._state) if Func1 is not None else ca.DM([0])
-        f2 = kwargFunc(Func2)(**self._state) if Func2 is not None else ca.DM([0])
+        f0 = self.tryCallWithHyperParam(kwargFunc(Func0), self._state)
+        f1 = self.tryCallWithHyperParam(kwargFunc(Func1), self._state) if Func1 is not None else ca.DM([0])
+        f2 = self.tryCallWithHyperParam(kwargFunc(Func2), self._state) if Func2 is not None else ca.DM([0])
 
         # Add primal conditions
         self._g.append(f1)

@@ -208,7 +208,7 @@ class optGen:
         try:
             res = func(**kwargs)
         except TypeError as e:
-            if("operand type(s)" not in str(e)):
+            if("operand type(s)" not in str(e) and "Wrong number or type of arguments" not in str(e)):
                 raise e
             res = MXinSXop(func, kwargs, 
                 list(zip(self.hyperParamList("name"),
