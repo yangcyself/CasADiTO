@@ -168,6 +168,7 @@ class optGen:
         if(isinstance(hp, str)):
             assert(hp not in self._hyperParams.keys())
             shape = (1,1) if shape is None else shape
+            if(len(shape)==1): shape += (1,)
             self._hyperParams[hp] = (shape, ca.SX.sym(hp, *shape), ca.MX.sym("%s_mx"%hp, *shape), None)
             ret = self._hyperParams[hp][1]
         elif(isinstance(hp, ca.SX)):
@@ -357,6 +358,10 @@ class optGen:
                 with open(os.path.join(cppname, "interface.h"), "w") as f:
                     for h in hfiles:
                         f.write('#include "%s"\n'%h)
+                    f.write('struct hyperParameters\n{\n')
+                    for k,v in self._hyperParams.items():
+                        f.write('\ttypedef double %s[%d];\n'%(k,v[0][0]*v[0][1]))
+                    f.write("};\n")
                 if(cmakeOpt is not None):
                     cmakeOption = {"projName": "casaditoGen",
                                 "cxxflag": '"-O1"',
