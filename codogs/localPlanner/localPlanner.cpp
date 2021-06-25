@@ -36,9 +36,10 @@ public:
                 std::make_pair("cylinderObstacles", cylinderObstacles)
                 })) {
         std::printf("***IPOPT APP SUCCEFFULLY LOADED***\n");
-        _app->Options()->SetNumericValue("tol", 1e-7);
+        // _app->Options()->SetNumericValue("tol", 1e-7);
+        _app->Options()->SetNumericValue("mumps_dep_tol", 0); // following ipopt documentation
         _app->Options()->SetStringValue("mu_strategy", "monotone"); // from casadi document, IMPORTANT! related to coredump
-        _app->Options()->SetIntegerValue ("print_level", 0); // from casadi document, IMPORTANT! related to coredump
+        // _app->Options()->SetIntegerValue ("print_level", 0);
     }
     SmartPtr<IpoptApplication> app(){return _app;}
     SmartPtr<TNLP> mynlp(){return _mynlp;}
@@ -48,23 +49,29 @@ private:
 };
 
 
-int localPlanner(const double r[3], const double pc[6], const double Q[9], 
-            const double X0[3], const double Xdes[3], const double pa0[6], 
-            const double normAng[3], const double cylinderObstacles[6], 
-            double x_out[90], double u_out[180])
+int localPlanner(	
+        hyperParameters::X0 X0,
+	    hyperParameters::Xdes Xdes,
+        hyperParameters::pa0 pa0,
+        hyperParameters::pc pc,
+        hyperParameters::Q Q,
+        hyperParameters::r r,
+        hyperParameters::normAng normAng,
+        hyperParameters::cylinderObstacles cylinderObstacles, 
+        double x_out[45], double u_out[90])
 {
     static localPlanApp a;
     const auto app = a.app();
     ApplicationReturnStatus status;
     
-    std::memcpy(a.X0, X0,   3 * sizeof(double));
-    std::memcpy(a.Xdes, Xdes,   3 * sizeof(double));
-    std::memcpy(a.pa0, pa0,   6 * sizeof(double));
-    std::memcpy(a.pc, pc,   6 * sizeof(double));
-    std::memcpy(a.Q, Q,   9 * sizeof(double));
-    std::memcpy(a.r, r,   3 * sizeof(double));
-    std::memcpy(a.normAng, normAng,   3 * sizeof(double));
-    std::memcpy(a.cylinderObstacles, cylinderObstacles,   6 * sizeof(double));
+    std::memcpy(a.X0, X0,   sizeof(hyperParameters::X0));
+    std::memcpy(a.Xdes, Xdes,   sizeof(hyperParameters::Xdes));
+    std::memcpy(a.pa0, pa0,   sizeof(hyperParameters::pa0));
+    std::memcpy(a.pc, pc,   sizeof(hyperParameters::pc));
+    std::memcpy(a.Q, Q,   sizeof(hyperParameters::Q));
+    std::memcpy(a.r, r,   sizeof(hyperParameters::r));
+    std::memcpy(a.normAng, normAng,   sizeof(hyperParameters::normAng));
+    std::memcpy(a.cylinderObstacles, cylinderObstacles,   sizeof(hyperParameters::cylinderObstacles));
     
     status = app->Initialize();
     if( status != Solve_Succeeded )

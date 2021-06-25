@@ -12,19 +12,19 @@ int main(
    // Eigen::MatrixXd newx;
 
    double X0[] = {0,0,0};
-   double Xdes[] = {2,0,3.14};
+   double Xdes[] = {2,0,0};
    double pa0[] = {-1,0,  0,1,  0,-1};
    double pc[] = {-1,0, 0,1, 0,-1};
    double Q[] = {1,0,0, 0,1,0, 0,0,0.1};
    double r[] = {1,1,1};
    double normAng[] = {pi,pi/2,-pi/2};
-   double cylinderObstacles[] = {4.5, 0, 1, 0,0,0};
+   double cylinderObstacles[] = {0, 0, 0, 0,0,0};
 
 
    double x_out[90];
    double p_out[180];
 
-   localPlanner(r, pc, Q, X0, Xdes, pa0, normAng, cylinderObstacles, 
+   localPlanner(X0, Xdes, pa0, pc, Q, r, normAng, cylinderObstacles, 
             x_out, p_out);
 
    int status = 1;
