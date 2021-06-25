@@ -62,10 +62,9 @@ def animate(i):
         ax.plot([pcs[i,0], usol[2*i]],[pcs[i,1], usol[2*i+1]], label="rope%d"%i, lw=(1+ml/(ml+1e-2)))
         for i,ml in enumerate(mlsol)
     ]
-
-    for obs_x, obs_y, obs_r in obs_list:
-        ax.plot(obs_x+np.array([np.cos(2*ca.pi*i/19) for i in range(20)]),
-                obs_y+np.array([np.sin(2*ca.pi*i/19) for i in range(20)]))
+    for obs_x, obs_y, obs_r in np.hsplit(np.array(obs_list), len(obs_list)//3):
+        ax.plot(obs_x+obs_r*np.array([np.cos(2*ca.pi*i/19) for i in range(20)]),
+                obs_y+obs_r*np.array([np.sin(2*ca.pi*i/19) for i in range(20)]))
     ax.legend()
 
     # Obstacles

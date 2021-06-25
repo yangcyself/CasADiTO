@@ -9,6 +9,9 @@ from optGen.trajOptimizer import *
 import pickle as pkl
 
 NC = 3
+Nobstacle_cylinder = 2
+Nlinedivid = 3
+
 xDim = 3
 xLim = ca.DM([[-ca.inf, ca.inf]]*xDim) 
 STEPS = 30
@@ -69,9 +72,8 @@ pc = opt.newhyperParam("pc", (2*NC,))
 Q = opt.newhyperParam("Q", (3,3))
 r = opt.newhyperParam("r", (NC,))
 normAng = opt.newhyperParam("normAng", (NC,))
-cinlinderObstacles = [ # the x,y,r of obstacles
-    (4.5, 0, 1)
-]
+# each obstacle is represented by x,y,r
+cylinderObstacles = opt.newhyperParam("cylinderObstacles", (Nobstacle_cylinder * 3, ))
 
 
 opt.begin(x0=X0, u0=pa0, F0=ca.DM([]))
@@ -104,11 +106,11 @@ for i in range(STEPS):
     opt.addConstraint(lambda dx: ca.norm_2(dx)**2, 
         ca.DM([-ca.inf]), ca.DM([0.3**2]))
     
-    for obs_x, obs_y, obs_r in cinlinderObstacles:
+    for obs in ca.vertsplit(cylinderObstacles,3):
         for i in range(NC):
             opt.addConstraint(lambda x,u: lineCons(
-                pfuncs(x,pc)[i,:].T, u[2*i:2*i+2], 5, lambda p: obs_r**2 - ca.norm_2(p-ca.DM([obs_x, obs_y]))**2
-            ), ca.DM([-ca.inf]*5), ca.DM([0]*5))
+                pfuncs(x,pc)[i,:].T, u[2*i:2*i+2], Nlinedivid, lambda p: obs[2]**2 - ca.norm_2(p-obs[:2])**2
+            ), ca.DM([-ca.inf]*Nlinedivid), ca.DM([0]*Nlinedivid))
         
 
     # u_last = opt._state['u']
@@ -120,6 +122,13 @@ opt.addConstraint(lambda x: ca.norm_2((x-Xdes)[:3])**2, ca.DM([-ca.inf]), ca.DM(
 
 if __name__ == "__main__":
 
+    opt.cppGen("codogs/localPlanner/generated", expand=True, parseFuncs=[
+        ("x_plot", lambda sol: sol["Xgen"]["x_plot"]),
+        ("u_plot", lambda sol: sol["Ugen"]["u_plot"])],
+        cmakeOpt={'libName': 'localPlan', 'cxxflag':'"-O3 -fPIC"'})
+    exit()
+
+
     X0 = ca.DM([0,0,0])
     Xdes = ca.DM([2,0,3.14])
     pa0 = ca.DM([-1,0,  0,1,  0,-1])
@@ -127,6 +136,10 @@ if __name__ == "__main__":
     Q = np.diag([1,1,1])
     r = ca.DM([1,1,1])
     normAng = ca.DM([ca.pi,ca.pi/2,-ca.pi/2])
+    cylinderObstacles = [ # the x,y,r of obstacles
+        4.5, 0, 1,
+        0,0,0
+    ]
 
     opt.setHyperParamValue({
         "X0" :X0,
@@ -135,7 +148,8 @@ if __name__ == "__main__":
         "pc" :pc,
         "Q" :Q,
         "r" :r,
-        "normAng": normAng
+        "normAng": normAng,
+        "cylinderObstacles":cylinderObstacles
     })
 
     res = opt.solve(options=
@@ -172,5 +186,5 @@ if __name__ == "__main__":
             "Q" :Q,
             "r" :r,
             "normAng": normAng,
-            "obstacles":cinlinderObstacles
+            "obstacles":cylinderObstacles
         }, f)

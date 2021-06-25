@@ -6,7 +6,7 @@ SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -fPIC") # must set the release flag, or it will
 link_directories(/usr/local/lib)
 find_package(Eigen3 REQUIRED HINTS ${Eigen3_HINT})
 
-add_subdirectory(generated)    # nlpFltJmp
+add_subdirectory(generated)    # hrl
 
 add_library(hrlDyn SHARED hrlDyn.cpp tonlp.cpp )
 target_link_libraries(hrlDyn ipopt)
