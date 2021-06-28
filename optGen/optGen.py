@@ -365,14 +365,15 @@ class optGen:
                 if(cmakeOpt is not None):
                     cmakeOption = {"projName": "casaditoGen",
                                 "cxxflag": '"-O1"',
-                                "libName": "nlpgen"}
+                                "libName": "nlpgen",
+                                "buildType":"RELEASE"}
                     cmakeOption.update(cmakeOpt)
                     with open(os.path.join(cppname, "CMakeLists.txt"), "w") as f:
                         f.write(
                         'project({projName})\n'\
                         'cmake_minimum_required(VERSION 3.7)\n'\
-                        'set(CMAKE_BUILD_TYPE Release)\n'\
-                        'SET(CMAKE_CXX_FLAGS_RELEASE {cxxflag})\n'\
+                        'set(CMAKE_BUILD_TYPE {buildType})\n'\
+                        'SET(CMAKE_CXX_FLAGS_{buildType} {cxxflag})\n'\
                         'link_directories(/usr/local/lib)\n'\
                         'file(GLOB NlpGenFiles "*.cpp")\n'\
                         'add_library({libName} ${{NlpGenFiles}})\n'\

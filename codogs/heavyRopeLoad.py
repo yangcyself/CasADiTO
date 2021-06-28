@@ -2,6 +2,7 @@ import sys
 sys.path.append(".")
 
 import casadi as ca
+from mathUtil import normQuad
 from optGen.optGen import optGen
 
 class HeavyRopeLoad(optGen):
@@ -41,7 +42,7 @@ class HeavyRopeLoad(optGen):
         self._lbw = [ca.DM([-0.1,-0.1,-0.1])]
         self._ubw = [ca.DM([0.1,0.1,0.1])]
         self._J = self.dx.T @ self.Q @ self.dx
-        self._g = [ca.vertcat(*[self._lenCons(self.x, self.dx, pa ,pc)**2 -self.r[i]**2
+        self._g = [ca.vertcat(*[self._lenCons(self.x, self.dx, pa ,pc) -self.r[i]**2
                 for i,(pc,pa) in enumerate(zip(self.pc, self.pa))])]
         self._lbg = [ca.DM([-ca.inf]*self.nc)]
         self._ubg = [ca.DM([0]*self.nc)]
@@ -87,7 +88,7 @@ class HeavyRopeLoad(optGen):
                           ca.horzcat(0,  0, 1))
 
     def _lenCons(self, x, dx, pa, pc):
-        """Return the length from pa to pc in new body state
+        """Return the squared length from pa to pc in new body state
 
         Args:
             dx (x,y,r): the new body state in the body frame
@@ -96,7 +97,7 @@ class HeavyRopeLoad(optGen):
         """
         pa_B = (ca.inv(self.T_WB(x))@ca.vertcat(pa, 1))[:2]
         pc_B = (self.T_WB(dx)@ca.vertcat(pc, 1))[:2]
-        return ca.norm_2(pa_B - pc_B)
+        return normQuad(pa_B - pc_B)
 
     def dynam(self, x, pa):
         """Return the new state x given current state x and pa

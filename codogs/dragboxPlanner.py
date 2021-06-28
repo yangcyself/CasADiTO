@@ -6,6 +6,7 @@ sys.path.append(".")
 
 from codogs.heavyRopeLoad import HeavyRopeLoad
 from optGen.trajOptimizer import *
+from mathUtil import normQuad
 import pickle as pkl
 
 NC = 3
@@ -14,7 +15,7 @@ Nlinedivid = 3
 
 xDim = 3
 xLim = ca.DM([[-ca.inf, ca.inf]]*xDim) 
-STEPS = 30
+STEPS = 15
 model = HeavyRopeLoad(nc = NC)
 
 class uGenXYmove(uGenDefault):
@@ -37,7 +38,8 @@ class uGenXYmove(uGenDefault):
         Uk = super().step(step, u0, **kwargs)
         Uk_ = self._state["u"]
         if(Uk_ is not None):
-            g = ca.vertcat(*[ca.norm_2(d)**2 for d in ca.vertsplit(Uk_ - Uk)])
+            # g = ca.vertcat(*[ca.norm_2(d)**2 for d in ca.vertsplit(Uk_ - Uk,2)]) # this will have nan
+            g = ca.vertcat(*[ca.dot(d,d) for d in ca.vertsplit(Uk_ - Uk,2)]) # this will not have nan
             self._g.append(g)
             self._lbg.append([0]*g.size(1)) #size(1): the dim of axis0
             self._ubg.append([self.eps**2]*g.size(1)) #size(1): the dim of axis0
@@ -87,8 +89,8 @@ for i in range(STEPS):
     Func1 = lambda x,dx,u: model.gfunc(x,dx,pc,u, r), 
     Func2 = None, 
     x0 = X0, u0 = pa0, F0=ca.DM([]))
-    opt.addCost(lambda x: ca.norm_2(x-Xdes)**2)
-    # opt.addCost(lambda u: 1e-3 * ca.norm_2(u-u_last)**2) # CANNOT ADD THIS COST
+    opt.addCost(lambda x: normQuad(x-Xdes))
+    # opt.addCost(lambda u: 1e-3 * normQuad(u-u_last)) # CANNOT ADD THIS COST
     # opt.addCost(lambda ml: 1e-3 * ml**2) # CANNOT ADD THIS COST
 
     def tmpf(x,u):
@@ -103,13 +105,13 @@ for i in range(STEPS):
     opt.addConstraint(tmpf, 
         ca.DM([0]*NC), ca.DM([ca.inf]*NC))
 
-    opt.addConstraint(lambda dx: ca.norm_2(dx)**2, 
+    opt.addConstraint(lambda dx: normQuad(dx), 
         ca.DM([-ca.inf]), ca.DM([0.3**2]))
     
     for obs in ca.vertsplit(cylinderObstacles,3):
         for i in range(NC):
             opt.addConstraint(lambda x,u: lineCons(
-                pfuncs(x,pc)[i,:].T, u[2*i:2*i+2], Nlinedivid, lambda p: obs[2]**2 - ca.norm_2(p-obs[:2])**2
+                pfuncs(x,pc)[i,:].T, u[2*i:2*i+2], Nlinedivid, lambda p: obs[2]**2 - normQuad(p-obs[:2])
             ), ca.DM([-ca.inf]*Nlinedivid), ca.DM([0]*Nlinedivid))
         
 
@@ -118,19 +120,19 @@ for i in range(STEPS):
         # opt.addConstraint(lambda ml: ml, ca.DM([1e-2]), ca.DM([1e-2])) # have solution
         # opt.addConstraint(lambda ml: ml, ca.DM([1e-2]), ca.DM([10])) # do not have solution
 
-opt.addConstraint(lambda x: ca.norm_2((x-Xdes)[:3])**2, ca.DM([-ca.inf]), ca.DM([0]))
+opt.addConstraint(lambda x: normQuad((x-Xdes)[:3]), ca.DM([-ca.inf]), ca.DM([0]))
 
 if __name__ == "__main__":
 
     opt.cppGen("codogs/localPlanner/generated", expand=True, parseFuncs=[
         ("x_plot", lambda sol: sol["Xgen"]["x_plot"]),
         ("u_plot", lambda sol: sol["Ugen"]["u_plot"])],
-        cmakeOpt={'libName': 'localPlan', 'cxxflag':'"-O3 -fPIC"'})
-    exit()
+        cmakeOpt={'libName': 'localPlan', 'cxxflag':'"-O0 -fPIC"'})
 
+    # exit()
 
     X0 = ca.DM([0,0,0])
-    Xdes = ca.DM([2,0,3.14])
+    Xdes = ca.DM([1,0,0.1])
     pa0 = ca.DM([-1,0,  0,1,  0,-1])
     pc = ca.DM([-1,0, 0,1, 0,-1])
     Q = np.diag([1,1,1])
@@ -162,6 +164,7 @@ if __name__ == "__main__":
             # "jac_g": gjacFunc
         "ipopt":{
             "max_iter" : 10000, # unkown option
+            "check_derivatives_for_naninf": "yes"
             }
         })
     

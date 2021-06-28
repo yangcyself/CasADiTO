@@ -39,6 +39,7 @@ public:
         // _app->Options()->SetNumericValue("tol", 1e-7);
         _app->Options()->SetNumericValue("mumps_dep_tol", 0); // following ipopt documentation
         _app->Options()->SetStringValue("mu_strategy", "monotone"); // from casadi document, IMPORTANT! related to coredump
+        _app->Options()->SetStringValue("check_derivatives_for_naninf", "yes"); // from casadi document, IMPORTANT! related to coredump
         // _app->Options()->SetIntegerValue ("print_level", 0);
     }
     SmartPtr<IpoptApplication> app(){return _app;}

@@ -1,5 +1,11 @@
 import casadi as ca
 
+def normQuad(d):
+    """
+    Use this to replace `ca.norm_2(d)**2`, The later one still generates nan
+    """
+    return ca.dot(d,d)
+
 def solveLinearCons(consFunc, targets, eps = 1e-6):
     """Find the most proximate value meeting a constraint
         min_x sum alpha_i(x_i-x_refi)^2
@@ -44,22 +50,22 @@ def solveCons(consFunc, targets, eps = 1e-6):
         targets ([tuples]): (name, value, factor)
         eps (float): the epsilon value for the other variables
     """
-    X_dict = {n: SX.sym(n,consFunc.size_in(n)) for n in consFunc.name_in()}
-    X_vec = veccat(*list(X_dict.values()))
+    X_dict = {n: ca.SX.sym(n,consFunc.size_in(n)) for n in consFunc.name_in()}
+    X_vec = ca.veccat(*list(X_dict.values()))
     f = 0
     for tn, tv, tf in targets:
-        f += tf * dot(X_dict[tn] - tv, X_dict[tn] - tv)
+        f += tf * ca.dot(X_dict[tn] - tv, X_dict[tn] - tv)
 
     for x in X_dict.values():
-        f += eps * dot(x,x)
+        f += eps * ca.dot(x,x)
     # print(X_dict)
     g = consFunc(**X_dict)[consFunc.name_out()[0]]
 
-    solParse = Function("parse", [X_vec], list(X_dict.values()), ["sol"], list(X_dict.keys()))
+    solParse = ca.Function("parse", [X_vec], list(X_dict.values()), ["sol"], list(X_dict.keys()))
 
     qp = {'x':X_vec, 'f':f, 'g':g}
 
-    solver = nlpsol('solver', 'ipopt', qp, {"verbose" : False ,"print_time": False,"verbose_init":False,
+    solver = ca.nlpsol('solver', 'ipopt', qp, {"verbose" : False ,"print_time": False,"verbose_init":False,
         "ipopt":{
             "print_level": 0
             # "verbose":False,
@@ -70,7 +76,7 @@ def solveCons(consFunc, targets, eps = 1e-6):
     }
             )# , {'sparse':True})
     # Get the optimal solution
-    sol = solver(lbx=[-np.inf] * X_vec.size(1), ubx=[np.inf] * X_vec.size(1), 
+    sol = solver(lbx=[-ca.inf] * X_vec.size(1), ubx=[ca.inf] * X_vec.size(1), 
                  lbg=[0] * g.size(1), ubg=[0] * g.size(1))
     
     return solParse(sol = sol["x"])
