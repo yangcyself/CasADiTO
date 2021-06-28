@@ -356,12 +356,19 @@ class optGen:
                 hfiles.append("%s.h"%f.name())
             def outputFile():
                 with open(os.path.join(cppname, "interface.h"), "w") as f:
+                    f.write('#include <Eigen/Core>\n')
                     for h in hfiles:
                         f.write('#include "%s"\n'%h)
                     f.write('struct hyperParameters\n{\n')
                     for k,v in self._hyperParams.items():
                         f.write('\ttypedef double %s[%d];\n'%(k,v[0][0]*v[0][1]))
+                    f.write("};\nstruct parseOutput\n{\n")
+                    for n,pars in parseFuncs:
+                        solDict = self.parseSol({"x": self.w})
+                        target = pars(solDict)
+                        f.write('\ttypedef Eigen::Matrix<double, %d, %d> %s;\n'%(target.size(1), target.size(2), n))
                     f.write("};\n")
+                    
                 if(cmakeOpt is not None):
                     cmakeOption = {"projName": "casaditoGen",
                                 "cxxflag": '"-O1"',

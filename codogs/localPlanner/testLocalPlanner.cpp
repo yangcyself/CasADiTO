@@ -12,7 +12,7 @@ int main(
    // Eigen::MatrixXd newx;
 
    double X0[] = {0,0,0};
-   double Xdes[] = {2,0,0};
+   double Xdes[] = {1,0,0.1};
    double pa0[] = {-1,0,  0,1,  0,-1};
    double pc[] = {-1,0, 0,1, 0,-1};
    double Q[] = {1,0,0, 0,1,0, 0,0,0.1};
@@ -21,8 +21,8 @@ int main(
    double cylinderObstacles[] = {0, 0, 0, 0,0,0};
 
 
-   double x_out[90];
-   double p_out[180];
+   parseOutput::x_plot x_out;
+   parseOutput::u_plot p_out;
 
    localPlanner(X0, Xdes, pa0, pc, Q, r, normAng, cylinderObstacles, 
             x_out, p_out);
@@ -36,6 +36,7 @@ int main(
    //  std::memcpy(xold, newx,   3 * sizeof(double));
 
    // }
+   std::cout<<x_out<<std::endl;
    return (int) status;
 }
 // [MAIN]

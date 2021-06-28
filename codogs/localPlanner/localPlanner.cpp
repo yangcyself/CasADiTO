@@ -40,7 +40,8 @@ public:
         _app->Options()->SetNumericValue("mumps_dep_tol", 0); // following ipopt documentation
         _app->Options()->SetStringValue("mu_strategy", "monotone"); // from casadi document, IMPORTANT! related to coredump
         _app->Options()->SetStringValue("check_derivatives_for_naninf", "yes"); // from casadi document, IMPORTANT! related to coredump
-        // _app->Options()->SetIntegerValue ("print_level", 0);
+        _app->Options()->SetIntegerValue ("max_iter", 5000);
+        _app->Options()->SetIntegerValue ("print_level", 3);
     }
     SmartPtr<IpoptApplication> app(){return _app;}
     SmartPtr<TNLP> mynlp(){return _mynlp;}
@@ -59,7 +60,9 @@ int localPlanner(
         hyperParameters::r r,
         hyperParameters::normAng normAng,
         hyperParameters::cylinderObstacles cylinderObstacles, 
-        double x_out[45], double u_out[90])
+        parseOutput::x_plot& x_out, 
+        parseOutput::u_plot& p_out
+)
 {
     static localPlanApp a;
     const auto app = a.app();
@@ -94,7 +97,8 @@ int localPlanner(
     }
 
 
-    std::cout<<"x_out"<<a.x_out<<std::endl;
+    x_out = a.x_out;
+    p_out = a.p_out;
 
     return (int) status;
 }

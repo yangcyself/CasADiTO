@@ -39,10 +39,16 @@ class uGenXYmove(uGenDefault):
         Uk_ = self._state["u"]
         if(Uk_ is not None):
             # g = ca.vertcat(*[ca.norm_2(d)**2 for d in ca.vertsplit(Uk_ - Uk,2)]) # this will have nan
-            g = ca.vertcat(*[ca.dot(d,d) for d in ca.vertsplit(Uk_ - Uk,2)]) # this will not have nan
+            ## Euclidean cons
+            # g = ca.vertcat(*[ca.dot(d,d) for d in ca.vertsplit(Uk_ - Uk,2)]) # this will not have nan
+            # self._g.append(g)
+            # self._lbg.append([0]*g.size(1)) #size(1): the dim of axis0
+            # self._ubg.append([self.eps**2]*g.size(1)) #size(1): the dim of axis0
+            ## Dij cons
+            g = Uk_ - Uk
             self._g.append(g)
-            self._lbg.append([0]*g.size(1)) #size(1): the dim of axis0
-            self._ubg.append([self.eps**2]*g.size(1)) #size(1): the dim of axis0
+            self._lbg.append([-self.eps]*g.size(1)) #size(1): the dim of axis0
+            self._ubg.append([self.eps]*g.size(1)) #size(1): the dim of axis0
         self._state.update({
             "u": Uk,
         })
@@ -61,7 +67,7 @@ def lineCons(a,b,n, f):
 
 opt =  KKT_TO(
     Xgen = xGenDefault(xDim, xLim),
-    Ugen = uGenXYmove(nc = NC, eps = 0.2),
+    Ugen = uGenXYmove(nc = NC, eps = 0.1),
     Fgen = FGenDefault(0, np.array([])),
     dTgen= dTGenDefault(0) # there is no notion of dT in this problem
 )
@@ -125,9 +131,9 @@ opt.addConstraint(lambda x: normQuad((x-Xdes)[:3]), ca.DM([-ca.inf]), ca.DM([0])
 if __name__ == "__main__":
 
     opt.cppGen("codogs/localPlanner/generated", expand=True, parseFuncs=[
-        ("x_plot", lambda sol: sol["Xgen"]["x_plot"]),
-        ("u_plot", lambda sol: sol["Ugen"]["u_plot"])],
-        cmakeOpt={'libName': 'localPlan', 'cxxflag':'"-O0 -fPIC"'})
+        ("x_plot", lambda sol: sol["Xgen"]["x_plot"].T),
+        ("u_plot", lambda sol: sol["Ugen"]["u_plot"].T)],
+        cmakeOpt={'libName': 'localPlan', 'cxxflag':'"-O3 -fPIC"'})
 
     # exit()
 
