@@ -223,9 +223,8 @@ bool TONLP::eval_f(
     static casadi_int n_arg = nlp_f_n_in();
     casadi_int flag = true;
     _arg[n_arg-1] = x;
-    
+    _res[0] = &obj_value;
     flag = nlp_f(_arg,_res,_iw,_w,0);
-    obj_value = _res[0][0];
     return !flag;
 }
 // [TNLP_eval_f]

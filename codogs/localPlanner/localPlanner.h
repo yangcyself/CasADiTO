@@ -4,7 +4,7 @@
 	
 int localPlanner(	
         hyperParameters::X0 X0,
-	    hyperParameters::Xdes Xdes,
+        hyperParameters::Xdes Xdes,
         hyperParameters::pa0 pa0,
         hyperParameters::pc pc,
         hyperParameters::Q Q,
