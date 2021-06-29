@@ -3,10 +3,10 @@ import time
 
 from optGen.trajOptimizer import *
 from optGen.helpers import pointsTerrian2D
-from optGen.util import caSubsti, caFuncSubsti, substiSX2MX
+from utils.caUtil import caSubsti, caFuncSubsti, substiSX2MX
 
 from model.leggedRobot2D import LeggedRobot2D
-from mathUtil import solveLinearCons
+from utils.mathUtil import solveLinearCons
 import pickle as pkl
 from trajOptimizerHelper import *
 
@@ -100,7 +100,7 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
     #  #(lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1],
     #             #  model.JacFuncs["Jbtoe"](x)@x[7:], model.JacFuncs["Jbtoe"](x)@x[7:]), 
     #             #     [0]*6, [0]*6), # feet land
-    (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
+    (lambda x,u: (x - XDes)[:7], ca.DM([0]*7), ca.DM([0]*7)) # arrive at desire state
 ]
 
 opt = TowrCollocationVTiming(14, 4, 4, xlim, ulim, [[-200, 200]]*4, dT0, [dT0/100, dT0])
@@ -140,12 +140,12 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
                 *[F[1+i*2] - 0 for i in range(2) if cons[i]]
             )
         opt.addConstraint(
-            holoCons, [0]*(2 + sum(cons)*2), [np.inf]*(2+sum(cons)*2)
+            holoCons, ca.DM([0]*(2 + sum(cons)*2)), ca.DM([np.inf]*(2+sum(cons)*2))
         )
 
         # # Avoid the front leg collide with back leg
         # opt.addConstraint(
-        #     lambda x,u: x[5]+x[6], [-np.math.pi*1/2], [np.inf]
+        #     lambda x,u: x[5]+x[6], ca.DM([-np.math.pi*1/2]), ca.DM([np.inf])
         # )
 
     if(FinalC is not None):

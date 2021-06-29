@@ -2,7 +2,7 @@ import sys
 sys.path.append(".")
 
 import casadi as ca
-from mathUtil import normQuad
+from utils.mathUtil import normQuad
 from optGen.optGen import optGen
 
 class HeavyRopeLoad(optGen):

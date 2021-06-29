@@ -4,7 +4,7 @@ from optGen.trajOptimizer import *
 from optGen.helpers import pointsTerrian2D
 # import model, vis
 from model.leggedRobot2D import LeggedRobot2D
-from mathUtil import solveLinearCons
+from utils.mathUtil import solveLinearCons
 import pickle as pkl
 from trajOptimizerHelper import *
 
@@ -12,7 +12,7 @@ from ExperimentSecretary.Core import Session
 import os
 import time
 
-from optGen.util import caSubsti, caFuncSubsti, substiSX2MX
+from utils.caUtil import caSubsti, caFuncSubsti, substiSX2MX
 
 """
 This file use dynamic constraint as dynamics, rather than dynF
@@ -110,7 +110,7 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
     #  #(lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1],
     #             #  model.JacFuncs["Jbtoe"](x)@x[7:], model.JacFuncs["Jbtoe"](x)@x[7:]), 
     #             #     [0]*6, [0]*6), # feet land
-    (lambda x,u: (x - XDes)[:7], [0]*7, [0]*7) # arrive at desire state
+    (lambda x,u: (x - XDes)[:7], ca.DM([0]*7), ca.DM([0]*7)) # arrive at desire state
 ]
 
 
@@ -163,7 +163,7 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
                 *[F[1+i*2] - 0 for i in range(2) if cons[i]]
             )
         opt.addConstraint(
-            holoCons, [0]*(2 + sum(cons)*2), [np.inf]*(2+sum(cons)*2)
+            holoCons, ca.DM([0]*(2 + sum(cons)*2)), ca.DM([ca.inf]*(2+sum(cons)*2))
         )
 
         # opt.addConstraint(
@@ -174,7 +174,7 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
 
         # Avoid the front leg collide with back leg
         opt.addConstraint(
-            lambda x,u: x[5]+x[6], [-np.math.pi*1/2], [np.inf]
+            lambda x,u: x[5]+x[6], ca.DM([-np.math.pi*1/2]), ca.DM([np.inf])
         )
 
     if(FinalC is not None):

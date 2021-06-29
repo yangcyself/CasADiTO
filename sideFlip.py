@@ -3,11 +3,11 @@ import time
 
 from optGen.trajOptimizer import *
 from optGen.helpers import pointsTerrian2D
-from optGen.util import caSubsti, caFuncSubsti, substiSX2MX
+from utils.caUtil import caSubsti, caFuncSubsti, substiSX2MX
 from optGen.solutionLoader import SolLoader
 # from model.leggedRobotX_bak import LeggedRobotX
 from model.leggedRobotX import LeggedRobotX
-from mathUtil import solveLinearCons
+from utils.mathUtil import solveLinearCons
 import pickle as pkl
 
 from ExperimentSecretary.Core import Session
@@ -19,7 +19,7 @@ model = LeggedRobotX.fromYaml("data/robotConfigs/JYminiLitev2.yaml")
 solload = SolLoader("data/nlpSol/sideFlip1621923681.pkl")
 Tcount = 0
 # input dims: [ux4,Fbx2,Ffx2]
-dT0 = 0.0025
+dT0 = 0.01
 initHeight = (model.params["legL2"] + model.params["legL1"])/2 # assume 30 angle of legs
 distance = ca.SX.sym("distance",1)
 fleg_local_l = model.pLocalFuncs['pl2']
@@ -39,7 +39,7 @@ XDes = np.array([distance, initHeight , 2*np.math.pi,
 local_x_0 = fleg_local_l(X0)[0]
 # assert(local_x_0 == fleg_local_r(X0)[0])
 
-SchemeSteps = 200
+SchemeSteps = 50
 height = 0
 
 # XDes = substiSX2MX(XDes, [distance], [distance_mx])
@@ -121,7 +121,7 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
     #  #(lambda x,u: ca.vertcat(model.pFuncs["phbLeg2"](x)[1], model.pFuncs["phfLeg2"](x)[1],
     #             #  model.JacFuncs["Jbtoe"](x)@x[7:], model.JacFuncs["Jbtoe"](x)@x[7:]), 
     #             #     [0]*6, [0]*6), # feet land
-    (lambda x,u: (x - XDes)[1:9], [0]*8, [0]*8) # arrive at desire state
+    (lambda x,u: (x - XDes)[1:9], ca.DM([0]*8), ca.DM([0]*8)) # arrive at desire state
 ]
 
 
@@ -177,11 +177,11 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
             )
         opt.addConstraint(
             # holoCons, [0]*(2 + sum(cons)*2), [np.inf]*(2+sum(cons)*2)
-            holoCons, [0]*sum(cons)*3, [np.inf]*sum(cons)*3
+            holoCons, ca.DM([0]*sum(cons)*3), ca.DM([np.inf]*sum(cons)*3)
         )
 
         opt.addConstraint(
-            lambda x: ca.vertcat(fleg_local_l(x)[0]-local_x_0, fleg_local_r(x)[0]-local_x_0), [0,0], [0,0]
+            lambda x: ca.vertcat(fleg_local_l(x)[0]-local_x_0, fleg_local_r(x)[0]-local_x_0), ca.DM([0,0]), ca.DM([0,0])
         )
 
     if(FinalC is not None):

@@ -1,4 +1,4 @@
-from optGen.util import LazyFunc, kwargFunc, caSubsti, MXinSXop, getName
+from utils.caUtil import LazyFunc, kwargFunc, caSubsti, MXinSXop, getName
 import casadi as ca
 import numpy as np
 import os

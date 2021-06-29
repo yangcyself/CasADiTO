@@ -13,8 +13,8 @@ from optGen.trajOptSRB import *
 from optGen.helpers import pointsTerrian2D
 import time
 import pickle as pkl
-from mathUtil import solveLinearCons
-from optGen.util import dict_ca2np, caSubsti, caFuncSubsti, substiSX2MX
+from utils.mathUtil import solveLinearCons
+from utils.caUtil import dict_ca2np, caSubsti, caFuncSubsti, substiSX2MX
 from ExperimentSecretary.Core import Session
 
 from initializer.polynomInit import PolynomInit
@@ -72,7 +72,7 @@ stateFinalCons = [ # the constraints to enforce at the end of each state
     None, # start 
     None, # start 
     # (lambda x,u: (x - XDes)[:12], [0]*12, [0]*12) # arrive at desire state
-    (lambda x,u: (x - XDes)[1:6], [0]*5, [0]*5) # arrive at desire state
+    (lambda x,u: (x - XDes)[1:6], ca.DM([0]*5), ca.DM([0]*5)) # arrive at desire state
 ]
 
 opt = SRBoptDefault(12, [[-ca.inf, ca.inf]]*12 , 4, dT0, terrain, terrain_norm, 0.4)
@@ -126,7 +126,7 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         # leg to body distance: this constraint improves the solution time
         opt.addConstraint(
             lambda x,u: ca.vertcat(*[ca.dot(u[6*i:6*i+3]-x[:3], u[6*i:6*i+3]-x[:3]) for i,c in enumerate(cons) if c]), 
-                    [0.05**2]*np.sum(cons), [0.4**2] * np.sum(cons)
+                    ca.DM([0.05**2]*np.sum(cons)), ca.DM([0.4**2] * np.sum(cons))
         )
 
     if(FinalC is not None):

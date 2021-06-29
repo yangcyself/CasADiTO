@@ -6,10 +6,7 @@ from urdfpy import URDF
 import casadi as ca
 import numpy as np
 import sympy as sp
-
-# TODO Move it into util
-def list2ca(a):
-    return ca.vertcat(*[ca.horzcat(*[c for c in r]) for r in a])
+from utils.caUtil import list2ca
 
 """
 Read the urdf and export the forward kinematics as casadi functions

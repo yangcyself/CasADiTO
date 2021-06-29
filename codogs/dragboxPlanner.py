@@ -6,7 +6,7 @@ sys.path.append(".")
 
 from codogs.heavyRopeLoad import HeavyRopeLoad
 from optGen.trajOptimizer import *
-from mathUtil import normQuad
+from utils.mathUtil import normQuad
 import pickle as pkl
 
 NC = 3

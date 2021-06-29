@@ -1,5 +1,5 @@
 from optGen.optGen import *
-from optGen.util import substiSX2MX
+from utils.caUtil import substiSX2MX
 class Collocation(optGen):
     """The traj optimization builder using towr like integration algorithm
 
