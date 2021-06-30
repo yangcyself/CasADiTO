@@ -286,7 +286,7 @@ class Body3D(Body):
         """3D verctor: dpx, dpy, dpz
             Note: px, py, pz is the CoM position"""
         if(self.q.size(1)==0):
-            print("WARNNING: PARENT MDP of Body3D" )
+            print("WARNNING: PARENT MDP of Body3D as Mdp" )
             return ca.DM.zeros(3) if self.parent is None else self.parent.Mdp
         return ca.jtimes(self.Mp, self.q, self.dq)
     
@@ -302,7 +302,7 @@ class Body3D(Body):
     def Bdp(self):
         """SX[4x4] the time derivative"""
         if(self.q.size(1)==0):
-            print("WARNNING: PARENT MDP of Body3D" )
+            print("WARNNING: PARENT MDP of Body3D as Bdp" )
             return ca.DM.zeros(4,4) if self.parent is None else self.parent.Mdp
         return ca.jtimes(self.Bp, self.q, self.dq)
 
