@@ -177,8 +177,15 @@ class EularCollocation(Collocation):
 
 class KKT_TO(Collocation):
     """The trajectory optimization that enforces a KKT condition every step
+    Note: this problem is a Mathematical programs with complementarity constraints(MPCC)
+        Which is a challenging class of problems for IPOPT
+    I implement several reformulations algorithms according to the [paper](https://kilthub.cmu.edu/articles/thesis/Advances_in_Newton-based_Barrier_Methods_for_Nonlinear_Programming)
     """
-    def __init__(self, Xgen, Ugen, Fgen, dTgen):
+    def __init__(self, Xgen, Ugen, Fgen, dTgen, TransMethod=None):
+        """
+            Transmethod (string): The method to do complement constraint reformulation.
+            Following the naming in Wei Wan "Advances in Newton-based Barrier Methods for Nonlinear Programming"
+        """
         super().__init__(Xgen, Ugen, Fgen, dTgen)
         self._ml_plot=[]
         self._mu_plot=[]
@@ -191,6 +198,27 @@ class KKT_TO(Collocation):
             "comS_plot": lambda: ca.horzcat(*self._comS_plot)
         })
 
+        ##############################################
+        # define the Complementary Slackness Builder #
+        ##############################################
+        if(TransMethod is None): # direct add constraint. Note, the constraint will not satisfy LICQ thus a degenerated problem for IPOPT
+            def complementarySlackFactory(y,z):
+                comS = ca.dot(y,z) # or y*z
+                self._g.append(comS)
+                self._lbg.append([0]*comS.size(1)) #size(1): the dim of axis0
+                self._ubg.append([0]*comS.size(1)) #size(1): the dim of axis0
+        elif(TransMethod == "PF"):
+            def complementarySlackFactory(y,z):
+                RHO = 1e3
+                self._J += RHO * ca.dot(y,z)
+        elif(TransMethod == "NCP-FB"):
+            def complementarySlackFactory(y,z):
+                EPS = 1e-6
+                g = y+z-ca.sqrt(y**2 + z**2 + EPS)
+                self._g.append(g)
+                self._lbg.append([-EPS]*g.size(1)) #size(1): the dim of axis0
+                self._ubg.append([EPS]*g.size(1)) #size(1): the dim of axis0
+        self.complementarySlackFunc =  complementarySlackFactory
 
     def step(self, intF, Func0, Func1, Func2, x0, u0, F0, **kwargs):
         """
@@ -224,30 +252,11 @@ class KKT_TO(Collocation):
         self._ubg.append([0]*f2.size(1)) #size(1): the dim of axis0
 
 
-        ## Add variable Lambda: dual variable for neq cons
-        #>>> Exp Lambda
-        # ml_ = optGen.VARTYPE.sym('lam%d'%self._sc, f1.size(1))
-        # self._w.append(ml_)
-        # self._lbw.append([-1e2]*f1.size(1))
-        # self._ubw.append([ca.inf]*f1.size(1))
-        # self._w0.append([0]*f1.size(1))
-        # ml = ca.exp(ml_)
-        #--- 1/x Lambda
-        # ml_ = optGen.VARTYPE.sym('lam%d'%self._sc, f1.size(1))
-        # self._w.append(ml_)
-        # self._lbw.append([1e-2]*f1.size(1))
-        # self._ubw.append([ca.inf]*f1.size(1))
-        # self._w0.append([1e-2]*f1.size(1))
-        # ml = 1/ml_
-        #--- raw Lambda
         ml = optGen.VARTYPE.sym('lam%d'%self._sc, f1.size(1))
         self._w.append(ml)
         self._lbw.append([0]*f1.size(1))
         self._ubw.append([ca.inf]*f1.size(1))
         self._w0.append([0]*f1.size(1))
-        #---
-        # self._J+= ca.sum1(1/(ml+0.001))
-        #<<<
         self._ml_plot.append(ml)
 
 
@@ -267,14 +276,8 @@ class KKT_TO(Collocation):
         self._ubg.append([0]*jacL.size(1)) #size(1): the dim of axis0
         self._jacL_plot.append(jacL)
 
-
-        ## Add Complementary Slackness
-        comS = ml*f1
-        self._g.append(comS)
-        self._lbg.append([0]*comS.size(1)) #size(1): the dim of axis0
-        self._ubg.append([0]*comS.size(1)) #size(1): the dim of axis0
-        self._comS_plot.append(comS)
-
+        self.complementarySlackFunc(ml,-f1)
+        self._comS_plot.append(ca.dot(ml,-f1))
 
         g = Xk_puls_1 - intF(Xk, dxk)
         self._g.append(g)

@@ -69,9 +69,10 @@ opt =  KKT_TO(
     Xgen = xGenDefault(xDim, xLim),
     Ugen = uGenXYmove(nc = NC, eps = 0.1),
     Fgen = FGenDefault(0, np.array([])),
-    dTgen= dTGenDefault(0) # there is no notion of dT in this problem
+    dTgen= dTGenDefault(0), # there is no notion of dT in this problem
+    # TransMethod="PF"
+    TransMethod="NCP-FB"
 )
-
 
 X0 = opt.newhyperParam("X0", (xDim,))
 Xdes = opt.newhyperParam("Xdes", (xDim,))
@@ -111,8 +112,8 @@ for i in range(STEPS):
     opt.addConstraint(tmpf, 
         ca.DM([0]*NC), ca.DM([ca.inf]*NC))
 
-    opt.addConstraint(lambda dx: normQuad(dx), 
-        ca.DM([-ca.inf]), ca.DM([0.3**2]))
+    # opt.addConstraint(lambda dx: normQuad(dx), 
+    #     ca.DM([-ca.inf]), ca.DM([0.3**2]))
     
     for obs in ca.vertsplit(cylinderObstacles,3):
         for i in range(NC):
@@ -126,7 +127,7 @@ for i in range(STEPS):
         # opt.addConstraint(lambda ml: ml, ca.DM([1e-2]), ca.DM([1e-2])) # have solution
         # opt.addConstraint(lambda ml: ml, ca.DM([1e-2]), ca.DM([10])) # do not have solution
 
-opt.addConstraint(lambda x: normQuad((x-Xdes)[:3]), ca.DM([-ca.inf]), ca.DM([0]))
+opt.addConstraint(lambda x: (x-Xdes), ca.DM([0]*3), ca.DM([0]*3))
 
 if __name__ == "__main__":
 

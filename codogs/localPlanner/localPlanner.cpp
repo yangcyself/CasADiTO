@@ -36,12 +36,14 @@ public:
                 std::make_pair("cylinderObstacles", cylinderObstacles)
                 })) {
         std::printf("***IPOPT APP SUCCEFFULLY LOADED***\n");
-        // _app->Options()->SetNumericValue("tol", 1e-7);
-        _app->Options()->SetNumericValue("mumps_dep_tol", 0); // following ipopt documentation
-        _app->Options()->SetStringValue("mu_strategy", "monotone"); // from casadi document, IMPORTANT! related to coredump
+        // _app->Options()->SetNumericValue("tol", 1e-5);
+        // _app->Options()->SetNumericValue("constr_viol_tol", 1e-2);
+        
+        // _app->Options()->SetNumericValue("mumps_dep_tol", 0); // following ipopt documentation
+        // _app->Options()->SetStringValue("mu_strategy", "monotone"); // from casadi document, IMPORTANT! related to coredump
         _app->Options()->SetStringValue("check_derivatives_for_naninf", "yes"); // from casadi document, IMPORTANT! related to coredump
         _app->Options()->SetIntegerValue ("max_iter", 5000);
-        _app->Options()->SetIntegerValue ("print_level", 3);
+        _app->Options()->SetIntegerValue ("print_level", 1);
     }
     SmartPtr<IpoptApplication> app(){return _app;}
     SmartPtr<TNLP> mynlp(){return _mynlp;}
@@ -94,6 +96,26 @@ int localPlanner(
     else
     {
         std::cout << std::endl << std::endl << "*** The problem FAILED!" << std::endl;
+        switch (status)
+        {
+            case Infeasible_Problem_Detected:
+                std::cout <<"Infeasible_Problem_Detected"<<std::endl; break;
+            case Search_Direction_Becomes_Too_Small:
+                std::cout <<"Search_Direction_Becomes_Too_Small"<<std::endl; break;
+            case Diverging_Iterates:
+                std::cout <<"Diverging_Iterates"<<std::endl; break;
+            case User_Requested_Stop:
+                std::cout <<"User_Requested_Stop"<<std::endl; break;
+            case Feasible_Point_Found:
+                std::cout <<"Feasible_Point_Found"<<std::endl; break;
+            case Maximum_Iterations_Exceeded:
+                std::cout <<"Maximum_Iterations_Exceeded"<<std::endl; break;
+            case Restoration_Failed:
+                std::cout <<"Restoration_Failed"<<std::endl; break;
+            default:
+                std::cout <<"Other Problem"<< status<<std::endl;
+                break;
+        }
     }
 
 
