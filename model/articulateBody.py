@@ -1,5 +1,6 @@
 import casadi as ca
-
+from utils import mathUtil
+from utils import caUtil
 class Body:
     def __init__(self, name, freeD):
         self.name = name
@@ -322,6 +323,39 @@ class Body3D(Body):
     
     def _PE(self):
         return - self.M * ca.dot(self.g, self.Mp)
+
+
+class Base3D(Body3D):
+    def __init__(self, name, M, I, eularMod = "ZYX",g = None):
+        super().__init__(name, 6, M, I,  g = g)
+        self.eularMod = eularMod
+
+        
+    def _Mp(self):
+        return self._q[:3]
+    
+    def _Bp(self):
+        R = mathUtil.ZYXRot(self._q[3:]) if self.eularMod == "ZYX"\
+            else caUtil.notImplementedFunc()
+        
+        return ca.vertcat(
+            ca.horzcat(R, self._q[:3]),
+            ca.DM([[0,0,0,1]])
+        )
+
+    def addChild(self, ChildType, **kwargs):
+        return super().addChild(ChildType, Fp= self.Bp, **kwargs)
+    
+    @staticmethod
+    def Freebase(name, M, I, g = None):
+        return Base2D(name, M, I, g)
+    
+    @staticmethod
+    def FixedBase(name, q = None, dq = None, g = None):
+        b = Base2D(name, 0,0,g)
+        b.fix(q, dq)
+        return b
+        
 
 class planeWrap3D(Body3D):
     """The wrapper of a 2D object to an 3D object

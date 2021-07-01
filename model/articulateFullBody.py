@@ -9,9 +9,13 @@ class urdfWrap3D(Body3D):
     """The wrapper of the urdf parse result from urdfReader
     """
     @staticmethod
-    def FloatBaseUrdf(urdffile):
-        
-        pass
+    def FloatBaseUrdf(name, urdffile, eularMod = "ZYX"):
+        """Build a floating base body, whose body is represented by 6 varialbes
+        """
+        root = Base3D(name, 0, 0, eularMod)
+        root.addChild(urdfWrap3D.fromUrdf, urdffile = urdffile)
+        return root
+
     @staticmethod
     def fromUrdf(urdffile, Fp=None, baseName = None, workingDict = None):
         """Generate urdfWrap3D bodies from a urdffile
@@ -29,10 +33,12 @@ class urdfWrap3D(Body3D):
         if(urdfmodel is None): urdfmodel = urdfReader(urdffile) # must use if, otherwise urdfReader still got validated
         workingDict['urdfmodel'] = urdfmodel
 
-        linkdict = workingDict.get("linkdict", None)
+        linkdict = workingDict.get("linkdict", None) # the information of links from urdfmodel
         if(linkdict is None): linkdict = urdfmodel.linkDict
         workingDict['linkdict'] = linkdict
 
+        bodydict = workingDict.get("bodydict", {})
+        workingDict['bodydict'] = bodydict
         urdfBase = workingDict.get("urdfBase", None)
 
         baseName = urdfmodel.robot_urdf.base_link.name if baseName is None else baseName
@@ -40,6 +46,7 @@ class urdfWrap3D(Body3D):
         freeD = 1 if baselinkdict['joint'] is not None and not baselinkdict['fixed'] else 0
         baselink = urdfWrap3D(baseName, freeD, baselinkdict['mass'], baselinkdict['inertia'], baselinkdict['origin'],
             Fp = Fp,urdfBase=urdfBase)
+        bodydict.update({baseName: baselink})
         if(urdfBase is None):
             workingDict['urdfBase'] = baselink
         newchilds = [urdfWrap3D.fromUrdf(urdffile, Fp, cn, workingDict) for cn in baselinkdict['childs']]
@@ -57,13 +64,13 @@ class urdfWrap3D(Body3D):
                 + [jn for cn in linkdict[rootName]['childs'] for jn in getdofNames(cn)]
             return list(filter(lambda a: a is not None,tmpl))
         dofNames = getdofNames(baseName)
-        print("DOF VARS:", dofvars)
-        print("DOF names:", dofNames)
+
         def childUpdateworker(root,rootName):
             fkfunc = urdfmodel.getFk(rootName, dofNames)
             root._Bpurdf = fkfunc(dofvars)
             [childUpdateworker(c,cn) for c,cn in zip(root.child, linkdict[rootName]['childs'])]
         childUpdateworker(baselink, baseName)
+        baselink._linkdict = bodydict
         return baselink
 
 
@@ -80,12 +87,17 @@ class urdfWrap3D(Body3D):
         return (self.Bp @ self._MO[:,3])[:3]
 
 if __name__ == "__main__":
-    m = urdfWrap3D.fromUrdf('/home/ami/jy_models/JueyingMiniLiteV2/urdf/MiniLiteV2_Rsm.urdf')
-    print(m.child)
-    print(m._Bpurdf)
-    print(m.child[1].child[0].name, m.child[1].child[0].Bp)
-    # print(m.child[1].child[0]._urdfBase.name)
-    print(m.child[1].child[0].child[0].name, m.child[1].child[0].child[0].Bp)
-    print(m.child[1].child[0].Mp)
-    print(m.child[1].child[0].KE)
-    print(m.child[1].child[0].PE)
+    # m = urdfWrap3D.fromUrdf('/home/ami/jy_models/JueyingMiniLiteV2/urdf/MiniLiteV2_Rsm.urdf')
+    # print(m.child)
+    # print(m._Bpurdf)
+    # print(m.child[1].child[0].name, m.child[1].child[0].Bp)
+    # # print(m.child[1].child[0]._urdfBase.name)
+    # print(m.child[1].child[0].child[0].name, m.child[1].child[0].child[0].Bp)
+    # print(m.child[1].child[0].Mp)
+    # print(m.child[1].child[0].KE)
+    # print(m.child[1].child[0].PE)
+
+    m = urdfWrap3D.FloatBaseUrdf('Lite', '/home/ami/jy_models/JueyingMiniLiteV2/urdf/MiniLiteV2_Rsm.urdf')
+
+    print([n.name for n in m.child])
+    print(m.child[0].child[1].child[0].Bp)
