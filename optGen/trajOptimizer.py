@@ -213,11 +213,11 @@ class KKT_TO(Collocation):
                 self._J += RHO * ca.dot(y,z)
         elif(TransMethod == "NCP-FB"):
             def complementarySlackFactory(y,z):
-                EPS = 1e-6
+                EPS = 1e-7 # this EPS almost will be the same order of `comS`
                 g = y+z-ca.sqrt(y**2 + z**2 + EPS)
                 self._g.append(g)
-                self._lbg.append([-EPS]*g.size(1)) #size(1): the dim of axis0
-                self._ubg.append([EPS]*g.size(1)) #size(1): the dim of axis0
+                self._lbg.append([0]*g.size(1)) #size(1): the dim of axis0
+                self._ubg.append([0]*g.size(1)) #size(1): the dim of axis0
         self.complementarySlackFunc =  complementarySlackFactory
 
     def step(self, intF, Func0, Func1, Func2, x0, u0, F0, **kwargs):

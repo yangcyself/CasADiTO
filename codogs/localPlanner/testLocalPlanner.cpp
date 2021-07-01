@@ -1,6 +1,7 @@
 #include "localPlanner.h"
 #include <Eigen/Core>
 #include <iostream>
+#include <vector>
 int main(
    int    /*argv*/,
    char** /*argc*/
@@ -11,11 +12,11 @@ int main(
    //  (use a SmartPtr, not raw)
    // Eigen::MatrixXd newx;
 
-   double X0[] = {0,0,0};
-   double Xdes[] = {1,0,0.1};
-   double pa0[] = {-1,0,  0,1,  0,-1};
+   std::vector<double> X0 = {0,0,0};
+   std::vector<double> Xdes = {1,0,0.1};
+   std::vector<double> pa0 = {-1,0,  0,1,  0,-1};
    double pc[] = {-1,0, 0,1, 0,-1};
-   double Q[] = {1,0,0, 0,1,0, 0,0,0.1};
+   double Q[] = {1,0,0, 0,1,0, 0,0,1};
    double r[] = {1,1,1};
    double normAng[] = {pi,pi/2,-pi/2};
    double cylinderObstacles[] = {0, 0, 0, 0,0,0};
@@ -24,7 +25,7 @@ int main(
    parseOutput::x_plot x_out;
    parseOutput::u_plot p_out;
 
-   localPlanner(X0, Xdes, pa0, pc, Q, r, normAng, cylinderObstacles, 
+   localPlanner(X0.data(), Xdes.data(), pa0.data(), pc, Q, r, normAng, cylinderObstacles, 
             x_out, p_out);
 
    int status = 1;
