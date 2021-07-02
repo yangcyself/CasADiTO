@@ -98,6 +98,10 @@ et = ca.SX.sym('e', 3)
 ZYXRot = ca.Function("ZYXRot", [et], [Rot(et[2],[0,0,1]) @ Rot(et[1],[0,1,0]) @ Rot(et[0],[1,0,0])])
 
 
+def cross2d(a,b):
+    return a[0]*b[1] - a[1]*b[0]
+
+
 if __name__ == "__main__":
     a = ca.SX.sym("a", 3)
     b = ca.SX.sym("b", 3)

@@ -305,6 +305,19 @@ class optGen:
     def addCost(self, func):
         self._J += self.tryCallWithHyperParam(kwargFunc(func), self._state)
 
+    def addNewVariable(self, varname, lb, ub, var0):
+        if(not (var0.size() == lb.size() and var0.size() == ub.size())):
+            raise ValueError("The variable lb, ub, init value should have the same size")
+        w = optGen.VARTYPE.sym(varname, var0.size())
+        self._w.append(w)
+        self._lbw.append(lb)
+        self._ubw.append(ub)
+        self._w0.append(var0)
+        return w
+
+    def calwithState(self, func):
+        return self.tryCallWithHyperParam(kwargFunc(func), self._state)
+
     def _begin(self,**kwargs):
         raise NotImplementedError
         

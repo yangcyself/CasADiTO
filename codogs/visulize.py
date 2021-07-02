@@ -23,6 +23,7 @@ with open(solFile, "rb") as f:
     nc = solraw["nc"]
     r = solraw["r"]
     obs_list = solraw['obstacles']
+    lineobs_list = solraw['lineObstacles'].full().reshape(-1)
     pc = solraw["pc"]
     # sol_ddq = sol["ddq_plot"].full().T
     sol_x= sol['Xgen']['x_plot'].full().T
@@ -34,6 +35,11 @@ with open(solFile, "rb") as f:
     print(np.all(0>sol["comS_plot"].full()-1e-6))
     print(np.all(sol["_gb"][:,0].full()<sol["_g"].full()+1e-6))
     print(np.all(sol["_g"].full()<sol["_gb"][:,1].full()+1e-6))
+
+    # print("\ndisj_x", sol["disj_x"])
+    # print("\ndisj_y", sol["disj_y"])
+    # print("\ndisj_eps", sol["disj_eps"])
+    # print("\ndisj_g", sol["disj_g"])
     # print(np.all(sol["_g"].full()<sol["_gb"][:,1].full()+1e-6))
 
 model = HeavyRopeLoad(nc)
@@ -68,6 +74,11 @@ def animate(i):
     for obs_x, obs_y, obs_r in np.hsplit(np.array(obs_list), len(obs_list)//3):
         ax.plot(obs_x+obs_r*np.array([np.cos(2*ca.pi*i/19) for i in range(20)]),
                 obs_y+obs_r*np.array([np.sin(2*ca.pi*i/19) for i in range(20)]))
+    
+    for p1x, p1y, p2x, p2y in np.hsplit(np.array(lineobs_list), len(lineobs_list)//4):
+        ax.plot([p1x, p2x],
+                [p1y, p2y])
+
     ax.legend()
 
     # Obstacles

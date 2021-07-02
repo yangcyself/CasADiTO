@@ -6,11 +6,13 @@ sys.path.append(".")
 
 from codogs.heavyRopeLoad import HeavyRopeLoad
 from optGen.trajOptimizer import *
-from utils.mathUtil import normQuad
+from optGen.helpers import addDisjunctivePositiveConstraint
+from utils.mathUtil import normQuad, cross2d
 import pickle as pkl
 
 NC = 3
 Nobstacle_cylinder = 2
+Nobstacle_line = 4
 Nlinedivid = 3
 
 xDim = 3
@@ -83,6 +85,7 @@ r = opt.newhyperParam("r", (NC,))
 normAng = opt.newhyperParam("normAng", (NC,))
 # each obstacle is represented by x,y,r
 cylinderObstacles = opt.newhyperParam("cylinderObstacles", (Nobstacle_cylinder * 3, ))
+lineObstacles = opt.newhyperParam("lineObstacles", (Nobstacle_line * 4, ))
 
 
 opt.begin(x0=X0, u0=pa0, F0=ca.DM([]))
@@ -97,7 +100,7 @@ for i in range(STEPS):
     Func2 = None, 
     x0 = X0, u0 = pa0, F0=ca.DM([]))
     opt.addCost(lambda x: normQuad(x-Xdes))
-    # opt.addCost(lambda u: 1e-3 * normQuad(u-u_last)) # CANNOT ADD THIS COST
+    # opt.addCost(lambda u: 1e-1* normQuad(u-u_last)) # This Cost make dog as passive as posible, May not good for the next iter
     # opt.addCost(lambda ml: 1e-3 * ml**2) # CANNOT ADD THIS COST
 
     def tmpf(x,u):
@@ -111,6 +114,21 @@ for i in range(STEPS):
     # constraint for rope not collide with box
     opt.addConstraint(tmpf, 
         ca.DM([0]*NC), ca.DM([ca.inf]*NC))
+
+    # opt.addCost(lambda x,u: 1e-1 * normQuad(tmpf(x,u) -  r/2))
+
+    ## Add Line Avoidance Constraints
+    for obs in ca.vertsplit(lineObstacles,4):
+        g1 = opt.calwithState(lambda x,u: ca.vertcat(*[
+             cross2d(a - c.T, obs[:2]-a) * cross2d(a-c.T, obs[2:]-a)
+            for a,c in zip(ca.vertsplit(u,2), ca.vertsplit(pfuncs(x,pc),1))
+        ]))
+        g2 = opt.calwithState(lambda x,u: ca.vertcat(*[
+             cross2d(obs[2:] - obs[:2], a - obs[2:]) * cross2d(obs[2:] - obs[:2], c.T - obs[2:])
+            for a,c in zip(ca.vertsplit(u,2), ca.vertsplit(pfuncs(x,pc),1))
+        ]))
+        addDisjunctivePositiveConstraint(opt, g1, g2, 'eps%d'%opt._sc)
+
 
     # opt.addConstraint(lambda dx: normQuad(dx), 
     #     ca.DM([-ca.inf]), ca.DM([0.3**2]))
@@ -139,16 +157,20 @@ if __name__ == "__main__":
     # exit()
 
     X0 = ca.DM([0,0,0])
-    Xdes = ca.DM([1,0,0.1])
+    Xdes = ca.DM([1,0,0.2])
     pa0 = ca.DM([-1,0,  0,1,  0,-1])
     pc = ca.DM([-1,0, 0,1, 0,-1])
-    Q = np.diag([1,1,1])
+    Q = np.diag([1,1,3])
     r = ca.DM([1,1,1])
     normAng = ca.DM([ca.pi,ca.pi/2,-ca.pi/2])
     cylinderObstacles = [ # the x,y,r of obstacles
-        4.5, 0, 1,
+        0, 0, 0,
         0,0,0
     ]
+    lineObstacles = ca.DM([0.5,-1.3, 0.5,-3,
+                            0,  0,  0,  0,
+                            0,  0,  0,  0,
+                            0,  0,  0,  0])
 
     opt.setHyperParamValue({
         "X0" :X0,
@@ -158,7 +180,8 @@ if __name__ == "__main__":
         "Q" :Q,
         "r" :r,
         "normAng": normAng,
-        "cylinderObstacles":cylinderObstacles
+        "cylinderObstacles":cylinderObstacles,
+        "lineObstacles":lineObstacles
     })
 
     res = opt.solve(options=
@@ -175,13 +198,14 @@ if __name__ == "__main__":
             }
         })
     
-    print(res.keys())
-    print("Uplot\n" ,res["Ugen"]["u_plot"].full().T)
-    print("Xplot\n" ,res["Xgen"]["x_plot"].full().T)
-    print(res['ml_plot'].full().T)
+    # print(res.keys())
+    # print("Uplot\n" ,res["Ugen"]["u_plot"].full().T)
+    # print("Xplot\n" ,res["Xgen"]["x_plot"].full().T)
+    # print(res['ml_plot'].full().T)
     # print(res['jacL_plot'].full().T)
     # print(res['comS_plot'].full().T)
     # print(res['g'])
+    print("EXECTIME:", res['exec_sec'])
 
     dumpname = os.path.abspath(os.path.join("./codogs/nlpSol", "dragplanner%d.pkl"%time.time()))
 
@@ -196,5 +220,6 @@ if __name__ == "__main__":
             "Q" :Q,
             "r" :r,
             "normAng": normAng,
-            "obstacles":cylinderObstacles
+            "obstacles":cylinderObstacles,
+            "lineObstacles":lineObstacles
         }, f)
