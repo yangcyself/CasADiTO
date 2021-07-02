@@ -12,14 +12,15 @@
 using namespace Ipopt;
 class localPlanApp{
 public:
-    double r[3]; 
-    double pc[6]; 
-    double Q[9]; 
-    double X0[3];
-    double Xdes[3];
-    double pa0[6];
-    double normAng[3];
-    double cylinderObstacles[6];
+    hyperParameters::X0 X0;
+    hyperParameters::Xdes Xdes;
+    hyperParameters::pa0 pa0;
+    hyperParameters::pc pc;
+    hyperParameters::Q Q;
+    hyperParameters::r r;
+    hyperParameters::normAng normAng;
+    hyperParameters::cylinderObstacles cylinderObstacles;
+    hyperParameters::lineObstacles lineObstacles;
 
     Eigen::MatrixXd x_out;
     Eigen::MatrixXd p_out;
@@ -33,7 +34,8 @@ public:
                 std::make_pair("Q", Q),
                 std::make_pair("r", r),
                 std::make_pair("normAng", normAng),
-                std::make_pair("cylinderObstacles", cylinderObstacles)
+                std::make_pair("cylinderObstacles", cylinderObstacles),
+                std::make_pair("lineObstacles", lineObstacles)
                 })) {
         std::printf("***IPOPT APP SUCCEFFULLY LOADED***\n");
         // _app->Options()->SetNumericValue("tol", 1e-5);
@@ -62,6 +64,7 @@ int localPlanner(
         hyperParameters::r r,
         hyperParameters::normAng normAng,
         hyperParameters::cylinderObstacles cylinderObstacles, 
+        hyperParameters::lineObstacles lineObstacles,
         parseOutput::x_plot& x_out, 
         parseOutput::u_plot& p_out
 )
@@ -78,6 +81,7 @@ int localPlanner(
     std::memcpy(a.r, r,   sizeof(hyperParameters::r));
     std::memcpy(a.normAng, normAng,   sizeof(hyperParameters::normAng));
     std::memcpy(a.cylinderObstacles, cylinderObstacles,   sizeof(hyperParameters::cylinderObstacles));
+    std::memcpy(a.lineObstacles, lineObstacles,   sizeof(hyperParameters::lineObstacles));
     
     status = app->Initialize();
     if( status != Solve_Succeeded )

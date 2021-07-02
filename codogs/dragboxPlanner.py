@@ -92,6 +92,10 @@ opt.begin(x0=X0, u0=pa0, F0=ca.DM([]))
 opt.addConstraint(lambda u: u-pa0, ca.DM.zeros(pa0.size()), ca.DM.zeros(pa0.size()))
 u_last = pa0
 
+CC = opt.addNewVariable("C",ca.DM([-ca.inf]), ca.DM([ca.inf]), ca.DM([0])) # the slack variable for g
+opt._state.update({"cc": CC})
+opt.addCost(lambda cc: 1e3 * cc**2)
+
 pfuncs = model.pcfunc
 for i in range(STEPS):
     opt.step(model.integralFunc, 
@@ -140,12 +144,8 @@ for i in range(STEPS):
             ), ca.DM([-ca.inf]*Nlinedivid), ca.DM([0]*Nlinedivid))
         
 
-    # u_last = opt._state['u']
-    # if(i==40 and "ml" in opt._state.keys()):
-        # opt.addConstraint(lambda ml: ml, ca.DM([1e-2]), ca.DM([1e-2])) # have solution
-        # opt.addConstraint(lambda ml: ml, ca.DM([1e-2]), ca.DM([10])) # do not have solution
-
-opt.addConstraint(lambda x: (x-Xdes), ca.DM([0]*3), ca.DM([0]*3))
+opt.addConstraint(lambda x, cc: (x-Xdes)-cc, ca.DM([-ca.inf]*3), ca.DM([0]*3)) # Note: Adding a slacked constraint is different to directly put it into cost
+opt.addConstraint(lambda x, cc: (x-Xdes)+cc, ca.DM([0]*3), ca.DM([ca.inf]*3))  #       Because the Ipopt algorithm, using slacked constraint is better
 
 if __name__ == "__main__":
 
@@ -157,7 +157,7 @@ if __name__ == "__main__":
     # exit()
 
     X0 = ca.DM([0,0,0])
-    Xdes = ca.DM([1,0,0.2])
+    Xdes = ca.DM([0.5,0,3])
     pa0 = ca.DM([-1,0,  0,1,  0,-1])
     pc = ca.DM([-1,0, 0,1, 0,-1])
     Q = np.diag([1,1,3])
@@ -168,7 +168,7 @@ if __name__ == "__main__":
         0,0,0
     ]
     lineObstacles = ca.DM([0.5,-1.3, 0.5,-3,
-                            0,  0,  0,  0,
+                           0.5,-2, 2,  -2,
                             0,  0,  0,  0,
                             0,  0,  0,  0])
 

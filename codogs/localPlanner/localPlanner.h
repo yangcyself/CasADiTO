@@ -10,7 +10,8 @@ int localPlanner(
         hyperParameters::Q Q,
         hyperParameters::r r,
         hyperParameters::normAng normAng,
-        hyperParameters::cylinderObstacles cylinderObstacles, 
+        hyperParameters::cylinderObstacles cylinderObstacles,
+        hyperParameters::lineObstacles lineObstacles,
         parseOutput::x_plot& x_out, 
         parseOutput::u_plot& p_out);
 
