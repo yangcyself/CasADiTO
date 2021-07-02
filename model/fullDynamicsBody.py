@@ -74,31 +74,73 @@ if __name__ == "__main__":
     # print(m.buildEOMF([1,1,1,1]))
     # print(ca.DM(m.B).full())
 
+    #######       #######       #######       #######       #######       #######
     ## Do a simple simulation using towr collocation form, enforce u to be zero
-    from optGen.trajOptimizer import TowrCollocationDefault
-    dT0 = 0.01
-    opt = TowrCollocationDefault(2*m.dim, m.u_dim, m.F_dim, xLim = ca.DM([[-ca.inf, ca.inf]]*2*m.dim),
-        uLim= ca.DM([[0, 0]]*m.u_dim), FLim = ca.DM([[-ca.inf, ca.inf]]*m.F_dim), dt= dT0)
-    x0 = ca.DM([0,0,1, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0]+[0]*18)
-    opt.begin(x0=x0, u0=[0]*12, F0=[0]*12)
+    if(False):
+        from optGen.trajOptimizer import TowrCollocationDefault
+        dT0 = 0.01
+        opt = TowrCollocationDefault(2*m.dim, m.u_dim, m.F_dim, xLim = ca.DM([[-ca.inf, ca.inf]]*2*m.dim),
+            uLim= ca.DM([[0, 0]]*m.u_dim), FLim = ca.DM([[-ca.inf, ca.inf]]*m.F_dim), dt= dT0)
+        x0 = ca.DM([0,0,1, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0]+[0]*18)
+        opt.begin(x0=x0, u0=[0]*12, F0=[0]*12)
 
-    EOMF = m.buildEOMF([1,1,1,1])
-    print("EOMF built")
-    for i in range(10):
-        opt.step(lambda dx,x,u,F : EOMF(x=x,u=u,F=F,ddq = dx[m.dim:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-                x0 = x0, u0=[0]*12, F0=[0]*12)
-    print("Opt Set")
-    res = opt.solve(options=
-        {"calc_f" : True,
-        "calc_g" : True,
-        "calc_lam_x" : True,
-        "calc_multipliers" : True,
-        "expand" : True, 
-            "verbose_init":True,
-            # "jac_g": gjacFunc
-        "ipopt":{
-            "max_iter" : 2000, # unkown option
-            }
-        })
+        EOMF = m.buildEOMF([1,1,1,1])
+        print("EOMF built")
+        for i in range(10):
+            opt.step(lambda dx,x,u,F : EOMF(x=x,u=u,F=F,ddq = dx[m.dim:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+                    x0 = x0, u0=[0]*12, F0=[0]*12)
+        print("Opt Set")
+        res = opt.solve(options=
+            {"calc_f" : True,
+            "calc_g" : True,
+            "calc_lam_x" : True,
+            "calc_multipliers" : True,
+            "expand" : True, 
+                "verbose_init":True,
+                # "jac_g": gjacFunc
+            "ipopt":{
+                "max_iter" : 2000, # unkown option
+                }
+            })
 
-    print(res["Xgen"]["x_plot"])
+        print(res["Xgen"]["x_plot"])
+    #######       #######       #######       #######       #######       #######       
+    ## Generate a cpp version forward dynamics function to be compared with raisim
+    if(True):
+        from scipy.spatial.transform import Rotation as R
+        import numpy as np
+
+        def quat_to_ZYX(q):
+            r = R.from_quat(q)
+            return r.as_euler('zyx', degrees=False)
+        print("LINKS:", m.x)
+        # C = ca.CodeGenerator("dyn", {"cpp": True, "with_header": True,"verbose":False})
+        D_func = ca.Function("Dfunc", [m.x], [m.D])
+        Cg_func = ca.Function("Dfunc", [m.x], [m.Cg])
+        np.set_printoptions(precision = 2,linewidth=200)
+        for i in range(18):
+
+            state = np.genfromtxt("data/dynMatrix/%d_state.csv"%i, delimiter=',')
+
+            state = list(state)
+            state[3:7] = quat_to_ZYX(state[3:7])
+            D = np.genfromtxt("data/dynMatrix/%d_Massmat.csv"%i, delimiter=',')
+            Cg = np.genfromtxt("data/dynMatrix/%d_Nonlinearity.csv"%i, delimiter=',')
+            # print(state)
+            print("\nD_func Error")
+            print(np.array(D_func(state)- D))
+            # print("\nD_func")
+            # print(D_func(state)[:5,:5])
+            print("\nCg_func Error")
+            print(np.array(Cg_func(state) - Cg))
+            # break
+            # print(Cg_func(state)- Cg)
+            
+
+
+        # print(D_func(ca.DM.rand(m.x.size())))
+        # print(D_func(ca.DM.rand(m.x.size())).size())
+        # C.add(D_func)
+        # C.generate()
+
+

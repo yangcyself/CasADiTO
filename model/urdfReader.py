@@ -2,6 +2,7 @@
 #   inorder to run the urdfReader for urdf with poor dae info
 # I removed float conversion in "urdfpy/urdf.py" line 2306
 
+# I made several changes to the urdf_reader: please use the modified version: https://github.com/yangcyself/urdfpy.git
 from urdfpy import URDF
 import casadi as ca
 import numpy as np

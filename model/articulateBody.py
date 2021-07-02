@@ -348,11 +348,11 @@ class Base3D(Body3D):
     
     @staticmethod
     def Freebase(name, M, I, g = None):
-        return Base2D(name, M, I, g)
+        return Base3D(name, M, I, g)
     
     @staticmethod
     def FixedBase(name, q = None, dq = None, g = None):
-        b = Base2D(name, 0,0,g)
+        b = Base3D(name, 0,0,g)
         b.fix(q, dq)
         return b
         

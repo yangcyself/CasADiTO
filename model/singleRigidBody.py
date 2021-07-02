@@ -22,7 +22,7 @@ class singleRigidBody:
 
         # Variables
         self.p = ca.SX.sym("p", 3)
-        self.th = ca.SX.sym("Theta", 3)
+        self.th = ca.SX.sym("Theta", 3) # in_eular
         self.v = ca.SX.sym("v", 3)
         self.w = ca.SX.sym("Omega_B", 3)
         self.x = ca.vertcat(self.p, self.th, self.v, self.w)
