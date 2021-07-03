@@ -24,8 +24,8 @@ public:
 
     Eigen::MatrixXd x_out;
     Eigen::MatrixXd p_out;
-    localPlanApp()
-        :_app(IpoptApplicationFactory()), 
+    localPlanApp(double Wboxfinal, double WropeNorm, double Wboxstep)
+        :_Wboxfinal(Wboxfinal), _WropeNorm(WropeNorm), _Wboxstep(Wboxstep),         _app(IpoptApplicationFactory()), 
          _mynlp(new TONLP(x_out, p_out, {
                 std::make_pair("X0", X0),
                 std::make_pair("Xdes", Xdes),
@@ -35,7 +35,10 @@ public:
                 std::make_pair("r", r),
                 std::make_pair("normAng", normAng),
                 std::make_pair("cylinderObstacles", cylinderObstacles),
-                std::make_pair("lineObstacles", lineObstacles)
+                std::make_pair("lineObstacles", lineObstacles),
+                std::make_pair("Wboxfinal", &_Wboxfinal),
+                std::make_pair("WropeNorm", &_WropeNorm),
+                std::make_pair("Wboxstep", &_Wboxstep)
                 })) {
         std::printf("***IPOPT APP SUCCEFFULLY LOADED***\n");
         // _app->Options()->SetNumericValue("tol", 1e-5);
@@ -50,6 +53,9 @@ public:
     SmartPtr<IpoptApplication> app(){return _app;}
     SmartPtr<TNLP> mynlp(){return _mynlp;}
 private:
+    double _Wboxfinal;
+	double _WropeNorm;
+	double _Wboxstep;
     SmartPtr<IpoptApplication> _app;
     SmartPtr<TNLP> _mynlp;
 };
@@ -69,7 +75,7 @@ int localPlanner(
         parseOutput::u_plot& p_out
 )
 {
-    static localPlanApp a;
+    static localPlanApp a(1e3, 1e1, 1e0);
     const auto app = a.app();
     ApplicationReturnStatus status;
     
@@ -125,6 +131,7 @@ int localPlanner(
 
     x_out = a.x_out;
     p_out = a.p_out;
+
 
     return (int) status;
 }

@@ -20,7 +20,7 @@ int main(
    double r[] = {1,1,1};
    double normAng[] = {pi,pi/2,-pi/2};
    double cylinderObstacles[] = {0, 0, 0, 0,0,0};
-   double lineObstacles[] = {0,0,0,0,  0,0,0,0,  0,0,0,0,  0,0,0,0};
+   double lineObstacles[] = {0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0};
 
 
    parseOutput::x_plot x_out;

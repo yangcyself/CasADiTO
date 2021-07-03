@@ -75,9 +75,11 @@ def animate(i):
         ax.plot(obs_x+obs_r*np.array([np.cos(2*ca.pi*i/19) for i in range(20)]),
                 obs_y+obs_r*np.array([np.sin(2*ca.pi*i/19) for i in range(20)]))
     
-    for p1x, p1y, p2x, p2y in np.hsplit(np.array(lineobs_list), len(lineobs_list)//4):
-        ax.plot([p1x, p2x],
-                [p1y, p2y])
+    if(len(lineobs_list)):
+        for flag, p1x, p1y, p2x, p2y in np.hsplit(np.array(lineobs_list), len(lineobs_list)//5):
+            if(np.abs(flag)>1e-6):
+                ax.plot([p1x, p2x],
+                        [p1y, p2y])
 
     ax.legend()
 

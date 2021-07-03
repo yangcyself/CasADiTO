@@ -15,6 +15,9 @@ Nobstacle_cylinder = 2
 Nobstacle_line = 4
 Nlinedivid = 3
 
+Clineu_MIN = 0.8
+RopeNormMin = 0.1
+
 xDim = 3
 xLim = ca.DM([[-ca.inf, ca.inf]]*xDim) 
 STEPS = 15
@@ -85,8 +88,12 @@ r = opt.newhyperParam("r", (NC,))
 normAng = opt.newhyperParam("normAng", (NC,))
 # each obstacle is represented by x,y,r
 cylinderObstacles = opt.newhyperParam("cylinderObstacles", (Nobstacle_cylinder * 3, ))
-lineObstacles = opt.newhyperParam("lineObstacles", (Nobstacle_line * 4, ))
+lineObstacles = opt.newhyperParam("lineObstacles", (Nobstacle_line * 5, ))
 
+# Weights
+Wboxfinal = opt.newhyperParam("Wboxfinal")
+WropeNorm = opt.newhyperParam("WropeNorm")
+Wboxstep = opt.newhyperParam("Wboxstep")
 
 opt.begin(x0=X0, u0=pa0, F0=ca.DM([]))
 opt.addConstraint(lambda u: u-pa0, ca.DM.zeros(pa0.size()), ca.DM.zeros(pa0.size()))
@@ -94,7 +101,11 @@ u_last = pa0
 
 CC = opt.addNewVariable("C",ca.DM([-ca.inf]), ca.DM([ca.inf]), ca.DM([0])) # the slack variable for g
 opt._state.update({"cc": CC})
-opt.addCost(lambda cc: 1e3 * cc**2)
+opt.addCost(lambda cc: Wboxfinal * cc**2)
+
+Clineu = opt.addNewVariable("Clineu",ca.DM([Clineu_MIN]), ca.DM([ca.inf]), ca.DM([1])) # the slack variable for g
+opt._state.update({"clineu": Clineu})
+opt.addCost(lambda clineu:  WropeNorm* clineu)
 
 pfuncs = model.pcfunc
 for i in range(STEPS):
@@ -103,7 +114,7 @@ for i in range(STEPS):
     Func1 = lambda x,dx,u: model.gfunc(x,dx,pc,u, r), 
     Func2 = None, 
     x0 = X0, u0 = pa0, F0=ca.DM([]))
-    opt.addCost(lambda x: normQuad(x-Xdes))
+    opt.addCost(lambda x: Wboxstep * normQuad(x-Xdes))
     # opt.addCost(lambda u: 1e-1* normQuad(u-u_last)) # This Cost make dog as passive as posible, May not good for the next iter
     # opt.addCost(lambda ml: 1e-3 * ml**2) # CANNOT ADD THIS COST
 
@@ -114,21 +125,25 @@ for i in range(STEPS):
         return ca.vertcat(*[
             ca.dot(a - c.T, n)
             for a,c,n in zip(ca.vertsplit(u,2), ca.vertsplit(pfuncs(x,pc),1), normDirs)
-        ])
+        ])/r
     # constraint for rope not collide with box
     opt.addConstraint(tmpf, 
-        ca.DM([0]*NC), ca.DM([ca.inf]*NC))
+        ca.DM([RopeNormMin]*NC), ca.DM([ca.inf]*NC))
+
+    opt.addConstraint(lambda x,u, clineu: tmpf(x,u) - clineu, 
+        ca.DM([-ca.inf]*NC), ca.DM([0]*NC))
+
 
     # opt.addCost(lambda x,u: 1e-1 * normQuad(tmpf(x,u) -  r/2))
 
     ## Add Line Avoidance Constraints
-    for obs in ca.vertsplit(lineObstacles,4):
-        g1 = opt.calwithState(lambda x,u: ca.vertcat(*[
-             cross2d(a - c.T, obs[:2]-a) * cross2d(a-c.T, obs[2:]-a)
+    for obs in ca.vertsplit(lineObstacles,5):
+        g1 = opt.calwithState(lambda x,u: obs[0] * ca.vertcat(*[
+             cross2d(a - c.T, obs[1:3]-a) * cross2d(a-c.T, obs[3:]-a)
             for a,c in zip(ca.vertsplit(u,2), ca.vertsplit(pfuncs(x,pc),1))
         ]))
-        g2 = opt.calwithState(lambda x,u: ca.vertcat(*[
-             cross2d(obs[2:] - obs[:2], a - obs[2:]) * cross2d(obs[2:] - obs[:2], c.T - obs[2:])
+        g2 = opt.calwithState(lambda x,u: obs[0] * ca.vertcat(*[
+             cross2d(obs[3:] - obs[1:3], a - obs[3:]) * cross2d(obs[3:] - obs[1:3], c.T - obs[3:])
             for a,c in zip(ca.vertsplit(u,2), ca.vertsplit(pfuncs(x,pc),1))
         ]))
         addDisjunctivePositiveConstraint(opt, g1, g2, 'eps%d'%opt._sc)
@@ -167,10 +182,15 @@ if __name__ == "__main__":
         0, 0, 0,
         0,0,0
     ]
-    lineObstacles = ca.DM([0.5,-1.3, 0.5,-3,
-                           0.5,-2, 2,  -2,
-                            0,  0,  0,  0,
-                            0,  0,  0,  0])
+    lineObstacles = ca.DM([1, 0.5,-1.3, 0.5,-3,
+                           1, 0.5,-2, 2,  -2,
+                           0, 0, 0, 0, 0,
+                           0, 0, 0, 0, 0])
+
+    Wboxfinal = 1e3
+    WropeNorm = 1e1
+    Wboxstep = 1e0
+
 
     opt.setHyperParamValue({
         "X0" :X0,
@@ -181,7 +201,10 @@ if __name__ == "__main__":
         "r" :r,
         "normAng": normAng,
         "cylinderObstacles":cylinderObstacles,
-        "lineObstacles":lineObstacles
+        "lineObstacles":lineObstacles,
+        "Wboxfinal" : Wboxfinal,
+        "WropeNorm" : WropeNorm,
+        "Wboxstep" : Wboxstep
     })
 
     res = opt.solve(options=
