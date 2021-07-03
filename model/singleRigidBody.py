@@ -13,7 +13,7 @@ theta is the Z-Y-X euler angle, and omega_B is the angular velocity of the Body
 import yaml
 import matplotlib.pyplot as plt
 import casadi as ca
-import utils.mathUtil
+from utils import mathUtil
 
 class singleRigidBody:
     def __init__(self, params, nc):
@@ -52,17 +52,10 @@ class singleRigidBody:
     def LTH(self):
         """the transition matrix from eular theta rate to self.w
         """
-        drx = ca.SX.sym("drx")
-        dry = ca.SX.sym("dry")
-        drz = ca.SX.sym("drz")
-        rx = self.th[0]
-        ry = self.th[1]
-        rz = self.th[2]
 
-        omega = ca.DM.eye(3) @ (ca.vertcat(0,0,drz) 
-            + utils.mathUtil.Rot(rz, ca.DM([0,0,1])) @ (ca.vertcat(0,dry,0)
-            + utils.mathUtil.Rot(ry, ca.DM([0,1,0])) @ ca.vertcat(drx,0,0)))
-        return ca.jacobian(omega, ca.vertcat(drx, dry, drz))
+        dth = ca.SX.sym('dtheta', 3)
+        omega = mathUtil.dZYX2Omega_B(self.th, dth)
+        return ca.jacobian(omega, dth)
 
     def Dyn(self):
         u = ca.SX.sym("u", self.u_dim)
@@ -73,7 +66,7 @@ class singleRigidBody:
         dx = ca.vertcat( self.v,
                         B @ self.w,
                         f/self.m + self.g, 
-                        ca.inv(self.I) @ (utils.mathUtil.ZYXRot(self.th).T @  tau_w - ca.skew(self.w) @ self.I @ self.w)
+                        ca.inv(self.I) @ (mathUtil.ZYXRot(self.th).T @  tau_w - ca.skew(self.w) @ self.I @ self.w)
                         )
         return ca.Function('EOMF', [self.x, u], [dx], ["x", "u"], ['dx'])
 

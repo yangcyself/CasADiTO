@@ -314,8 +314,7 @@ class Body3D(Body):
         """
         R = self.Bp[:3,:3]
         dR = self.Bdp[:3,:3]
-        w_b = R.T @ dR
-        return ca.vertcat(w_b[2,1], w_b[0,2], w_b[0,1])
+        return mathUtil.R2omega_B(R,dR)
 
     def _KE(self):
         return (0.5*self.M * ca.dot(self.Mdp, self.Mdp) # velocity

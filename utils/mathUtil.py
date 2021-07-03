@@ -81,6 +81,8 @@ def solveCons(consFunc, targets, eps = 1e-6):
     
     return solParse(sol = sol["x"])
 
+def cross2d(a,b):
+    return a[0]*b[1] - a[1]*b[0]
 
 def Rot(a,d):
     """The rotation matrix of dimension d
@@ -94,12 +96,50 @@ def Rot(a,d):
     sk2 = d @ d.T - ca.DM.eye(3)
     return ca.DM.eye(3) + sk * ca.sin(a) + sk2 * (1- ca.cos(a))
 
-et = ca.SX.sym('e', 3)
-ZYXRot = ca.Function("ZYXRot", [et], [Rot(et[2],[0,0,1]) @ Rot(et[1],[0,1,0]) @ Rot(et[0],[1,0,0])])
+######      ######      ######      ######
+###      Rotation Transformations      ###
+######      ######      ######      ######
+_et,_de = ca.SX.sym('e', 3), ca.SX.sym('de', 3)
 
+# Tait–Bryan angles, (extrinsic, the X,Y,Z is always the first second third element)
+# Generate XYZRot ... ZYXRot
+_execmap =  globals().copy()
+_execmap.update({"rotMap":{"X": Rot(_et[0],[1,0,0]), "Y": Rot(_et[1],[0,1,0]), "Z": Rot(_et[2],[0,0,1])}})
+for d in ["XYZ", "XZY", "YXZ", "YZX", "ZXY", "ZYX",]:
+    exec("{dr}Rot = ca.Function('{dr}Rot', [_et], [rotMap['{rot0}'] @ rotMap['{rot1}'] @ rotMap['{rot2}']])".format(dr=d, rot0=d[0], rot1=d[1], rot2=d[2]), _execmap)
+XYZRot = _execmap["XYZRot"]
+XZYRot = _execmap["XZYRot"]
+YXZRot = _execmap["YXZRot"]
+YZXRot = _execmap["YZXRot"]
+ZXYRot = _execmap["ZXYRot"]
+ZYXRot = _execmap["ZYXRot"]
 
-def cross2d(a,b):
-    return a[0]*b[1] - a[1]*b[0]
+_R,_dR = ca.SX.sym('R',3,3), ca.SX.sym('dR',3,3)
+_SO2vec = ca.Function('SO2vec', [_R], [ca.vertcat(_R[2,1], _R[0,2], _R[0,1] )])
+R2omega_B = ca.Function("R2omega_B", [_R, _dR], [_SO2vec(_R.T @ _dR)])
+R2omega_W = ca.Function("R2omega_W", [_R, _dR], [_SO2vec(_dR @ _R.T)])
+
+def _buildeular2Omega(et, de, OmgF, rotF, name):
+    R = rotF(et)
+    dR = ca.jtimes(R, et, de)
+    return ca.Function(name, [et, de], [OmgF(R, dR)])
+_execmap =  globals().copy()
+for d in ["XYZ", "XZY", "YXZ", "YZX", "ZXY", "ZYX",]:
+    exec("d{dr}2Omega_B = _buildeular2Omega(_et,_de, R2omega_B ,{dr}Rot, 'd{dr}2Omega_B')".format(dr=d), _execmap)
+    exec("d{dr}2Omega_W = _buildeular2Omega(_et,_de, R2omega_W ,{dr}Rot, 'd{dr}2Omega_W')".format(dr=d), _execmap)
+
+dXYZ2Omega_B = _execmap["dXYZ2Omega_B"]
+dXZY2Omega_B = _execmap["dXZY2Omega_B"]
+dYXZ2Omega_B = _execmap["dYXZ2Omega_B"]
+dYZX2Omega_B = _execmap["dYZX2Omega_B"]
+dZXY2Omega_B = _execmap["dZXY2Omega_B"]
+dZYX2Omega_B = _execmap["dZYX2Omega_B"]
+dXYZ2Omega_W = _execmap["dXYZ2Omega_W"]
+dXZY2Omega_W = _execmap["dXZY2Omega_W"]
+dYXZ2Omega_W = _execmap["dYXZ2Omega_W"]
+dYZX2Omega_W = _execmap["dYZX2Omega_W"]
+dZXY2Omega_W = _execmap["dZXY2Omega_W"]
+dZYX2Omega_W = _execmap["dZYX2Omega_W"]
 
 
 if __name__ == "__main__":
@@ -112,3 +152,15 @@ if __name__ == "__main__":
     ])
     print(res)
     print(g(**res))
+
+    ## Test rotation transformations
+    import numpy as np
+    from scipy.spatial.transform import Rotation as R
+    theta = np.random.rand(3) * ca.pi * 2
+    r = R.from_euler('ZYX', theta) # scipy use xyz to represent extrinsic, XYZ for intrinsic, But I think they get it misplaced
+    r_ = ZYXRot(ca.vertcat(theta[2], theta[1], theta[0]))
+    # r_ = ZYXRot(ca.vertcat(theta))
+    print(r.as_matrix())
+    print(r_)
+
+    print(dZYX2Omega_B(ca.DM.rand(3), ca.DM.rand(3)))
