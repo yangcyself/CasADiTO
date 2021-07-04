@@ -29,8 +29,9 @@ ulim = [[-40.,40.]]
 opt = TowrCollocationDefault(mDim*2, 1, 0, xlim, ulim, [[]], dT0)
 opt.begin(x0=X0, u0=[0.], F0 = [])
 
-
+ddq_plot = []
 for i in range(500):
+    ddq_plot.append(opt._state['ddq1'])
     opt.step(lambda dx,x,u,F : dynf(x,u) - dx[mDim:],
             x0 = X0 + np.random.random(mDim*2) - np.random.random(mDim*2),# + np.array([0, i/200 * np.math.pi]+[0]*8),
             u0 = np.random.random(1) - np.random.random(1), F0 = [])
@@ -38,13 +39,15 @@ for i in range(500):
     # opt.addCost(lambda x,u: u*u)
     opt.addCost(lambda x,u: x[0]**2)
     opt.addCost(lambda x,u: -pend.CoMposValue(x)[-1, 1]**3)
- 
+    
+ddq_plot = [i for i in ddq_plot if i is not None]
 # opt.addConstraint(lambda x: x-XDes, [0.]*mDim*2, [0.]*mDim*2)
 # opt.addConstraint(lambda x: (x-XDes)[0], [0.], [0.])
 
 opt.step(lambda dx,x,u,F : dynf(x,u) - dx[mDim:], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
         x0 = XDes, u0 = [0.], F0=[])
 
+opt._parse.update({'ddq_plot': lambda : ca.horzcat(*ddq_plot)})
 
 if __name__ == "__main__" :
 

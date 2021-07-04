@@ -7,19 +7,22 @@ import matplotlib.animation as animation
 
 
 class Pendulum(ArticulateSystem):
-    def __init__(self):
+    def __init__(self, symbolWeight = False):
         root = Base2D.FixedBase("Base")
         super().__init__(root) # this will set self.root
+
+        Masses = [ca.SX.sym("M%d"%i) for i in range(4)] if symbolWeight else [1,1,1,1]
+        self._syms = Masses if symbolWeight else []
 
         self.cart = root.addChild(
             Link2D.Prisma, name = "cart",
             la = - 0.5, lb = 0.5, lc = 0,
-            M = 1, I = 0
+            M = Masses[0], I = 0
         )
         link1 = self.cart.addChild(
             Link2D.Rot, 0, name = "link1",
             la = 0, lb = 1, lc = 0.5,
-            M = 1, I = 1/12
+            M = Masses[1], I = 1/12
         )
         self.links = [link1]
 
@@ -28,7 +31,7 @@ class Pendulum(ArticulateSystem):
                 self.links[-1].addChild(
                     Link2D.Rot, 1, name = "link%d"%(i+2),
                     la = 0, lb = 1, lc = 0.5,
-                    M = 1, I = 1/12
+                    M = Masses[2+i], I = 1/12
                 )
             )
 

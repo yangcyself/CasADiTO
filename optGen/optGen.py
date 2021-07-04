@@ -187,9 +187,9 @@ class optGen:
         Args:
             t ({string; MX; SX}): "name", "value" or ca.MX or ca.SX
         """
-        if(t=="name"):
+        if(isinstance(t, str) and t=="name"):
             return list(self._hyperParams.keys())
-        if(t=="value"):
+        if(isinstance(t, str) and t=="value"):
             return [(m if v is None else v) for z,s,m,v in self._hyperParams.values()]
         elif(isinstance(t, ca.MX) or t is ca.MX):
             return [m for z,s,m,v in self._hyperParams.values()]
