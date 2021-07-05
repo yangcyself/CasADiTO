@@ -48,6 +48,17 @@ class Pendulum(ArticulateSystem):
         # ddq = - ca.inv(self.D) @ (self.C @ self.root.dx + self.G)
         return ca.Function("dyn", [self.x, u], [ddq], ["x", "u"], ["ddq"])
 
+
+    @property
+    def dyn_func_sym(self):
+        # self.D ddq + self.Cg = 0
+        # ddq = ca.mldivide(self.D ,-self.Cg)
+        u = ca.SX.sym("u", 1)
+        ddq = ca.inv(self.D) @ (- self.Cg + self.B @ u)
+        # ddq = - ca.inv(self.D) @ (self.C @ self.root.dx + self.G)
+        return ca.Function("dyn", [ca.vertcat(*self._syms), self.x, u], [ddq], ["sym","x", "u"], ["ddq"])
+
+
     def visulize(self, x):
         x = x[:self.dim]
         try:
