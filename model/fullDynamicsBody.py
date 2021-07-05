@@ -111,19 +111,38 @@ if __name__ == "__main__":
         import numpy as np
 
         def quat_to_ZYX(q):
-            r = R.from_quat(q)
-            return r.as_euler('zyx', degrees=False)
+            # NOTE: The quat of scipy is xyzw norm. However, quat from raisim is wxyz
+            w,x,y,z = q
+            r = R.from_quat( np.array([x,y,z,w]) )
+            Z,Y,X = r.as_euler('ZYX', degrees=False) # the order of the angles is the first, second, third
+            return np.array([X,Y,Z])
         print("LINKS:", m.x)
         # C = ca.CodeGenerator("dyn", {"cpp": True, "with_header": True,"verbose":False})
         D_func = ca.Function("Dfunc", [m.x], [m.D])
-        Cg_func = ca.Function("Dfunc", [m.x], [m.Cg])
+        Cg_func = ca.Function("Cgfunc", [m.x], [m.Cg])
         np.set_printoptions(precision = 2,linewidth=200)
         for i in range(18):
 
             state = np.genfromtxt("data/dynMatrix/%d_state.csv"%i, delimiter=',')
 
             state = list(state)
-            state[3:7] = quat_to_ZYX(state[3:7])
+            print("quat", state[3:7], state[22:25])
+            w,x,y,z = state[3:7]
+            r =  R.from_quat( np.array([x,y,z,w]) )
+            print(r.as_matrix())
+            state[3:7] = quat_to_ZYX(state[3:7]) # change rotation
+            state = ca.DM(state)
+
+            omega_W = state[21:24]
+            Rwb = mathUtil.ZYXRot(state[3:6])
+            print(Rwb.T @ Rwb)
+            omega_B = Rwb.T @ omega_W
+            print("euler:", mathUtil.omega_B2dZYX(state[3:6] ,omega_B) )
+            
+            state[21:24] = mathUtil.omega_W2dZYX(state[3:6], state[21:24])
+            print("eular", state[3:6], state[21:24])
+            print(mathUtil.ZYXRot(state[3:6]))
+
             D = np.genfromtxt("data/dynMatrix/%d_Massmat.csv"%i, delimiter=',')
             Cg = np.genfromtxt("data/dynMatrix/%d_Nonlinearity.csv"%i, delimiter=',')
             # print(state)
@@ -132,8 +151,10 @@ if __name__ == "__main__":
             # print("\nD_func")
             # print(D_func(state)[:5,:5])
             print("\nCg_func Error")
-            print(np.array(Cg_func(state) - Cg))
-            # break
+            print(np.array(Cg_func(state) - Cg).reshape(-1))
+            print(np.array(Cg_func(state)).reshape(-1))
+            print(np.array(Cg).reshape(-1))
+            
             # print(Cg_func(state)- Cg)
             
 

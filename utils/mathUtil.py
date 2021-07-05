@@ -115,7 +115,7 @@ ZXYRot = _execmap["ZXYRot"]
 ZYXRot = _execmap["ZYXRot"]
 
 _R,_dR = ca.SX.sym('R',3,3), ca.SX.sym('dR',3,3)
-_SO2vec = ca.Function('SO2vec', [_R], [ca.vertcat(_R[2,1], _R[0,2], _R[0,1] )])
+_SO2vec = ca.Function('SO2vec', [_R], [ca.vertcat(_R[2,1], _R[0,2], _R[1,0] )]) # TODO: debug this term, Especially the sign of rz
 R2omega_B = ca.Function("R2omega_B", [_R, _dR], [_SO2vec(_R.T @ _dR)])
 R2omega_W = ca.Function("R2omega_W", [_R, _dR], [_SO2vec(_dR @ _R.T)])
 
@@ -141,6 +141,24 @@ dYZX2Omega_W = _execmap["dYZX2Omega_W"]
 dZXY2Omega_W = _execmap["dZXY2Omega_W"]
 dZYX2Omega_W = _execmap["dZYX2Omega_W"]
 
+def _buildOmega2deuler(eu2omeF, name):
+    omg = ca.SX.sym("w",3)
+    Jac = ca.jacobian(dZYX2Omega_B(_et, _de), _de)
+    assert (len(ca.symvar(Jac)) == 3) # No de_0 de_1 de_2 involved, linear transformation
+    return ca.Function(name, [_et, omg], [ca.inv(Jac) @ omg ] )
+
+omega_B2dXYZ = _buildOmega2deuler(dXYZ2Omega_B, "omega_B2dXYZ")
+omega_B2dXZY = _buildOmega2deuler(dXZY2Omega_B, "omega_B2dXZY")
+omega_B2dYXZ = _buildOmega2deuler(dYXZ2Omega_B, "omega_B2dYXZ")
+omega_B2dYZX = _buildOmega2deuler(dYZX2Omega_B, "omega_B2dYZX")
+omega_B2dZXY = _buildOmega2deuler(dZXY2Omega_B, "omega_B2dZXY")
+omega_B2dZYX = _buildOmega2deuler(dZYX2Omega_B, "omega_B2dZYX")
+omega_W2dXYZ = _buildOmega2deuler(dXYZ2Omega_W, "omega_W2dXYZ")
+omega_W2dXZY = _buildOmega2deuler(dXZY2Omega_W, "omega_W2dXZY")
+omega_W2dYXZ = _buildOmega2deuler(dYXZ2Omega_W, "omega_W2dYXZ")
+omega_W2dYZX = _buildOmega2deuler(dYZX2Omega_W, "omega_W2dYZX")
+omega_W2dZXY = _buildOmega2deuler(dZXY2Omega_W, "omega_W2dZXY")
+omega_W2dZYX = _buildOmega2deuler(dZYX2Omega_W, "omega_W2dZYX")
 
 if __name__ == "__main__":
     a = ca.SX.sym("a", 3)
@@ -156,11 +174,24 @@ if __name__ == "__main__":
     ## Test rotation transformations
     import numpy as np
     from scipy.spatial.transform import Rotation as R
-    theta = np.random.rand(3) * ca.pi * 2
+    theta = np.random.rand(3) * ca.pi
     r = R.from_euler('ZYX', theta) # scipy use xyz to represent extrinsic, XYZ for intrinsic, But I think they get it misplaced
     r_ = ZYXRot(ca.vertcat(theta[2], theta[1], theta[0]))
     # r_ = ZYXRot(ca.vertcat(theta))
     print(r.as_matrix())
     print(r_)
 
-    print(dZYX2Omega_B(ca.DM.rand(3), ca.DM.rand(3)))
+    print("Euler trans")
+    print(theta, r.as_euler('ZYX'))
+
+    
+    theta, dtheta = ca.DM.rand(3), ca.DM.rand(3)
+
+    omega_B = dZYX2Omega_B(theta, dtheta)
+    theta_ = omega_B2dZYX(theta, omega_B)
+    print(theta_ - theta)
+    # omega_sym = ca.SX.sym("w",3)
+    # euler_sym = ca.SX.sym("e",3)
+    # deuler_sym = ca.SX.sym("de",3)
+    # print(ca.symvar (ca.jacobian(dZYX2Omega_B(euler_sym, deuler_sym), deuler_sym)))
+
