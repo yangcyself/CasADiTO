@@ -11,9 +11,10 @@ from utils.mathUtil import normQuad, cross2d
 import pickle as pkl
 
 NC = 3
-Nobstacle_cylinder = 2
-Nobstacle_line = 4
-Nlinedivid = 3
+# Nobstacle_cylinder = 2
+# Nobstacle_line = 4
+# Nlinedivid = 3
+Nobstacle_box = 3
 
 Clineu_MIN = 0.8
 RopeNormMin = 0.1
@@ -43,13 +44,6 @@ class uGenXYmove(uGenDefault):
         Uk = super().step(step, u0, **kwargs)
         Uk_ = self._state["u"]
         if(Uk_ is not None):
-            # g = ca.vertcat(*[ca.norm_2(d)**2 for d in ca.vertsplit(Uk_ - Uk,2)]) # this will have nan
-            ## Euclidean cons
-            # g = ca.vertcat(*[ca.dot(d,d) for d in ca.vertsplit(Uk_ - Uk,2)]) # this will not have nan
-            # self._g.append(g)
-            # self._lbg.append([0]*g.size(1)) #size(1): the dim of axis0
-            # self._ubg.append([self.eps**2]*g.size(1)) #size(1): the dim of axis0
-            ## Dij cons
             g = Uk_ - Uk
             self._g.append(g)
             self._lbg.append([-self.eps]*g.size(1)) #size(1): the dim of axis0
@@ -59,16 +53,6 @@ class uGenXYmove(uGenDefault):
         })
         return Uk
 
-def lineCons(a,b,n, f):
-    """Return the constraint on a line, the line is evenly distributed with n points
-
-    Args:
-        a (SX/MX): point
-        b (SX/MX): point
-        n (int): number of points on the line
-        f ((SX[2])->g): The constraint, g will be constrainted to be less than zero
-    """
-    return ca.vertcat(*[ f(a+(i/(n-1)*(b-a)))for i in range(n)])
 
 opt =  KKT_TO(
     Xgen = xGenDefault(xDim, xLim),
@@ -86,9 +70,23 @@ pc = opt.newhyperParam("pc", (2*NC,))
 Q = opt.newhyperParam("Q", (3,3))
 r = opt.newhyperParam("r", (NC,))
 normAng = opt.newhyperParam("normAng", (NC,))
-# each obstacle is represented by x,y,r
-cylinderObstacles = opt.newhyperParam("cylinderObstacles", (Nobstacle_cylinder * 3, ))
-lineObstacles = opt.newhyperParam("lineObstacles", (Nobstacle_line * 5, ))
+boxObstacles = opt.newhyperParam("boxObstacles", (Nobstacle_box * 5, ))  # x,y,th, box_l, box_w
+
+def makeClearanceAb(obstc):
+    p = obstc[:2]
+    th = obstc[2]
+    box_l = obstc[3]
+    box_w = obstc[4]
+    A = ca.vertcat(
+        ca.horzcat(ca.cos(th), ca.sin(th)),
+        ca.horzcat(-ca.sin(th), ca.cos(th))
+    )
+    o = A@p
+    AA = ca.vertcat(A,-A)
+    b = ca.vertcat(box_l, box_w)/2
+    bb = ca.vertcat(o+b, -o+b)
+    return AA,bb
+
 
 # Weights
 Wboxfinal = opt.newhyperParam("Wboxfinal")
@@ -109,11 +107,16 @@ opt.addCost(lambda clineu:  WropeNorm* clineu)
 
 pfuncs = model.pcfunc
 for i in range(STEPS):
+    x_0 = X0 + (i+1)*(Xdes - X0)/STEPS
+    normDirs = [ca.vertcat(ca.cos(x_0[2]+normAng[0]), ca.sin(x_0[2]+normAng[0])),
+                ca.vertcat(ca.cos(x_0[2]+normAng[1]), ca.sin(x_0[2]+normAng[1])),
+                ca.vertcat(ca.cos(x_0[2]+normAng[2]), ca.sin(x_0[2]+normAng[2]))]
+    u_0 = ca.vertcat( *[p.T+n*rr  for p,n,rr in zip(ca.vertsplit(pfuncs(x_0,pc),1), normDirs, ca.vertsplit(r, 1))])
     opt.step(model.integralFunc, 
     Func0 = lambda dx: model.Jfunc(dx, Q), 
     Func1 = lambda x,dx,u: model.gfunc(x,dx,pc,u, r), 
     Func2 = None, 
-    x0 = X0, u0 = pa0, F0=ca.DM([]))
+    x0 = x_0, u0 = u_0, F0=ca.DM([]))
     opt.addCost(lambda x: Wboxstep * normQuad(x-Xdes))
     # opt.addCost(lambda u: 1e-1* normQuad(u-u_last)) # This Cost make dog as passive as posible, May not good for the next iter
     # opt.addCost(lambda ml: 1e-3 * ml**2) # CANNOT ADD THIS COST
@@ -133,31 +136,15 @@ for i in range(STEPS):
     opt.addConstraint(lambda x,u, clineu: tmpf(x,u) - clineu, 
         ca.DM([-ca.inf]*NC), ca.DM([0]*NC))
 
-
-    # opt.addCost(lambda x,u: 1e-1 * normQuad(tmpf(x,u) -  r/2))
-
-    ## Add Line Avoidance Constraints
-    for obs in ca.vertsplit(lineObstacles,5):
-        g1 = opt.calwithState(lambda x,u: obs[0] * ca.vertcat(*[
-             cross2d(a - c.T, obs[1:3]-a) * cross2d(a-c.T, obs[3:]-a)
-            for a,c in zip(ca.vertsplit(u,2), ca.vertsplit(pfuncs(x,pc),1))
-        ]))
-        g2 = opt.calwithState(lambda x,u: obs[0] * ca.vertcat(*[
-             cross2d(obs[3:] - obs[1:3], a - obs[3:]) * cross2d(obs[3:] - obs[1:3], c.T - obs[3:])
-            for a,c in zip(ca.vertsplit(u,2), ca.vertsplit(pfuncs(x,pc),1))
-        ]))
-        addDisjunctivePositiveConstraint(opt, g1, g2, 'eps%d'%opt._sc)
-
-
-    # opt.addConstraint(lambda dx: normQuad(dx), 
-    #     ca.DM([-ca.inf]), ca.DM([0.3**2]))
-    
-    for obs in ca.vertsplit(cylinderObstacles,3):
-        for i in range(NC):
-            opt.addConstraint(lambda x,u: lineCons(
-                pfuncs(x,pc)[i,:].T, u[2*i:2*i+2], Nlinedivid, lambda p: obs[2]**2 - normQuad(p-obs[:2])
-            ), ca.DM([-ca.inf]*Nlinedivid), ca.DM([0]*Nlinedivid))
+    ## Add convex obstacle avoidance
+    for obs in ca.vertsplit(boxObstacles,5):
+        A,b = makeClearanceAb(obs)
+        avoidance = opt.calwithState(lambda u: ca.horzcat(*[ A@p-b for p in ca.vertsplit(u, 2)]))
+        for g in ca.horzsplit(avoidance, 1):
+            addDisjunctivePositiveConstraint(opt, g, 'eps%d'%opt._sc, 'disj%d'%opt._sc)
         
+
+
 
 opt.addConstraint(lambda x, cc: (x-Xdes)-cc, ca.DM([-ca.inf]*3), ca.DM([0]*3)) # Note: Adding a slacked constraint is different to directly put it into cost
 opt.addConstraint(lambda x, cc: (x-Xdes)+cc, ca.DM([0]*3), ca.DM([ca.inf]*3))  #       Because the Ipopt algorithm, using slacked constraint is better
@@ -172,24 +159,20 @@ if __name__ == "__main__":
     # exit()
 
     X0 = ca.DM([0,0,0])
-    Xdes = ca.DM([0.5,0,3])
+    Xdes = ca.DM([0.5,0,1.5])
     pa0 = ca.DM([-1,0,  0,1,  0,-1])
     pc = ca.DM([-1,0, 0,1, 0,-1])
     Q = np.diag([1,1,3])
     r = ca.DM([1,1,1])
     normAng = ca.DM([ca.pi,ca.pi/2,-ca.pi/2])
-    cylinderObstacles = [ # the x,y,r of obstacles
-        0, 0, 0,
-        0,0,0
-    ]
-    lineObstacles = ca.DM([1, 0.5,-1.3, 0.5,-3,
-                           1, 0.5,-2, 2,  -2,
-                           0, 0, 0, 0, 0,
-                           0, 0, 0, 0, 0])
+    boxObstacles = ca.DM([4,4,0,1,1, 0,0,0,0,0, 0,0,0,0,0])
 
+    # Wboxfinal = 1e3
+    # WropeNorm = 1e1
+    # Wboxstep = 1e0
     Wboxfinal = 1e3
-    WropeNorm = 1e1
-    Wboxstep = 1e0
+    WropeNorm = 1e1 # this cost improves the performance
+    Wboxstep = 0
 
 
     opt.setHyperParamValue({
@@ -200,8 +183,7 @@ if __name__ == "__main__":
         "Q" :Q,
         "r" :r,
         "normAng": normAng,
-        "cylinderObstacles":cylinderObstacles,
-        "lineObstacles":lineObstacles,
+        "boxObstacles":boxObstacles,
         "Wboxfinal" : Wboxfinal,
         "WropeNorm" : WropeNorm,
         "Wboxstep" : Wboxstep
@@ -216,7 +198,7 @@ if __name__ == "__main__":
             "verbose_init":True,
             # "jac_g": gjacFunc
         "ipopt":{
-            "max_iter" : 10000, # unkown option
+            "max_iter" : 50000, # unkown option
             "check_derivatives_for_naninf": "yes"
             }
         })
@@ -243,6 +225,5 @@ if __name__ == "__main__":
             "Q" :Q,
             "r" :r,
             "normAng": normAng,
-            "obstacles":cylinderObstacles,
-            "lineObstacles":lineObstacles
+            "boxObstacles":boxObstacles,
         }, f)

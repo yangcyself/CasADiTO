@@ -22,8 +22,9 @@ with open(solFile, "rb") as f:
     sol = solraw["sol"]
     nc = solraw["nc"]
     r = solraw["r"]
-    obs_list = solraw['obstacles']
-    lineobs_list = solraw['lineObstacles'].full().reshape(-1)
+    obs_list = solraw.get('obstacles',[])
+    lineobs_list = solraw.get('lineObstacles',ca.DM([])).full().reshape(-1)
+    boxobs_list = solraw.get('boxObstacles',ca.DM([])).full().reshape(-1)
     pc = solraw["pc"]
     # sol_ddq = sol["ddq_plot"].full().T
     sol_x= sol['Xgen']['x_plot'].full().T
@@ -71,15 +72,26 @@ def animate(i):
         ax.plot([pcs[i,0], usol[2*i]],[pcs[i,1], usol[2*i+1]], label="rope%d"%i, lw=(1+ml/(ml+1e-2)))
         for i,ml in enumerate(mlsol)
     ]
-    for obs_x, obs_y, obs_r in np.hsplit(np.array(obs_list), len(obs_list)//3):
-        ax.plot(obs_x+obs_r*np.array([np.cos(2*ca.pi*i/19) for i in range(20)]),
-                obs_y+obs_r*np.array([np.sin(2*ca.pi*i/19) for i in range(20)]))
+    if(len(obs_list)):
+        for obs_x, obs_y, obs_r in np.hsplit(np.array(obs_list), len(obs_list)//3):
+            ax.plot(obs_x+obs_r*np.array([np.cos(2*ca.pi*i/19) for i in range(20)]),
+                    obs_y+obs_r*np.array([np.sin(2*ca.pi*i/19) for i in range(20)]))
     
     if(len(lineobs_list)):
         for flag, p1x, p1y, p2x, p2y in np.hsplit(np.array(lineobs_list), len(lineobs_list)//5):
             if(np.abs(flag)>1e-6):
                 ax.plot([p1x, p2x],
                         [p1y, p2y])
+
+    if(len(boxobs_list)):
+        for x, y, th, bl, bw in np.hsplit(np.array(boxobs_list), len(boxobs_list)//5):
+            bl = bl/2
+            bw = bw/2
+            c = np.cos(th)
+            s = np.sin(th)
+            ax.plot(x+ np.array([c*bl-s*bw, -c*bl-s*bw, -c*bl+s*bw, c*bl+s*bw, c*bl-s*bw]),
+                    y+ np.array([s*bl+c*bw, -s*bl+c*bw, -s*bl-c*bw, s*bl-c*bw, s*bl+c*bw]))
+
 
     ax.legend()
 

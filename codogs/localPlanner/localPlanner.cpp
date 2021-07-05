@@ -6,6 +6,9 @@
 #include <utility>
 #include <cstring> //memcpy
 #include "stdio.h"
+#include <chrono> // count time
+#include <ctime>  
+
 /**
  * A wrapper class of ipopt app, takes care of all the init work
  */
@@ -19,8 +22,7 @@ public:
     hyperParameters::Q Q;
     hyperParameters::r r;
     hyperParameters::normAng normAng;
-    hyperParameters::cylinderObstacles cylinderObstacles;
-    hyperParameters::lineObstacles lineObstacles;
+    hyperParameters::boxObstacles boxObstacles;
 
     Eigen::MatrixXd x_out;
     Eigen::MatrixXd p_out;
@@ -34,8 +36,7 @@ public:
                 std::make_pair("Q", Q),
                 std::make_pair("r", r),
                 std::make_pair("normAng", normAng),
-                std::make_pair("cylinderObstacles", cylinderObstacles),
-                std::make_pair("lineObstacles", lineObstacles),
+                std::make_pair("boxObstacles", boxObstacles),
                 std::make_pair("Wboxfinal", &_Wboxfinal),
                 std::make_pair("WropeNorm", &_WropeNorm),
                 std::make_pair("Wboxstep", &_Wboxstep)
@@ -69,13 +70,12 @@ int localPlanner(
         hyperParameters::Q Q,
         hyperParameters::r r,
         hyperParameters::normAng normAng,
-        hyperParameters::cylinderObstacles cylinderObstacles, 
-        hyperParameters::lineObstacles lineObstacles,
+        hyperParameters::boxObstacles boxObstacles,
         parseOutput::x_plot& x_out, 
         parseOutput::u_plot& p_out
 )
 {
-    static localPlanApp a(1e3, 1e1, 1e0);
+    static localPlanApp a(1e3, 1, 1e1); 
     const auto app = a.app();
     ApplicationReturnStatus status;
     
@@ -86,9 +86,8 @@ int localPlanner(
     std::memcpy(a.Q, Q,   sizeof(hyperParameters::Q));
     std::memcpy(a.r, r,   sizeof(hyperParameters::r));
     std::memcpy(a.normAng, normAng,   sizeof(hyperParameters::normAng));
-    std::memcpy(a.cylinderObstacles, cylinderObstacles,   sizeof(hyperParameters::cylinderObstacles));
-    std::memcpy(a.lineObstacles, lineObstacles,   sizeof(hyperParameters::lineObstacles));
-    
+    std::memcpy(a.boxObstacles, boxObstacles,   sizeof(hyperParameters::boxObstacles));
+
     status = app->Initialize();
     if( status != Solve_Succeeded )
     {
@@ -97,7 +96,11 @@ int localPlanner(
     }
 
     // Ask Ipopt to solve the problem
+    auto start = std::chrono::system_clock::now();
     status = app->OptimizeTNLP(a.mynlp());
+    auto end = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsed_seconds = end-start;
+    std::cout << "time consumption: " << elapsed_seconds.count() <<std::endl;
 
     if( status == Solve_Succeeded || status == Solved_To_Acceptable_Level)
     {
