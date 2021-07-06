@@ -115,7 +115,7 @@ ZXYRot = _execmap["ZXYRot"]
 ZYXRot = _execmap["ZYXRot"]
 
 _R,_dR = ca.SX.sym('R',3,3), ca.SX.sym('dR',3,3)
-_SO2vec = ca.Function('SO2vec', [_R], [ca.vertcat(_R[2,1], _R[0,2], _R[1,0] )]) # TODO: debug this term, Especially the sign of rz
+_SO2vec = ca.Function('SO2vec', [_R], [ca.vertcat(_R[2,1], _R[0,2], _R[1,0] )])
 R2omega_B = ca.Function("R2omega_B", [_R, _dR], [_SO2vec(_R.T @ _dR)])
 R2omega_W = ca.Function("R2omega_W", [_R, _dR], [_SO2vec(_dR @ _R.T)])
 
@@ -143,7 +143,7 @@ dZYX2Omega_W = _execmap["dZYX2Omega_W"]
 
 def _buildOmega2deuler(eu2omeF, name):
     omg = ca.SX.sym("w",3)
-    Jac = ca.jacobian(dZYX2Omega_B(_et, _de), _de)
+    Jac = ca.jacobian(eu2omeF(_et, _de), _de)
     assert (len(ca.symvar(Jac)) == 3) # No de_0 de_1 de_2 involved, linear transformation
     return ca.Function(name, [_et, omg], [ca.inv(Jac) @ omg ] )
 
@@ -188,8 +188,25 @@ if __name__ == "__main__":
     theta, dtheta = ca.DM.rand(3), ca.DM.rand(3)
 
     omega_B = dZYX2Omega_B(theta, dtheta)
-    theta_ = omega_B2dZYX(theta, omega_B)
-    print(theta_ - theta)
+    dtheta_ = omega_B2dZYX(theta, omega_B)
+    print(dtheta_ - dtheta)
+
+    print("diff theta and diff rotation ang")
+    print("theta0 ", theta)
+    print("dtheta ", dtheta)
+    dt = 1e-3
+    theta1 = theta + dt * dtheta
+    dR_func = ca.Function('drR', [_et, _de], [ca.jtimes(ZYXRot(_et), _et, _de)])
+    R = ZYXRot(theta)
+    dR = dR_func(theta, dtheta)
+    print("R:", R)
+    print("dR:", (ZYXRot(theta1) - ZYXRot(theta))/dt)
+    print("dR':", dR)
+    print(dR @ R.T)
+    omega = dZYX2Omega_W(theta, dtheta)
+    print("omega: ", omega)
+    print("dtheta back", omega_W2dZYX(theta, omega))
+
     # omega_sym = ca.SX.sym("w",3)
     # euler_sym = ca.SX.sym("e",3)
     # deuler_sym = ca.SX.sym("de",3)

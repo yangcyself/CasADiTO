@@ -106,6 +106,7 @@ if __name__ == "__main__":
         print(res["Xgen"]["x_plot"])
     #######       #######       #######       #######       #######       #######       
     ## Generate a cpp version forward dynamics function to be compared with raisim
+    # result: the Cg have large diviation, but KE, PE, D mat all similar
     if(True):
         from scipy.spatial.transform import Rotation as R
         import numpy as np
@@ -120,6 +121,7 @@ if __name__ == "__main__":
         # C = ca.CodeGenerator("dyn", {"cpp": True, "with_header": True,"verbose":False})
         D_func = ca.Function("Dfunc", [m.x], [m.D])
         Cg_func = ca.Function("Cgfunc", [m.x], [m.Cg])
+        KEPE_func = ca.Function("KEPEfunc", [m.x], [ca.vertcat(m.root.KE, m.root.PE)])
         np.set_printoptions(precision = 2,linewidth=200)
         for i in range(18):
 
@@ -145,6 +147,7 @@ if __name__ == "__main__":
 
             D = np.genfromtxt("data/dynMatrix/%d_Massmat.csv"%i, delimiter=',')
             Cg = np.genfromtxt("data/dynMatrix/%d_Nonlinearity.csv"%i, delimiter=',')
+            E = np.genfromtxt("data/dynMatrix/%d_Energy.csv"%i, delimiter=',')
             # print(state)
             print("\nD_func Error")
             print(np.array(D_func(state)- D))
@@ -154,10 +157,38 @@ if __name__ == "__main__":
             print(np.array(Cg_func(state) - Cg).reshape(-1))
             print(np.array(Cg_func(state)).reshape(-1))
             print(np.array(Cg).reshape(-1))
-            
-            # print(Cg_func(state)- Cg)
-            
 
+            print("\nE")
+            print(E)
+            print(KEPE_func(state).full().T)
+            # print(Cg_func(state)- Cg)
+    ######
+    # Test the EOMF
+        from utils.mathUtil import solveLinearCons
+        from utils.caUtil import caSubsti, caFuncSubsti
+        last_state = None
+        EOMF = m.buildEOMF([1,1,1,1])
+        for i in range(20):
+            state = np.genfromtxt("data/dynMatrix/%d_state.csv"%i, delimiter=',')
+            force = np.genfromtxt("data/dynMatrix/%d_Force.csv"%i, delimiter=',')[6:]
+
+            state = list(state)
+            w,x,y,z = state[3:7]
+            r =  R.from_quat( np.array([x,y,z,w]) )
+            state[3:7] = quat_to_ZYX(state[3:7]) # change rotation
+            state = ca.DM(state)
+
+            state[21:24] = mathUtil.omega_W2dZYX(state[3:6], state[21:24])
+            if(last_state is not None):
+                ddx = (state - last_state)/1e-3
+                print("\nddx", ddx[18:])
+                print("force:", force)
+                initSol = solveLinearCons(caFuncSubsti(EOMF, {"x":state, 'u':force}), [])
+                print("ddq", initSol['ddq'])
+                print("F", initSol['F'])
+                print(EOMF(state, force, initSol['F'],  initSol['ddq'] ))
+
+            last_state = state
 
         # print(D_func(ca.DM.rand(m.x.size())))
         # print(D_func(ca.DM.rand(m.x.size())).size())
