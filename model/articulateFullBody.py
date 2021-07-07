@@ -101,3 +101,5 @@ if __name__ == "__main__":
 
     print([n.name for n in m.child])
     print(m.child[0].child[1].child[0].Bp)
+    print(m.child[0].child[1].child[0].M)
+    print(ca.symvar( m.child[0].child[1].child[0].KE))

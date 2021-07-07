@@ -71,17 +71,35 @@ if __name__ == "__main__":
         toeList=[("FL_SHANK", ca.DM([0,0,-0.2])),  ("FR_SHANK", ca.DM([0,0,-0.2])),
                  ("HL_SHANK", ca.DM([0,0,-0.2])), ("HR_SHANK", ca.DM([0,0,-0.2]))])
 
+    # x0 = ca.DM([0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0]+[0]*18)
+    # toeFunc = ca.Function('toe', [m.x], [m.toePoses[0]] )
+    # # print(m.toePoses[0])
+    # print(toeFunc(x0))
+    # x0[8] = 0.1
+    # print(toeFunc(x0))
+    # MpFunc = ca.Function('mp', [m.x], [m.urdfBase._linkdict["INERTIA"].Mp])
+    # # print(MpFunc(x0))
+    # exit()
+
     # print(m.buildEOMF([1,1,1,1]))
     # print(ca.DM(m.B).full())
+    from scipy.spatial.transform import Rotation as R
+    import numpy as np
+    def quat_to_ZYX(q):
+        # NOTE: The quat of scipy is xyzw norm. However, quat from raisim is wxyz
+        w,x,y,z = q
+        r = R.from_quat( np.array([x,y,z,w]) )
+        Z,Y,X = r.as_euler('ZYX', degrees=False) # the order of the angles is the first, second, third
+        return np.array([X,Y,Z])
 
     #######       #######       #######       #######       #######       #######
     ## Do a simple simulation using towr collocation form, enforce u to be zero
-    if(False):
+    if(True):
         from optGen.trajOptimizer import TowrCollocationDefault
         dT0 = 0.01
         opt = TowrCollocationDefault(2*m.dim, m.u_dim, m.F_dim, xLim = ca.DM([[-ca.inf, ca.inf]]*2*m.dim),
-            uLim= ca.DM([[0, 0]]*m.u_dim), FLim = ca.DM([[-ca.inf, ca.inf]]*m.F_dim), dt= dT0)
-        x0 = ca.DM([0,0,1, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0]+[0]*18)
+            uLim= ca.DM([[-100, 100]]*m.u_dim), FLim = ca.DM([[-ca.inf, ca.inf]]*m.F_dim), dt= dT0)
+        x0 = ca.DM([0, 0, 0.190013, 0, 0, 0, 0, -1, 2.1, 0, -1.0, 2.1, 0, -1.0, 2.1, 0, -1.0, 2.1]+[0]*18)
         opt.begin(x0=x0, u0=[0]*12, F0=[0]*12)
 
         EOMF = m.buildEOMF([1,1,1,1])
@@ -89,6 +107,7 @@ if __name__ == "__main__":
         for i in range(10):
             opt.step(lambda dx,x,u,F : EOMF(x=x,u=u,F=F,ddq = dx[m.dim:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
                     x0 = x0, u0=[0]*12, F0=[0]*12)
+            opt.addCost(lambda x: ca.dot(x-x0, x-x0))
         print("Opt Set")
         res = opt.solve(options=
             {"calc_f" : True,
@@ -104,50 +123,34 @@ if __name__ == "__main__":
             })
 
         print(res["Xgen"]["x_plot"])
+        print(res["Ugen"]["u_plot"])
+        exit()
     #######       #######       #######       #######       #######       #######       
     ## Generate a cpp version forward dynamics function to be compared with raisim
     # result: the Cg have large diviation, but KE, PE, D mat all similar
     if(True):
-        from scipy.spatial.transform import Rotation as R
-        import numpy as np
-
-        def quat_to_ZYX(q):
-            # NOTE: The quat of scipy is xyzw norm. However, quat from raisim is wxyz
-            w,x,y,z = q
-            r = R.from_quat( np.array([x,y,z,w]) )
-            Z,Y,X = r.as_euler('ZYX', degrees=False) # the order of the angles is the first, second, third
-            return np.array([X,Y,Z])
         print("LINKS:", m.x)
         # C = ca.CodeGenerator("dyn", {"cpp": True, "with_header": True,"verbose":False})
         D_func = ca.Function("Dfunc", [m.x], [m.D])
         Cg_func = ca.Function("Cgfunc", [m.x], [m.Cg])
         KEPE_func = ca.Function("KEPEfunc", [m.x], [ca.vertcat(m.root.KE, m.root.PE)])
+        FLpos_func = ca.Function("FLposfunc", [m.x], [m.urdfBase._linkdict["FL_SHANK"].Bp])
+        toeFunc = ca.Function("toeFunc", [m.x], [m.toePoses[0]])
         np.set_printoptions(precision = 2,linewidth=200)
         for i in range(18):
 
             state = np.genfromtxt("data/dynMatrix/%d_state.csv"%i, delimiter=',')
-
+            print("State:", state)
             state = list(state)
-            print("quat", state[3:7], state[22:25])
-            w,x,y,z = state[3:7]
-            r =  R.from_quat( np.array([x,y,z,w]) )
-            print(r.as_matrix())
             state[3:7] = quat_to_ZYX(state[3:7]) # change rotation
-            state = ca.DM(state)
-
-            omega_W = state[21:24]
-            Rwb = mathUtil.ZYXRot(state[3:6])
-            print(Rwb.T @ Rwb)
-            omega_B = Rwb.T @ omega_W
-            print("euler:", mathUtil.omega_B2dZYX(state[3:6] ,omega_B) )
-            
+            state = ca.DM(state)          
             state[21:24] = mathUtil.omega_W2dZYX(state[3:6], state[21:24])
-            print("eular", state[3:6], state[21:24])
-            print(mathUtil.ZYXRot(state[3:6]))
-
+            print("State:", state.full().reshape(-1))
+            print("rotationVelocity", state[21:24])
             D = np.genfromtxt("data/dynMatrix/%d_Massmat.csv"%i, delimiter=',')
             Cg = np.genfromtxt("data/dynMatrix/%d_Nonlinearity.csv"%i, delimiter=',')
             E = np.genfromtxt("data/dynMatrix/%d_Energy.csv"%i, delimiter=',')
+            FLpos = np.genfromtxt("data/dynMatrix/%d_FL_pos.csv"%i, delimiter=',')
             # print(state)
             print("\nD_func Error")
             print(np.array(D_func(state)- D))
@@ -161,9 +164,16 @@ if __name__ == "__main__":
             print("\nE")
             print(E)
             print(KEPE_func(state).full().T)
+
+            print("\nFL_pos")
+            print(FLpos)
+            print(FLpos_func(state).full())
+            print(toeFunc(state).full().T)
+            exit()
             # print(Cg_func(state)- Cg)
     ######
     # Test the EOMF
+    if(False):
         from utils.mathUtil import solveLinearCons
         from utils.caUtil import caSubsti, caFuncSubsti
         last_state = None
@@ -173,21 +183,19 @@ if __name__ == "__main__":
             force = np.genfromtxt("data/dynMatrix/%d_Force.csv"%i, delimiter=',')[6:]
 
             state = list(state)
-            w,x,y,z = state[3:7]
-            r =  R.from_quat( np.array([x,y,z,w]) )
             state[3:7] = quat_to_ZYX(state[3:7]) # change rotation
             state = ca.DM(state)
-
             state[21:24] = mathUtil.omega_W2dZYX(state[3:6], state[21:24])
+
             if(last_state is not None):
                 ddx = (state - last_state)/1e-3
-                print("\nddx", ddx[18:])
+                print("\ndx:", ddx[:18])
+                print("ddx", ddx[18:])
                 print("force:", force)
                 initSol = solveLinearCons(caFuncSubsti(EOMF, {"x":state, 'u':force}), [])
                 print("ddq", initSol['ddq'])
                 print("F", initSol['F'])
-                print(EOMF(state, force, initSol['F'],  initSol['ddq'] ))
-
+                # print(EOMF(state, force, initSol['F'],  ddx[18:] ))
             last_state = state
 
         # print(D_func(ca.DM.rand(m.x.size())))

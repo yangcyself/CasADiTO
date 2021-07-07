@@ -32,10 +32,10 @@ with open(solFile, "rb") as f:
     sol_lam = sol["ml_plot"].full().T
     sol_lam = np.vstack([np.zeros([1,nc]),sol_lam])
 
-    print(np.all(0<sol["comS_plot"].full()+1e-6))
-    print(np.all(0>sol["comS_plot"].full()-1e-6))
-    print(np.all(sol["_gb"][:,0].full()<sol["_g"].full()+1e-6))
-    print(np.all(sol["_g"].full()<sol["_gb"][:,1].full()+1e-6))
+    # print(np.all(0<sol["comS_plot"].full()+1e-6))
+    # print(np.all(0>sol["comS_plot"].full()-1e-6))
+    # print(np.all(sol["_gb"][:,0].full()<sol["_g"].full()+1e-6))
+    # print(np.all(sol["_g"].full()<sol["_gb"][:,1].full()+1e-6))
 
     # print("\ndisj_x", sol["disj_x"])
     # print("\ndisj_y", sol["disj_y"])

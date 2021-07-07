@@ -474,7 +474,7 @@ class ArticulateSystem:
         L = self.L
         dq = self.dq
         q = self.q
-        return ca.simplify(ca.jacobian(ca.jacobian(L,dq).T, q))
+        return ca.simplify(ca.jacobian(ca.gradient(L,dq), q))
 
     @property
     def G(self):
@@ -493,7 +493,7 @@ class ArticulateSystem:
         L = self.L
         dq = self.dq
         q = self.q
-        return ca.jtimes(ca.jacobian(L,dq).T, q, dq) - ca.jacobian(L,q).T
+        return ca.jtimes(ca.gradient(L,dq), q, dq) - ca.gradient(L,q)
 
     
 if __name__ == "__main__":

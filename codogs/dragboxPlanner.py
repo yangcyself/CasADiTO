@@ -14,7 +14,7 @@ NC = 3
 # Nobstacle_cylinder = 2
 # Nobstacle_line = 4
 # Nlinedivid = 3
-Nobstacle_box = 3
+Nobstacle_box = 0
 
 Clineu_MIN = 0.8
 RopeNormMin = 0.1
@@ -106,7 +106,7 @@ opt._state.update({"clineu": Clineu})
 opt.addCost(lambda clineu:  WropeNorm* clineu)
 
 pfuncs = model.pcfunc
-for i in range(STEPS):
+for i in range(STEPS-1):
     x_0 = X0 + (i+1)*(Xdes - X0)/STEPS
     normDirs = [ca.vertcat(ca.cos(x_0[2]+normAng[0]), ca.sin(x_0[2]+normAng[0])),
                 ca.vertcat(ca.cos(x_0[2]+normAng[1]), ca.sin(x_0[2]+normAng[1])),
@@ -116,7 +116,7 @@ for i in range(STEPS):
     Func0 = lambda dx: model.Jfunc(dx, Q), 
     Func1 = lambda x,dx,u: model.gfunc(x,dx,pc,u, r), 
     Func2 = None, 
-    x0 = x_0, u0 = u_0, F0=ca.DM([]))
+    x0 = 0*x_0, u0 = 0*u_0, F0=ca.DM([]))
     opt.addCost(lambda x: Wboxstep * normQuad(x-Xdes))
     # opt.addCost(lambda u: 1e-1* normQuad(u-u_last)) # This Cost make dog as passive as posible, May not good for the next iter
     # opt.addCost(lambda ml: 1e-3 * ml**2) # CANNOT ADD THIS COST
@@ -159,19 +159,20 @@ if __name__ == "__main__":
     # exit()
 
     X0 = ca.DM([0,0,0])
-    Xdes = ca.DM([0.5,0,1.5])
+    Xdes = ca.DM([0.5,0,0])
     pa0 = ca.DM([-1,0,  0,1,  0,-1])
     pc = ca.DM([-1,0, 0,1, 0,-1])
     Q = np.diag([1,1,3])
     r = ca.DM([1,1,1])
     normAng = ca.DM([ca.pi,ca.pi/2,-ca.pi/2])
-    boxObstacles = ca.DM([4,4,0,1,1, 0,0,0,0,0, 0,0,0,0,0])
+    # boxObstacles = ca.DM([4,4,0,1,1, 0,0,0,0,0, 0,0,0,0,0])
+    boxObstacles = ca.DM([])
 
     # Wboxfinal = 1e3
     # WropeNorm = 1e1
     # Wboxstep = 1e0
     Wboxfinal = 1e3
-    WropeNorm = 1e1 # this cost improves the performance
+    WropeNorm = 0 # this cost improves the performance
     Wboxstep = 0
 
 

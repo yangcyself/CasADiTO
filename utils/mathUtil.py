@@ -191,12 +191,24 @@ if __name__ == "__main__":
     dtheta_ = omega_B2dZYX(theta, omega_B)
     print(dtheta_ - dtheta)
 
+    print("Test angular velocity")
+    # print(ZYXRot([0,ca.pi/2,0]))
+    # print(dZYX2Omega_W(ca.DM.rand(3)*20,  [0,1,1]))
+    dt = 1e-6
+    omega = ca.DM([ 0, 1, 1])
+    omega_n = ca.norm_2(omega)
+    omega_norm = omega/omega_n
+    dR_func = ca.Function('drR', [_et, _de], [ca.jtimes(ZYXRot(_et), _et, _de)])
+    print(ca.DM((Rot(omega_n*dt, omega_norm) - ca.DM.eye(3)) / dt).full())
+    print(dR_func([1,0.5,1], omega_W2dZYX([1,0.5,1],omega) ) @ ZYXRot([1,0.5,1]).T ) # transformation of omega_W to dtheta should not be related to theta
+
+
     print("diff theta and diff rotation ang")
     print("theta0 ", theta)
     print("dtheta ", dtheta)
     dt = 1e-3
     theta1 = theta + dt * dtheta
-    dR_func = ca.Function('drR', [_et, _de], [ca.jtimes(ZYXRot(_et), _et, _de)])
+    
     R = ZYXRot(theta)
     dR = dR_func(theta, dtheta)
     print("R:", R)
