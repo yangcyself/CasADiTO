@@ -136,6 +136,14 @@ for i in range(STEPS-1):
     opt.addConstraint(lambda x,u, clineu: tmpf(x,u) - clineu, 
         ca.DM([-ca.inf]*NC), ca.DM([0]*NC))
 
+    # directly add the constraint of robustness: the diviation in dog position will not broke the rope
+    # x_safe = opt.addNewVariable("x_safe", ca.DM([-ca.inf]*3), ca.DM([ca.inf]*3), x_0)
+    # opt._state.update({"xsafe": x_safe})
+    # opt.addConstraint(lambda xsafe, u: ca.vertcat(*[
+    #     normQuad(a-c.T) - 0.8 * rr**2 # there exists a position that suits for smaller r
+    #     for a,c, rr in zip(ca.vertsplit(u,2), ca.vertsplit(pfuncs(xsafe, pc),1), ca.vertsplit(r,1))
+    # ]), ca.DM([-ca.inf]*3), ca.DM([0]*3) )
+
     ## Add convex obstacle avoidance
     for obs in ca.vertsplit(boxObstacles,5):
         A,b = makeClearanceAb(obs)
@@ -159,8 +167,8 @@ if __name__ == "__main__":
     # exit()
 
     X0 = ca.DM([0,0,0])
-    Xdes = ca.DM([0.5,0,0])
-    pa0 = ca.DM([-1,0,  0,1,  0,-1])
+    Xdes = ca.DM([0.5,0,1.2])
+    pa0 = ca.DM([-1.2,0,  0,1.2,  0,-1.2])
     pc = ca.DM([-1,0, 0,1, 0,-1])
     Q = np.diag([1,1,3])
     r = ca.DM([1,1,1])
@@ -173,7 +181,7 @@ if __name__ == "__main__":
     # Wboxstep = 1e0
     Wboxfinal = 1e3
     WropeNorm = 0 # this cost improves the performance
-    Wboxstep = 0
+    Wboxstep = 1e1
 
 
     opt.setHyperParamValue({
@@ -227,4 +235,5 @@ if __name__ == "__main__":
             "r" :r,
             "normAng": normAng,
             "boxObstacles":boxObstacles,
+            "EXECTIME": res['exec_sec']
         }, f)
