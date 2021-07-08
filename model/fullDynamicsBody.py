@@ -60,31 +60,36 @@ class FullDynamicsBody(ArticulateSystem):
 
         g = self.EOM_func(self.q, self.dq, ddq, self.B @ u+toeJac.T @ F) # the EOM
         g = ca.vertcat(g, *[ cJ @ ddq + ca.jtimes(cJ,self.q,self.dq)@self.dq for cJ,cm in zip(consJ,consMap) if cm])
-        g = ca.vertcat(g, *[ F[i*2:i*2+2] for i,cm in enumerate(consMap) if not cm])
+        g = ca.vertcat(g, *[ F[i*3:i*3+3] for i,cm in enumerate(consMap) if not cm])
         g = ca.simplify(g)
         return ca.Function("%sEOMF"%name, [self.x,u,F,ddq], [g], ["x","u","F","ddq"], ["%sEOM"%name])
     
     
 if __name__ == "__main__":
 
+    from scipy.spatial.transform import Rotation as R
+    import numpy as np
+    np.set_printoptions(precision = 2,linewidth=200,threshold=99999)
+
     m =FullDynamicsBody('/home/ami/jy_models/JueyingMiniLiteV2/urdf/MiniLiteV2_Rsm.urdf',
         toeList=[("FL_SHANK", ca.DM([0,0,-0.2])),  ("FR_SHANK", ca.DM([0,0,-0.2])),
                  ("HL_SHANK", ca.DM([0,0,-0.2])), ("HR_SHANK", ca.DM([0,0,-0.2]))])
 
     # x0 = ca.DM([0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0]+[0]*18)
-    # toeFunc = ca.Function('toe', [m.x], [m.toePoses[0]] )
+    toeFunc = ca.Function('toe', [m.x], [m.toePoses[0]] )
     # # print(m.toePoses[0])
     # print(toeFunc(x0))
     # x0[8] = 0.1
     # print(toeFunc(x0))
     # MpFunc = ca.Function('mp', [m.x], [m.urdfBase._linkdict["INERTIA"].Mp])
     # # print(MpFunc(x0))
-    # exit()
 
     # print(m.buildEOMF([1,1,1,1]))
     # print(ca.DM(m.B).full())
-    from scipy.spatial.transform import Rotation as R
-    import numpy as np
+    x0 = ca.DM([0, 0, 0.190013, 0, 0, ca.pi/2, 0, -1, 2.1, 0, -1., 2.1, 0, -1.0, 2.1, 0, -1.0, 2.1]+[0]*18)
+    JacF = ca.Function("f", [m.x], [ca.jacobian(m.toePoses[0] ,m.q)] )
+    print(JacF(x0).full())
+    print(toeFunc(x0))
     def quat_to_ZYX(q):
         # NOTE: The quat of scipy is xyzw norm. However, quat from raisim is wxyz
         w,x,y,z = q
@@ -94,20 +99,22 @@ if __name__ == "__main__":
 
     #######       #######       #######       #######       #######       #######
     ## Do a simple simulation using towr collocation form, enforce u to be zero
-    if(True):
+    if(False):
+        from vis import saveSolution
         from optGen.trajOptimizer import TowrCollocationDefault
         dT0 = 0.01
         opt = TowrCollocationDefault(2*m.dim, m.u_dim, m.F_dim, xLim = ca.DM([[-ca.inf, ca.inf]]*2*m.dim),
             uLim= ca.DM([[-100, 100]]*m.u_dim), FLim = ca.DM([[-ca.inf, ca.inf]]*m.F_dim), dt= dT0)
-        x0 = ca.DM([0, 0, 0.190013, 0, 0, 0, 0, -1, 2.1, 0, -1.0, 2.1, 0, -1.0, 2.1, 0, -1.0, 2.1]+[0]*18)
+        x0 = ca.DM([0, 0, 0.190013, 0, 0, 0, 0, -1, 2.1, 0, -1., 2.1, 0, -1.0, 2.1, 0, -1.0, 2.1]+[0]*18)
         opt.begin(x0=x0, u0=[0]*12, F0=[0]*12)
 
         EOMF = m.buildEOMF([1,1,1,1])
         print("EOMF built")
-        for i in range(10):
+        for i in range(100):
             opt.step(lambda dx,x,u,F : EOMF(x=x,u=u,F=F,ddq = dx[m.dim:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
                     x0 = x0, u0=[0]*12, F0=[0]*12)
             opt.addCost(lambda x: ca.dot(x-x0, x-x0))
+            opt.addCost(lambda x: 1e3*ca.dot(x[3:6], x[3:6]))
         print("Opt Set")
         res = opt.solve(options=
             {"calc_f" : True,
@@ -124,7 +131,15 @@ if __name__ == "__main__":
 
         print(res["Xgen"]["x_plot"])
         print(res["Ugen"]["u_plot"])
-        exit()
+        print(res["Fgen"]["F_plot"])
+        sol_x = res["Xgen"]["x_plot"].full().T
+        # get corres cols x,y,r,bh,bt,fh,ft,dx,dy,dr,dbh,dbt,dfh,dft
+        sol_x = sol_x[:, [0,2,4,13,14, 7, 8,18,20,22, 31, 32, 25, 26]]
+        sol_u = res["Ugen"]["u_plot"].full().T
+        sol_u = sol_u[:, [7, 8, 1, 2]]
+        timeStamps = res["dTgen"]["t_plot"]
+        saveSolution("out.csv", sol_x, sol_u, timeStamps.full().reshape(-1), transform=False)
+        # exit()
     #######       #######       #######       #######       #######       #######       
     ## Generate a cpp version forward dynamics function to be compared with raisim
     # result: the Cg have large diviation, but KE, PE, D mat all similar
@@ -136,7 +151,7 @@ if __name__ == "__main__":
         KEPE_func = ca.Function("KEPEfunc", [m.x], [ca.vertcat(m.root.KE, m.root.PE)])
         FLpos_func = ca.Function("FLposfunc", [m.x], [m.urdfBase._linkdict["FL_SHANK"].Bp])
         toeFunc = ca.Function("toeFunc", [m.x], [m.toePoses[0]])
-        np.set_printoptions(precision = 2,linewidth=200)
+
         for i in range(18):
 
             state = np.genfromtxt("data/dynMatrix/%d_state.csv"%i, delimiter=',')
@@ -173,7 +188,7 @@ if __name__ == "__main__":
             # print(Cg_func(state)- Cg)
     ######
     # Test the EOMF
-    if(False):
+    if(True):
         from utils.mathUtil import solveLinearCons
         from utils.caUtil import caSubsti, caFuncSubsti
         last_state = None
@@ -189,15 +204,19 @@ if __name__ == "__main__":
 
             if(last_state is not None):
                 ddx = (state - last_state)/1e-3
-                print("\ndx:", ddx[:18])
-                print("ddx", ddx[18:])
-                print("force:", force)
-                initSol = solveLinearCons(caFuncSubsti(EOMF, {"x":state, 'u':force}), [])
+                # print("\nstate:", state)
+                # print("dx:", ddx[:18])
+                # print("ddx", ddx[18:])
+                # print("force:", force)
+                x0 = ca.DM([0, 0, 0.190013, 0, 0, ca.pi/2, 0, -1, 2.1, 0, -1., 2.1, 0, -1.0, 2.1, 0, -1.0, 2.1]+[0]*18)
+
+                initSol = solveLinearCons(caFuncSubsti(EOMF, {"x":x0}), [("ddq", np.zeros(18), 1e3)])
                 print("ddq", initSol['ddq'])
                 print("F", initSol['F'])
+                print("u", initSol['u'])
                 # print(EOMF(state, force, initSol['F'],  ddx[18:] ))
+                break
             last_state = state
-
         # print(D_func(ca.DM.rand(m.x.size())))
         # print(D_func(ca.DM.rand(m.x.size())).size())
         # C.add(D_func)

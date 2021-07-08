@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 
-def saveSolution(filename, x_opt, u_opt, t):
+def saveSolution(filename, x_opt, u_opt, t, transform = True):
     df_x = pd.DataFrame(x_opt, 
         columns = ["x", "y", "r", "bh", "bt", "fh", "ft",
                 "dx", "dy", "dr", "dbh", "dbt", "dfh", "dft"], 
@@ -18,9 +18,9 @@ def saveSolution(filename, x_opt, u_opt, t):
     print(df.head())
 
     # Frame shift
-
-    df["bh"] = df["bh"] + np.math.pi/2
-    df["fh"] = df["fh"] + np.math.pi/2
+    if(transform): # used for output in collocation main
+        df["bh"] = df["bh"] + np.math.pi/2
+        df["fh"] = df["fh"] + np.math.pi/2
     df.to_csv(filename, index_label = "t", 
             columns = ["x", "y", "r", "bh", "bt", "fh", "ft", 
             "dx", "dy", "dr", "dbh", "dbt", "dfh", "dft", 
