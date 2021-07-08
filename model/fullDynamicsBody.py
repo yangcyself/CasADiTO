@@ -4,7 +4,7 @@ from model.articulateFullBody import *
 using x,y,z, rx,ry,rz , q1, q2, ... as the state
 """
 class FullDynamicsBody(ArticulateSystem):
-    def __init__(self, urdfFile, eularMod = "ZYX", toeList = None):
+    def __init__(self, urdfFile, eularMod = "ZYX", toeList = None, symbolize = False):
         """[summary]
 
         Args:
@@ -12,7 +12,7 @@ class FullDynamicsBody(ArticulateSystem):
             eularMod (str, optional): [description]. Defaults to "ZYX".
             toeList ((linkName:str, pose_in_link_frame: vec3), optional): The list of position of toes
         """
-        root = urdfWrap3D.FloatBaseUrdf('base', urdfFile, eularMod)
+        root = urdfWrap3D.FloatBaseUrdf('base', urdfFile, eularMod, symbolize=symbolize)
         super().__init__(root)
         self.urdfBase = self.root.child[0]
 
@@ -38,7 +38,7 @@ class FullDynamicsBody(ArticulateSystem):
     def getGlobalPos(self, linkName, localPos):
         return (self.urdfBase._linkdict[linkName].Bp @ ca.vertcat(localPos,1))[:3]
     
-    def buildEOMF(self, consMap, name=""):
+    def buildEOMF(self, consMap, name="", symbolize = False):
         """Build the equation of Motion and constraint. Return g(x,u,F,ddq)
 
         Args:
@@ -57,12 +57,18 @@ class FullDynamicsBody(ArticulateSystem):
         consJ = [ca.jacobian(c,self.q) for c in cons]
         toeJac = ca.vertcat(*consJ)
 
+        if(symbolize):
+            g = self.EOM_sym_func(self.q, self.dq, ddq, self.B @ u+toeJac.T @ F, self.confsym) # the EOM
+        else:
+            g = self.EOM_func(self.q, self.dq, ddq, self.B @ u+toeJac.T @ F) # the EOM
 
-        g = self.EOM_func(self.q, self.dq, ddq, self.B @ u+toeJac.T @ F) # the EOM
         g = ca.vertcat(g, *[ cJ @ ddq + ca.jtimes(cJ,self.q,self.dq)@self.dq for cJ,cm in zip(consJ,consMap) if cm])
         g = ca.vertcat(g, *[ F[i*3:i*3+3] for i,cm in enumerate(consMap) if not cm])
         g = ca.simplify(g)
-        return ca.Function("%sEOMF"%name, [self.x,u,F,ddq], [g], ["x","u","F","ddq"], ["%sEOM"%name])
+        if(symbolize):
+            return ca.Function("%sEOMF"%name, [self.x,u,F,ddq], [g], ["x","u","F","ddq"], ["%sEOM"%name])
+        else:
+            return ca.Function("%sEOMF"%name, [self.x,u,F,ddq, self.confsym], [g], ["x","u","F","ddq", "confsym"], ["%sEOM"%name])
     
     
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ class Body:
         self.freeD = freeD
         self._q = ca.SX.sym("%s_q"%name,freeD)
         self._dq = ca.SX.sym("%s_dq"%name,freeD)
+        self._confsym = [] # config symbols
         self.child = []
         self.parent = None
 
@@ -49,6 +50,10 @@ class Body:
         """The vel of the whole system, including all the children"""
         dq = ca.DM([]) if not self.freeD else self._dq
         return ca.vertcat(dq, *[c.dx for c in self.child])
+    
+    @property
+    def confsym(self):
+        return ca.vertcat(*self._confsym, *[c.confsym for c in self.child])
 
     @property
     def KE(self):
@@ -462,6 +467,25 @@ class ArticulateSystem:
         EOM = ca.simplify(EOM)
         return ca.Function("EOM_func", [q, dq, ddq, Q], [EOM], 
                     ["q", "dq", "ddq", "Q"], ["EOM"])
+
+    @property
+    def EOM_sym_func(self):
+        """The Equation of Motion (x, dx, ddx, Q, confsym)
+        """
+        L = self.L
+        d = self.dim
+        ddq = ca.SX.sym("ddq",d)
+        dq = self.dq
+        q = self.q
+        Q = ca.SX.sym("Q",d)
+        sym = self.confsym
+        EOM = (ca.jtimes(ca.jacobian(L,dq).T, dq, ddq) 
+            + ca.jtimes(ca.jacobian(L,dq).T, q, dq) 
+            - ca.jacobian(L,q).T - Q) # equation of motion
+        EOM = ca.simplify(EOM)
+        return ca.Function("EOM_func", [q, dq, ddq, Q, sym], [EOM], 
+                    ["q", "dq", "ddq", "Q", "confsym"], ["EOM"])
+
 
     @property
     def D(self):

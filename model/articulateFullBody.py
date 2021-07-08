@@ -9,15 +9,15 @@ class urdfWrap3D(Body3D):
     """The wrapper of the urdf parse result from urdfReader
     """
     @staticmethod
-    def FloatBaseUrdf(name, urdffile, eularMod = "ZYX"):
+    def FloatBaseUrdf(name, urdffile, eularMod = "ZYX", symbolize = False):
         """Build a floating base body, whose body is represented by 6 varialbes
         """
         root = Base3D(name, 0, 0, eularMod)
-        root.addChild(urdfWrap3D.fromUrdf, urdffile = urdffile)
+        root.addChild(urdfWrap3D.fromUrdf, urdffile = urdffile, symbolize = symbolize)
         return root
 
     @staticmethod
-    def fromUrdf(urdffile, Fp=None, baseName = None, workingDict = None):
+    def fromUrdf(urdffile, Fp=None, baseName = None, workingDict = None, symbolize = False):
         """Generate urdfWrap3D bodies from a urdffile
         Args:
             urdffile (string): The file to load
@@ -44,12 +44,14 @@ class urdfWrap3D(Body3D):
         baseName = urdfmodel.robot_urdf.base_link.name if baseName is None else baseName
         baselinkdict = linkdict[baseName]
         freeD = 1 if baselinkdict['joint'] is not None and not baselinkdict['fixed'] else 0
-        baselink = urdfWrap3D(baseName, freeD, baselinkdict['mass'], baselinkdict['inertia'], baselinkdict['origin'],
+        mass = ca.SX.sym("%s_M"%baseName, 1) if symbolize else baselinkdict['mass']
+        baselink = urdfWrap3D(baseName, freeD, mass, baselinkdict['inertia'], baselinkdict['origin'],
             Fp = Fp,urdfBase=urdfBase)
+        if(symbolize): baselink._confsym.append(mass)
         bodydict.update({baseName: baselink})
         if(urdfBase is None):
             workingDict['urdfBase'] = baselink
-        newchilds = [urdfWrap3D.fromUrdf(urdffile, Fp, cn, workingDict) for cn in baselinkdict['childs']]
+        newchilds = [urdfWrap3D.fromUrdf(urdffile, Fp, cn, workingDict,symbolize=symbolize) for cn in baselinkdict['childs']]
         for c in newchilds:
             c.parent = baselink
         baselink.child += newchilds
@@ -102,4 +104,8 @@ if __name__ == "__main__":
     print([n.name for n in m.child])
     print(m.child[0].child[1].child[0].Bp)
     print(m.child[0].child[1].child[0].M)
+    print(ca.symvar( m.child[0].child[1].child[0].KE))
+
+    m = urdfWrap3D.FloatBaseUrdf('Lite', '/home/ami/jy_models/JueyingMiniLiteV2/urdf/MiniLiteV2_Rsm.urdf', symbolize = True)
+    print(m.confsym)
     print(ca.symvar( m.child[0].child[1].child[0].KE))
