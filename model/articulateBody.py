@@ -478,7 +478,7 @@ class ArticulateSystem:
         dq = self.dq
         q = self.q
         Q = ca.SX.sym("Q",d)
-        sym = self.confsym
+        sym = self.root.confsym
         EOM = (ca.jtimes(ca.jacobian(L,dq).T, dq, ddq) 
             + ca.jtimes(ca.jacobian(L,dq).T, q, dq) 
             - ca.jacobian(L,q).T - Q) # equation of motion

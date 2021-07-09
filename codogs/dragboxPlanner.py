@@ -116,7 +116,7 @@ for i in range(STEPS):
     Func0 = lambda dx: model.Jfunc(dx, Q), 
     Func1 = lambda x,dx,u: model.gfunc(x,dx,pc,u, r), 
     Func2 = None, 
-    x0 = 0*x_0, u0 = 0*u_0, F0=ca.DM([]))
+    x0 = x_0, u0 = u_0, F0=ca.DM([]))
     opt.addCost(lambda x: Wboxstep * normQuad(x-Xdes))
     # opt.addCost(lambda u: 1e-1* normQuad(u-u_last)) # This Cost make dog as passive as posible, May not good for the next iter
     # opt.addCost(lambda ml: 1e-3 * ml**2) # CANNOT ADD THIS COST

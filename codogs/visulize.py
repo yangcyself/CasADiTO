@@ -31,7 +31,7 @@ with open(solFile, "rb") as f:
     sol_u= sol['Ugen']['u_plot'].full().T
     sol_lam = sol["ml_plot"].full().T
     sol_lam = np.vstack([np.zeros([1,nc]),sol_lam])
-    print("SOLVE TIME:", solraw['exec_sec'])
+    print("SOLVE TIME:", solraw['EXECTIME'])
     # print(np.all(0<sol["comS_plot"].full()+1e-6))
     # print(np.all(0>sol["comS_plot"].full()-1e-6))
     # print(np.all(sol["_gb"][:,0].full()<sol["_g"].full()+1e-6))
