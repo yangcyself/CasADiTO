@@ -21,7 +21,7 @@ RopeNormMin = 0.1
 
 xDim = 3
 xLim = ca.DM([[-ca.inf, ca.inf]]*xDim) 
-STEPS = 15
+STEPS = 5
 model = HeavyRopeLoad(nc = NC)
 
 class uGenXYmove(uGenDefault):
@@ -56,7 +56,7 @@ class uGenXYmove(uGenDefault):
 
 opt =  KKT_TO(
     Xgen = xGenDefault(xDim, xLim),
-    Ugen = uGenXYmove(nc = NC, eps = 0.1),
+    Ugen = uGenXYmove(nc = NC, eps = 0.2),
     Fgen = FGenDefault(0, np.array([])),
     dTgen= dTGenDefault(0), # there is no notion of dT in this problem
     # TransMethod="PF"
