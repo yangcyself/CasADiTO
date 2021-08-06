@@ -208,13 +208,11 @@ class optGen:
     def tryCallWithHyperParam(self, func, kwargs):
         try:
             res = func(**kwargs)
-        except TypeError as e:
-            if("operand type(s)" not in str(e) and "Wrong number or type of arguments" not in str(e)):
-                raise e
+        except Exception as e: #NOTE: not looked into details because the error msg of casadi always changes
             res = MXinSXop(func, kwargs, 
                 list(zip(self.hyperParamList("name"),
                          self.hyperParamList(ca.SX),
-                         self.hyperParamList(ca.MX))))
+                         self.hyperParamList(ca.MX))))           
         return res
 
     def buildParseSolution(self, name, solEx):
@@ -369,6 +367,7 @@ class optGen:
                 hfiles.append("%s.h"%f.name())
             def outputFile():
                 with open(os.path.join(cppname, "interface.h"), "w") as f:
+                    f.write('#ifndef INTERFACE_H\n#define INTERFACE_H\n')
                     f.write('#include <Eigen/Core>\n')
                     for h in hfiles:
                         f.write('#include "%s"\n'%h)
@@ -380,7 +379,7 @@ class optGen:
                         solDict = self.parseSol({"x": self.w})
                         target = pars(solDict)
                         f.write('\ttypedef Eigen::Matrix<double, %d, %d> %s;\n'%(target.size(1), target.size(2), n))
-                    f.write("};\n")
+                    f.write("};\n#endif")
                     
                 if(cmakeOpt is not None):
                     cmakeOption = {"projName": "casaditoGen",
