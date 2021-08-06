@@ -27,13 +27,11 @@ legLength = model.params["legL2"]
 terrainPoints = ca.SX.sym("terrainPoints",7, 2)
 
 
-X0 = np.array([terrainPoints[1, 0], terrainPoints[1, 1] + legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
-         0,0,0,0,    0,    0,    0])
-# X0 = np.array([0, legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
-#          0,0,0,0,    0,    0,    0])
+X0 = ca.vertcat(terrainPoints[1, 0], terrainPoints[1, 1] + legLength,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+         0,0,0,0,    0,    0,    0)
 
-XDes = np.array([terrainPoints[-2, 0], terrainPoints[-2, 1] + legLength ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
-         0,0,0,0,    0,    0,    0])
+XDes = ca.vertcat(terrainPoints[-2, 0], terrainPoints[-2, 1] + legLength ,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+         0,0,0,0,    0,    0,    0)
 
 SchemeSteps = 50
 
@@ -81,7 +79,7 @@ Scheme = [ # list: (contact constaints, length)
     # ((1,1), SchemeSteps, "finish")
 ]
 
-Xlift0 = X0.copy()
+Xlift0 = X0[:]
 Xlift0[2] = np.math.pi/6
 
 References = [
@@ -94,8 +92,8 @@ References = [
         [0,100,0,0,0,100,0,0]
     ),
     lambda i:( # fly
-        X0 + np.concatenate([np.array([distance/SchemeSteps*i, 
-        height/SchemeSteps*i + 0.2+i*(SchemeSteps-i)/(SchemeSteps**2/4)]), np.zeros(12)]),
+        X0 + ca.vertcat(distance/SchemeSteps*i, 
+        height/SchemeSteps*i + 0.2+i*(SchemeSteps-i)/(SchemeSteps**2/4), np.zeros(12)),
         [0,0,0,0, 0,0,0,0]
     ),
     # lambda i:( # finish

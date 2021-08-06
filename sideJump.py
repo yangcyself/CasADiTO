@@ -25,12 +25,12 @@ initHeight = (model.params["legL2"] + model.params["legL1"])/2 # assume 30 angle
 distance = ca.SX.sym("distance",1)
 fleg_local_l = model.pLocalFuncs['pl2']
 fleg_local_r = model.pLocalFuncs['pr2']
-X0 = np.array([0, initHeight,0,   0, -np.math.pi*5/6,np.math.pi*2/3,  0, -np.math.pi*5/6,np.math.pi*2/3,
-         0,0,0, 0,0,0, 0,0,0])
+X0 = ca.vertcat(0, initHeight,0,   0, -np.math.pi*5/6,np.math.pi*2/3,  0, -np.math.pi*5/6,np.math.pi*2/3,
+         0,0,0, 0,0,0, 0,0,0)
 
 
-XDes = np.array([distance, initHeight ,0,   0, -np.math.pi*5/6,np.math.pi*2/3,   0, -np.math.pi*5/6,np.math.pi*2/3,
-         0,0,0, 0,0,0, 0,0,0])
+XDes = ca.vertcat(distance, initHeight ,0,   0, -np.math.pi*5/6,np.math.pi*2/3,   0, -np.math.pi*5/6,np.math.pi*2/3,
+         0,0,0, 0,0,0, 0,0,0)
 
 local_x_0 = fleg_local_l(X0)[0]
 # assert(local_x_0 == fleg_local_r(X0)[0])
@@ -86,15 +86,15 @@ Scheme = [ # list: (contact constaints, length)
     # ((1,1), SchemeSteps, "finish")
 ]
 
-Xlift0 = X0.copy()
+Xlift0 = X0[:]
 Xlift0[2] = np.math.pi/6
 
 References = [
     lambda i: X0, # start
     # lambda i: X0, # lift
     lambda i: # fly
-        X0 + np.concatenate([np.array([distance/SchemeSteps*i, 
-        height/SchemeSteps*i + 0.1*i*(SchemeSteps-i)/(SchemeSteps**2/4)]), np.zeros(16)]) ,
+        X0 + ca.vertcat(distance/SchemeSteps*i, 
+        height/SchemeSteps*i + 0.1*i*(SchemeSteps-i)/(SchemeSteps**2/4), np.zeros(16)) ,
     # lambda i:( # finish
     #     XDes,
     #     [1,125,1,150, 0,125,0,150]

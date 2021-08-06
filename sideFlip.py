@@ -16,7 +16,7 @@ from ExperimentSecretary.Core import Session
 model = LeggedRobotX.fromYaml("data/robotConfigs/JYminiLitev2.yaml")
 
 # Load a existing solution to use it as initialization
-solload = SolLoader("data/nlpSol/sideFlip1621923681.pkl")
+# solload = SolLoader("data/nlpSol/sideFlip1621923681.pkl")
 Tcount = 0
 # input dims: [ux4,Fbx2,Ffx2]
 dT0 = 0.01
@@ -25,16 +25,16 @@ distance = ca.SX.sym("distance",1)
 fleg_local_l = model.pLocalFuncs['pl2']
 fleg_local_r = model.pLocalFuncs['pr2']
 
-X0 = np.array([0, initHeight,0,  
+X0 = ca.vertcat(0, initHeight,0,  
                 0, -np.math.pi*5/6,np.math.pi*2/3, 
                 0, -np.math.pi*5/6,np.math.pi*2/3,
-         0,0,0, 0,0,0, 0,0,0])
+         0,0,0, 0,0,0, 0,0,0)
 
 
-XDes = np.array([distance, initHeight , 2*np.math.pi,  
+XDes = ca.vertcat(distance, initHeight , 2*np.math.pi,  
                 0, -np.math.pi*5/6,np.math.pi*2/3,  
                 0, -np.math.pi*5/6,np.math.pi*2/3,
-         0,0,0, 0,0,0, 0,0,0])
+         0,0,0, 0,0,0, 0,0,0)
 
 local_x_0 = fleg_local_l(X0)[0]
 # assert(local_x_0 == fleg_local_r(X0)[0])
@@ -146,16 +146,16 @@ for (cons, N, name),R,FinalC in zip(Scheme,References,stateFinalCons):
         x_0 = R(i)
         # x_0 = caSubsti(x_0, opt.hyperParams.keys(), opt.hyperParams.values())
 
-        # # use solveLinear Cons to initialize
-        # initSol = solveLinearCons(caFuncSubsti(EOMF, {"x":x_0}), [("ddq", np.zeros(9), 1e3)])
-        # opt.step(lambda dx,x,u,F : EOMF(x=x,u=u,F=F,ddq = dx[9:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-        #         x0 = x_0, u0 = initSol["u"],F0 = initSol["F"])
+        # use solveLinear Cons to initialize
+        initSol = solveLinearCons(caFuncSubsti(EOMF, {"x":x_0}), [("ddq", np.zeros(9), 1e3)])
+        opt.step(lambda dx,x,u,F : EOMF(x=x,u=u,F=F,ddq = dx[9:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+                x0 = x_0, u0 = initSol["u"],F0 = initSol["F"])
 
         # use solLoader to initialize
-        Tcount+=dT0
-        initSol = solload.itp(Tcount)
-        opt.step(lambda dx,x,u,F : EOMF(x=x,u=u,F=F,ddq = dx[9:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
-                x0 = initSol["x"], u0 = initSol["u"],F0 = initSol["F"])
+        # Tcount+=dT0
+        # initSol = solload.itp(Tcount)
+        # opt.step(lambda dx,x,u,F : EOMF(x=x,u=u,F=F,ddq = dx[9:])["EOM"], # EOMfunc:  [x,u,F,ddq]=>[EOM]) 
+        #         x0 = initSol["x"], u0 = initSol["u"],F0 = initSol["F"])
 
         x_init.append(x_0)
 

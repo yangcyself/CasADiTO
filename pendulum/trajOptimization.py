@@ -93,7 +93,7 @@ if __name__ == "__main__" :
         fig, ax = plt.subplots()
         plt.plot(x_plot[:-1,:2])
         fig, ax = plt.subplots()
-        plt.plot([pend.CoMposValue(x)[1,1] for x in x_plot] )
+        plt.plot([float(pend.CoMposValue(x)[1,1]) for x in x_plot] )
         plt.show()
 
 

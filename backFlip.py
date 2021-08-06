@@ -20,11 +20,11 @@ dT0 = 0.01
 initHeight = (model.params["legL2"] + model.params["legL1"])/2 # assume 30 angle of legs
 distance = ca.SX.sym("distance",1)
 
-X0 = np.array([0, 0 + initHeight,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
-         0,0,0,0,    0,    0,    0])
+X0 = ca.vertcat(0, 0 + initHeight,0,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+         0,0,0,0,    0,    0,    0)
 
-XDes = np.array([distance, 0 + initHeight , 2*np.math.pi ,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
-         0,0,0,0,    0,    0,    0])
+XDes = ca.vertcat(distance, 0 + initHeight , 2*np.math.pi ,-np.math.pi*5/6,np.math.pi*2/3, -np.math.pi*5/6,np.math.pi*2/3,
+         0,0,0,0,    0,    0,    0)
 
 SchemeSteps = 50
 
