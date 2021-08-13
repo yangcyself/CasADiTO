@@ -2,12 +2,16 @@
 The box is defined in `heavyRopeLoad`
 """
 import sys
+
+from casadi.casadi import horzcat, mtimes, vertcat
 sys.path.append(".")
 
 from optGen.trajOptimizer import *
 from utils.mathUtil import normQuad, cross2d
+from optGen.helpers import addLinearClearanceConstraint
 import pickle as pkl
 
+optGen.VARTYPE = ca.SX
 
 Nobstacle_box = 3
 DT = 0.2
@@ -15,8 +19,9 @@ xDim = 6 # pos and vel
 xLim = ca.DM([[-ca.inf, ca.inf]]*xDim) 
 uDim = 3 # acc x, acc y, acc turning. (in dog frame)
 uLim = ca.DM([[-1, 1]]*uDim) 
+refLength = 10
 STEPS = 10
-
+NObstacles = 3
 
 opt =  EularCollocation(
     Xgen = xGenDefault(xDim, xLim),
@@ -25,13 +30,19 @@ opt =  EularCollocation(
     dTgen= dTGenDefault(DT)
 )
 
-refTraj = opt.newhyperParam("refTraj", (2,STEPS))
+ind0 = opt.addNewVariable("ind0", ca.DM([0]), ca.DM([refLength]), ca.DM([0]))
+opt._state.update({"ind0": ind0})
+opt._parse.update({"ind0": lambda :ind0})
+
+refTraj = opt.newhyperParam("refTraj", (2,refLength))
 gamma = opt.newhyperParam("gamma")
 Wreference = opt.newhyperParam("Wreference")
 Wacc = opt.newhyperParam("Wacc", (uDim,))
 Wforward = opt.newhyperParam("Wforward")
 x0 = opt.newhyperParam("x0", (xDim,))
-
+obstacles = opt.newhyperParam("obstacles", (NObstacles * 5,))
+dog_l = opt.newhyperParam("dog_l")
+dog_w = opt.newhyperParam("dog_w")
 
 opt.begin(x0=x0, u0=ca.DM.zeros(uDim), F0=ca.DM([]))
 factor = 1
@@ -47,30 +58,81 @@ def dynF(Xk, Uk, Fk):
         ur
     )
 
-for ref in ca.horzsplit(refTraj):
+def boxShapeAB(bl, bw):
+    box_shape_A = ca.vertcat(
+            ca.horzcat(1,0),
+            ca.horzcat(-1,0),
+            ca.horzcat(0,1),
+            ca.horzcat(0,-1),
+    )
+    return ca.horzcat(box_shape_A, ca.vertcat(bl/2, bl/2, bw/2, bw/2)) # box body
+
+def rotation(r):
+    s,c = ca.sin(r), ca.cos(r)
+    return ca.vertcat(ca.horzcat(c, -s),
+                      ca.horzcat(s,  c))
+
+def boxObstacleAb(x,y,r,l,w):
+    p = ca.vertcat(x,y)
+    Ab = boxShapeAB(l, w)
+    A,b = Ab[:,:2], Ab[:,2]
+    T = rotation(r)
+    A = ca.mtimes(A,T.T)
+    o = ca.mtimes(A, p)
+    b = b+o
+    return A,b
+
+
+obstacABs = [boxObstacleAb(a[0], a[1], a[2], a[3], a[4]) for a in ca.vertsplit(obstacles,5)]
+dogAb = []
+opt._parse.update({"dogAb": lambda: ca.horzcat(*dogAb)})
+for i in range(STEPS):
     opt.step(dynF, 
         x0 = x0, u0 = ca.DM.zeros(uDim), F0=ca.DM([]))
 
-    opt.addCost(lambda x: Wreference * factor * normQuad(x[:2]-ref))
+    _x = opt._state["x"]
+    dogA, dogb = boxObstacleAb(_x[0],_x[1],_x[2], dog_l, dog_w)
+    dogAb.append(ca.horzcat(dogA, dogb))
+    for A,b in obstacABs:
+        addLinearClearanceConstraint(opt, ca.vertcat(dogA, A), ca.vertcat(dogb, b))
+
+    indWeights = ca.vertcat(*[ca.exp(-(j-i-ind0)**2) for j in range(refLength)])
+    indWeights = indWeights/ca.sum1(indWeights) #NOTE: normalization may be ignored for saving computation
+    for j,(ref, w) in enumerate(zip(ca.horzsplit(refTraj), ca.vertsplit(indWeights))):
+        wf = ca.Function("wf",[ind0],[w])
+        opt.addCost(lambda x, ind0: Wreference * factor * wf(ind0) # * ca.exp(-(j-i-ind0)**2)
+            * normQuad(x[:2]-ref))
+
     opt.addCost(lambda u: Wacc[0] * u[0]**2 + Wacc[1] * u[1]**2 + Wacc[2] * u[2]**2 )
     opt.addCost(lambda x: -x[3])
     factor *= gamma
 
 if __name__ == "__main__":
 
+
     opt.cppGen("codogs/dogMPC/generated", expand=True, parseFuncs=[
         ("x_plot", lambda sol: sol["Xgen"]["x_plot"].T),
         ("u_plot", lambda sol: sol["Ugen"]["u_plot"].T)],
         cmakeOpt={'libName': 'localPlan', 'cxxflag':'"-O3 -fPIC"'})
 
-    refTraj = np.linspace([2,0], [2, 5], STEPS).T
+    refTraj = np.linspace([2,-5], [2, 2], refLength).T
+    obstacleList = [(2,0,0,1,4),
+                    (3,-1,0.2,1,5),
+                    (-1,-5,0.2,4,0)]
+    for a in obstacleList:
+        print(boxObstacleAb(*a))
+    dog_l = 2.5
+    dog_w = 1
     opt.setHyperParamValue({
         "refTraj": refTraj,
         "gamma": 1,
         "Wreference" : 1e2,
         "Wacc" : [1,5,2],
         "Wforward" : 1,
-        "x0": [0,0,0, 0,0,0]
+        "x0": [0,0,0, 0,0,0],
+        "obstacles":[i for a in obstacleList for i in a],
+        "dog_l" : dog_l,
+        "dog_w" : dog_w
     })
 
     res = opt.solve(options=
@@ -96,9 +158,8 @@ if __name__ == "__main__":
     #         "sol":res,
     #         "EXECTIME": res['exec_sec']
     #     }, f)
-    print(res.keys())
+    print("ind0", res["ind0"])
 
-    print(res["Xgen"].keys())
     ######     ######     ######     #######
     ### ######     Animate      ######   ###
     ######     ######     ######     #######
@@ -118,13 +179,20 @@ if __name__ == "__main__":
 
         sth = np.sin(xsol[2])
         cth = np.cos(xsol[2])
-        L,W = 2,1
-        hl,hw = L/2, W/2
+        hl,hw = dog_l/2, dog_w/2
 
         box, = ax.plot(np.array([cth*hl-sth*hw, -cth*hl-sth*hw, -cth*hl+sth*hw, cth*hl+sth*hw, cth*hl-sth*hw])+xsol[0], 
                     np.array([sth*hl+cth*hw, -sth*hl+cth*hw, -sth*hl-cth*hw, sth*hl-cth*hw, sth*hl+cth*hw])+xsol[1],
                     label = "dog")
         
+        for ii,(x, y, th, bl, bw) in enumerate(obstacleList):
+            bl = bl/2
+            bw = bw/2
+            c = np.cos(th)
+            s = np.sin(th)
+            ax.plot(x+ np.array([c*bl-s*bw, -c*bl-s*bw, -c*bl+s*bw, c*bl+s*bw, c*bl-s*bw]),
+                    y+ np.array([s*bl+c*bw, -s*bl+c*bw, -s*bl-c*bw, s*bl-c*bw, s*bl+c*bw]), label = "obstacle%d"%ii)
+
         ax.legend()
         ax.set_xlim(-8,8)
         ax.set_ylim(-8,8)
@@ -134,5 +202,6 @@ if __name__ == "__main__":
     ani = animation.FuncAnimation(
         fig, animate, interval=100, blit=True, save_count=50)
 
-
+    
     plt.show()
+    
