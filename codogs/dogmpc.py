@@ -14,13 +14,13 @@ import pickle as pkl
 optGen.VARTYPE = ca.SX
 
 Nobstacle_box = 3
-DT = 0.2
+DT = 0.1
 xDim = 6 # pos and vel
 xLim = ca.DM([[-ca.inf, ca.inf]]*xDim) 
 uDim = 3 # acc x, acc y, acc turning. (in dog frame)
-uLim = ca.DM([[-1, 1]]*uDim) 
-refLength = 10
-STEPS = 10
+uLim = ca.DM([[-2, 2]]*uDim) 
+refLength = 1
+STEPS = 5
 NObstacles = 3
 
 opt =  EularCollocation(
@@ -30,9 +30,10 @@ opt =  EularCollocation(
     dTgen= dTGenDefault(DT)
 )
 
-ind0 = opt.addNewVariable("ind0", ca.DM([0]), ca.DM([refLength]), ca.DM([0]))
-opt._state.update({"ind0": ind0})
-opt._parse.update({"ind0": lambda :ind0})
+if(refLength>1):
+    ind0 = opt.addNewVariable("ind0", ca.DM([0]), ca.DM([refLength]), ca.DM([0]))
+    opt._state.update({"ind0": ind0})
+    opt._parse.update({"ind0": lambda :ind0})
 
 refTraj = opt.newhyperParam("refTraj", (2,refLength))
 gamma = opt.newhyperParam("gamma")
@@ -84,28 +85,30 @@ def boxObstacleAb(x,y,r,l,w):
 
 
 obstacABs = [boxObstacleAb(a[0], a[1], a[2], a[3], a[4]) for a in ca.vertsplit(obstacles,5)]
-dogAb = []
-opt._parse.update({"dogAb": lambda: ca.horzcat(*dogAb)})
+
 for i in range(STEPS):
     opt.step(dynF, 
         x0 = x0, u0 = ca.DM.zeros(uDim), F0=ca.DM([]))
 
     _x = opt._state["x"]
     dogA, dogb = boxObstacleAb(_x[0],_x[1],_x[2], dog_l, dog_w)
-    dogAb.append(ca.horzcat(dogA, dogb))
     for A,b in obstacABs:
         addLinearClearanceConstraint(opt, ca.vertcat(dogA, A), ca.vertcat(dogb, b))
 
-    indWeights = ca.vertcat(*[ca.exp(-(j-i-ind0)**2) for j in range(refLength)])
-    indWeights = indWeights/ca.sum1(indWeights) #NOTE: normalization may be ignored for saving computation
-    for j,(ref, w) in enumerate(zip(ca.horzsplit(refTraj), ca.vertsplit(indWeights))):
-        wf = ca.Function("wf",[ind0],[w])
-        opt.addCost(lambda x, ind0: Wreference * factor * wf(ind0) # * ca.exp(-(j-i-ind0)**2)
-            * normQuad(x[:2]-ref))
-
+    if(refLength>1):
+        indWeights = ca.vertcat(*[ca.exp(-(j-i-ind0)**2) for j in range(refLength)])
+        indWeights = indWeights/ca.sum1(indWeights) #NOTE: normalization may be ignored for saving computation
+        for j,(ref, w) in enumerate(zip(ca.horzsplit(refTraj), ca.vertsplit(indWeights))):
+            wf = ca.Function("wf",[ind0],[w])
+            opt.addCost(lambda x, ind0: Wreference * factor * wf(ind0) # * ca.exp(-(j-i-ind0)**2)
+                * normQuad(x[:2]-ref))
+    
     opt.addCost(lambda u: Wacc[0] * u[0]**2 + Wacc[1] * u[1]**2 + Wacc[2] * u[2]**2 )
     opt.addCost(lambda x: -x[3])
     factor *= gamma
+
+if(refLength==1): # this is the final target
+    opt.addCost(lambda x: Wreference * normQuad(x[:2]-refTraj))
 
 if __name__ == "__main__":
 
@@ -115,8 +118,9 @@ if __name__ == "__main__":
         ("u_plot", lambda sol: sol["Ugen"]["u_plot"].T)],
         cmakeOpt={'libName': 'localPlan', 'cxxflag':'"-O3 -fPIC"'})
 
-    refTraj = np.linspace([2,-5], [2, 2], refLength).T
-    obstacleList = [(2,0,0,1,4),
+    # refTraj = np.linspace([2,-5], [2, 2], refLength).T
+    refTraj = ca.DM([2,3])
+    obstacleList = [(2,0,0,1,1),
                     (3,-1,0.2,1,5),
                     (-1,-5,0.2,4,0)]
     for a in obstacleList:
@@ -126,7 +130,7 @@ if __name__ == "__main__":
     opt.setHyperParamValue({
         "refTraj": refTraj,
         "gamma": 1,
-        "Wreference" : 1e2,
+        "Wreference" : 1e3,
         "Wacc" : [1,5,2],
         "Wforward" : 1,
         "x0": [0,0,0, 0,0,0],
@@ -158,7 +162,6 @@ if __name__ == "__main__":
     #         "sol":res,
     #         "EXECTIME": res['exec_sec']
     #     }, f)
-    print("ind0", res["ind0"])
 
     ######     ######     ######     #######
     ### ######     Animate      ######   ###
