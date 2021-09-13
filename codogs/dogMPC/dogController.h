@@ -3,8 +3,9 @@
 #include "generated/interface.h"
 
 int dogController(	
-        hyperParameters::x0 x0,
-        hyperParameters::refTraj refTraj,
+        const hyperParameters::x0 x0,
+        const hyperParameters::refTraj refTraj,
+        const hyperParameters::obstacles obstacles,
         parseOutput::x_plot& x_out, 
         parseOutput::u_plot& p_out);
 

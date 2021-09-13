@@ -13,22 +13,16 @@ int main(
    //  (use a SmartPtr, not raw)
    // Eigen::MatrixXd newx;
 
-   std::vector<double> x0 = {0,0,0};
-   std::vector<double> refTraj = {1,0, 
-                                 1, 0.1, 
-                                 1, 0.2, 
-                                 1, 0.3, 
-                                 1, 0.4, 
-                                 1, 0.5, 
-                                 1, 0.6, 
-                                 1, 0.7, 
-                                 1, 0.8, 
-                                 1, 0.9};
+   std::vector<double> x0 = {0,0,0, 0.1, 0, 0};
+   std::vector<double> refTraj = {1,2, 0.2};
+   std::vector<double> obstacles = {0,0,0,0,0,
+                                    0,0,0,0,0,
+                                    0,0,0,0,0};
 
    parseOutput::x_plot x_out;
    parseOutput::u_plot p_out;
 
-   dogController(x0.data(), refTraj.data(),
+   dogController(x0.data(), refTraj.data(), obstacles.data(),
             x_out, p_out);
 
    int status = 1;

@@ -3,7 +3,8 @@ The box is defined in `heavyRopeLoad`
 """
 import sys
 
-from casadi.casadi import horzcat, mtimes, vertcat
+from casadi.casadi import cos, forward, horzcat, mtimes, vertcat
+from numpy import inf
 sys.path.append(".")
 
 from optGen.trajOptimizer import *
@@ -35,15 +36,17 @@ if(refLength>1):
     opt._state.update({"ind0": ind0})
     opt._parse.update({"ind0": lambda :ind0})
 
-refTraj = opt.newhyperParam("refTraj", (2,refLength))
-gamma = opt.newhyperParam("gamma")
-Wreference = opt.newhyperParam("Wreference")
-Wacc = opt.newhyperParam("Wacc", (uDim,))
-Wforward = opt.newhyperParam("Wforward")
 x0 = opt.newhyperParam("x0", (xDim,))
-obstacles = opt.newhyperParam("obstacles", (NObstacles * 5,))
+refTraj = opt.newhyperParam("refTraj", (3,refLength))
 dog_l = opt.newhyperParam("dog_l")
 dog_w = opt.newhyperParam("dog_w")
+obstacles = opt.newhyperParam("obstacles", (NObstacles * 5,))
+gamma = opt.newhyperParam("gamma")
+Cvel_forw = opt.newhyperParam("Cvel_forw") # forwarding velocity constraint
+Cvel_side = opt.newhyperParam("Cvel_side") # side velocity constraint
+Wreference = opt.newhyperParam("Wreference")
+Wacc = opt.newhyperParam("Wacc", (uDim,))
+Wrot = opt.newhyperParam("Wrot")
 
 opt.begin(x0=x0, u0=ca.DM.zeros(uDim), F0=ca.DM([]))
 factor = 1
@@ -90,6 +93,18 @@ for i in range(STEPS):
     opt.step(dynF, 
         x0 = x0, u0 = ca.DM.zeros(uDim), F0=ca.DM([]))
 
+    # add forward and side speed constraint
+    forw_speed_f = lambda x: x[0] * ca.cos(x[2]) + x[1] * ca.sin(x[2])
+    side_speed_f = lambda x: - x[0] * ca.sin(x[2]) + x[1] * ca.cos(x[2])
+    w0 = ca.DM.ones(4)
+    w = opt.addNewVariable("slack%d"%i, 0*w0, ca.inf*w0, 0*w0)
+    opt._state.update({"slack_w":w})
+    opt.addConstraint(lambda x, slack_w: forw_speed_f(x)+Cvel_forw - slack_w[0], ca.DM([-ca.inf]), ca.DM([0]))
+    opt.addConstraint(lambda x, slack_w: -forw_speed_f(x)+Cvel_forw - slack_w[1], ca.DM([-ca.inf]), ca.DM([0]))
+    opt.addConstraint(lambda x, slack_w: side_speed_f(x)+Cvel_side - slack_w[2], ca.DM([-ca.inf]), ca.DM([0]))
+    opt.addConstraint(lambda x, slack_w: -side_speed_f(x)+Cvel_side - slack_w[3], ca.DM([-ca.inf]), ca.DM([0]))
+    opt.addCost(lambda slack_w: 1e3 * ca.sum1(slack_w))
+
     _x = opt._state["x"]
     dogA, dogb = boxObstacleAb(_x[0],_x[1],_x[2], dog_l, dog_w)
     for A,b in obstacABs:
@@ -101,14 +116,14 @@ for i in range(STEPS):
         for j,(ref, w) in enumerate(zip(ca.horzsplit(refTraj), ca.vertsplit(indWeights))):
             wf = ca.Function("wf",[ind0],[w])
             opt.addCost(lambda x, ind0: Wreference * factor * wf(ind0) # * ca.exp(-(j-i-ind0)**2)
-                * normQuad(x[:2]-ref))
+                * (normQuad(x[:2]-ref[:2]) + Wrot * (x[2]-refTraj[2])**2 )   )
     
     opt.addCost(lambda u: Wacc[0] * u[0]**2 + Wacc[1] * u[1]**2 + Wacc[2] * u[2]**2 )
-    opt.addCost(lambda x: -x[3])
     factor *= gamma
 
 if(refLength==1): # this is the final target
-    opt.addCost(lambda x: Wreference * normQuad(x[:2]-refTraj))
+    opt.addCost(lambda x: Wreference * (normQuad(x[:2]-refTraj[:2]) 
+                        + Wrot * (x[2]-refTraj[2])**2 ) )
 
 if __name__ == "__main__":
 
@@ -119,7 +134,7 @@ if __name__ == "__main__":
         cmakeOpt={'libName': 'localPlan', 'cxxflag':'"-O3 -fPIC"'})
 
     # refTraj = np.linspace([2,-5], [2, 2], refLength).T
-    refTraj = ca.DM([2,3])
+    refTraj = ca.DM([2,3, 0.3])
     obstacleList = [(2,0,0,1,1),
                     (3,-1,0.2,1,5),
                     (-1,-5,0.2,4,0)]
@@ -132,7 +147,9 @@ if __name__ == "__main__":
         "gamma": 1,
         "Wreference" : 1e3,
         "Wacc" : [1,5,2],
-        "Wforward" : 1,
+        "Wrot" : 1e-1,
+        "Cvel_forw": 0.15,
+        "Cvel_side": 0.05,
         "x0": [0,0,0, 0,0,0],
         "obstacles":[i for a in obstacleList for i in a],
         "dog_l" : dog_l,

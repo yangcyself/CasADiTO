@@ -18,24 +18,34 @@ private:
     const double _gamma = 1;
     const double _Wreference = 1e2;
     const hyperParameters::Wacc _Wacc = {1,5,2};
-    const double _Wforward = 1;
+    const double _Wrot = 0.3;
+    const double _dog_l = 0.8;
+    const double _dog_w = 0.3;
+    const double _Cvel_forw = 0.15;
+    const double _Cvel_side = 0.05;
     SmartPtr<IpoptApplication> _app;
     SmartPtr<TNLP> _mynlp;
 public:
     hyperParameters::x0 x0;
     hyperParameters::refTraj refTraj;
+    hyperParameters::obstacles obstacles;
     parseOutput::x_plot x_out;
     parseOutput::u_plot p_out;
 
     dogCtrlApp(): 
         _app(IpoptApplicationFactory()), 
         _mynlp(new TONLP(x_out, p_out, {
+                std::make_pair("x0", x0),
                 std::make_pair("refTraj", refTraj),
+                std::make_pair("dog_l", &_dog_l),
+                std::make_pair("dog_w", &_dog_w),
+                std::make_pair("obstacles", obstacles),
                 std::make_pair("gamma", &_gamma),
+                std::make_pair("Cvel_forw", &_Cvel_forw),
+                std::make_pair("Cvel_side", &_Cvel_side),
                 std::make_pair("Wreference", &_Wreference),
                 std::make_pair("Wacc", _Wacc),
-                std::make_pair("Wforward", &_Wforward),
-                std::make_pair("x0", x0)
+                std::make_pair("Wrot", &_Wrot)
                 })) {
         std::printf("***IPOPT APP SUCCEFFULLY LOADED***\n");
         // _app->Options()->SetNumericValue("tol", 1e-5);
@@ -53,8 +63,9 @@ public:
 
 
 int dogController(	
-        hyperParameters::x0 x0,
-        hyperParameters::refTraj refTraj,
+        const hyperParameters::x0 x0,
+        const hyperParameters::refTraj refTraj,
+        const hyperParameters::obstacles obstacles,
         parseOutput::x_plot& x_out, 
         parseOutput::u_plot& p_out
 )
