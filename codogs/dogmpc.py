@@ -37,7 +37,7 @@ if(refLength>1):
     opt._parse.update({"ind0": lambda :ind0})
 
 x0 = opt.newhyperParam("x0", (xDim,))
-refTraj = opt.newhyperParam("refTraj", (3,refLength))
+refTraj = opt.newhyperParam("refTraj", (5,refLength))
 dog_l = opt.newhyperParam("dog_l")
 dog_w = opt.newhyperParam("dog_w")
 obstacles = opt.newhyperParam("obstacles", (NObstacles * 5,))
@@ -45,6 +45,7 @@ gamma = opt.newhyperParam("gamma")
 Cvel_forw = opt.newhyperParam("Cvel_forw") # forwarding velocity constraint
 Cvel_side = opt.newhyperParam("Cvel_side") # side velocity constraint
 Wreference = opt.newhyperParam("Wreference")
+Wvelref = opt.newhyperParam("Wvelref")
 Wacc = opt.newhyperParam("Wacc", (uDim,))
 Wrot = opt.newhyperParam("Wrot")
 
@@ -123,8 +124,9 @@ for i in range(STEPS):
 
 if(refLength==1): # this is the final target
     opt.addCost(lambda x: Wreference * (normQuad(x[:2]-refTraj[:2]) 
-                        + Wrot * ((ca.cos(x[2])-ca.cos(refTraj[2]))**2 
-                                 +(ca.sin(x[2])-ca.sin(refTraj[2]))**2) ) )
+                            + Wrot * ((ca.cos(x[2])-ca.cos(refTraj[2]))**2 
+                                    +(ca.sin(x[2])-ca.sin(refTraj[2]))**2))
+                        + Wvelref * (normQuad(x[3:5]-refTraj[3:5]) ))
 
 if __name__ == "__main__":
 
@@ -136,7 +138,7 @@ if __name__ == "__main__":
 
     # refTraj = np.linspace([2,-5], [2, 2], refLength).T
     x0 = ca.DM([0.740372, -0.002397, 0, 0., 0, 0])
-    refTraj = ca.DM([ 0.988501, 0.033318, 0.])
+    refTraj = ca.DM([ 0.988501, 0.033318, 0., 0, 0])
     obstacleList = [(0.000003, -0.000000, 0.000002, 1.000000, 1.000000),
                     (0,0,0,0,0),
                     (0,0,0,0,0)]
@@ -148,6 +150,7 @@ if __name__ == "__main__":
         "refTraj": refTraj,
         "gamma": 1,
         "Wreference" : 1e3,
+        "Wvelref": 1e2,
         "Wacc" : [1,5,2],
         "Wrot" : 1e-1,
         "Cvel_forw": 0.15,

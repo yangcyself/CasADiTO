@@ -17,10 +17,11 @@ class dogCtrlApp{
 private:
     const double _gamma = 1;
     const double _Wreference = 1e2;
-    const hyperParameters::Wacc _Wacc = {1,5,2};
+    const double _Wvelref = 1e2;
+    const hyperParameters::Wacc _Wacc = {1e3,1e6,2};
     const double _Wrot = 0.3;
-    const double _dog_l = 0.8;
-    const double _dog_w = 0.3;
+    const double _dog_l = 0.65;
+    const double _dog_w = 0.35;
     const double _Cvel_forw = 0.15;
     const double _Cvel_side = 0.05;
     SmartPtr<IpoptApplication> _app;
@@ -44,6 +45,7 @@ public:
                 std::make_pair("Cvel_forw", &_Cvel_forw),
                 std::make_pair("Cvel_side", &_Cvel_side),
                 std::make_pair("Wreference", &_Wreference),
+                std::make_pair("Wvelref", &_Wvelref),
                 std::make_pair("Wacc", _Wacc),
                 std::make_pair("Wrot", &_Wrot)
                 })) {
@@ -54,7 +56,7 @@ public:
         // _app->Options()->SetNumericValue("mumps_dep_tol", 0); // following ipopt documentation
         // _app->Options()->SetStringValue("mu_strategy", "monotone"); // from casadi document, IMPORTANT! related to coredump
         _app->Options()->SetStringValue("check_derivatives_for_naninf", "yes"); // from casadi document, IMPORTANT! related to coredump
-        _app->Options()->SetIntegerValue ("max_iter", 5000);
+        _app->Options()->SetIntegerValue ("max_iter", 1000);
         _app->Options()->SetIntegerValue ("print_level", 0);
     }
     SmartPtr<IpoptApplication> app(){return _app;}

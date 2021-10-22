@@ -14,7 +14,7 @@ int main(
    // Eigen::MatrixXd newx;
 
    std::vector<double> x0 = {0,0,0, 0.1, 0, 0};
-   std::vector<double> refTraj = {1,2, 0.2};
+   std::vector<double> refTraj = {1,2, 0.2, 0, 0};
    std::vector<double> obstacles = {0,0,0,0,0,
                                     0,0,0,0,0,
                                     0,0,0,0,0};
