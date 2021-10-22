@@ -19,7 +19,7 @@ DT = 0.1
 xDim = 6 # pos and vel
 xLim = ca.DM([[-ca.inf, ca.inf]]*xDim) 
 uDim = 3 # acc x, acc y, acc turning. (in dog frame)
-uLim = ca.DM([[-2, 2]]*uDim) 
+uLim = ca.DM([[-0.6, 0.6], [-0.2, 0.2], [-1,1]]) 
 refLength = 1
 STEPS = 5
 NObstacles = 3
@@ -94,16 +94,16 @@ for i in range(STEPS):
         x0 = x0, u0 = ca.DM.zeros(uDim), F0=ca.DM([]))
 
     # add forward and side speed constraint
-    forw_speed_f = lambda x: x[0] * ca.cos(x[2]) + x[1] * ca.sin(x[2])
-    side_speed_f = lambda x: - x[0] * ca.sin(x[2]) + x[1] * ca.cos(x[2])
+    forw_speed_f = lambda x: x[3] * ca.cos(x[5]) + x[4] * ca.sin(x[5])
+    side_speed_f = lambda x: - x[3] * ca.sin(x[5]) + x[4] * ca.cos(x[5])
     w0 = ca.DM.ones(4)
     w = opt.addNewVariable("slack%d"%i, 0*w0, ca.inf*w0, 0*w0)
     opt._state.update({"slack_w":w})
-    opt.addConstraint(lambda x, slack_w: forw_speed_f(x)+Cvel_forw - slack_w[0], ca.DM([-ca.inf]), ca.DM([0]))
-    opt.addConstraint(lambda x, slack_w: -forw_speed_f(x)+Cvel_forw - slack_w[1], ca.DM([-ca.inf]), ca.DM([0]))
-    opt.addConstraint(lambda x, slack_w: side_speed_f(x)+Cvel_side - slack_w[2], ca.DM([-ca.inf]), ca.DM([0]))
-    opt.addConstraint(lambda x, slack_w: -side_speed_f(x)+Cvel_side - slack_w[3], ca.DM([-ca.inf]), ca.DM([0]))
-    opt.addCost(lambda slack_w: 1e3 * ca.sum1(slack_w))
+    opt.addConstraint(lambda x, slack_w: forw_speed_f(x)+Cvel_forw + slack_w[0], ca.DM([0]), ca.DM([ca.inf]))
+    opt.addConstraint(lambda x, slack_w: -forw_speed_f(x)+Cvel_forw + slack_w[1], ca.DM([0]), ca.DM([ca.inf]))
+    opt.addConstraint(lambda x, slack_w: side_speed_f(x)+Cvel_side + slack_w[2], ca.DM([0]), ca.DM([ca.inf]))
+    opt.addConstraint(lambda x, slack_w: -side_speed_f(x)+Cvel_side + slack_w[3], ca.DM([0]), ca.DM([ca.inf]))
+    opt.addCost(lambda slack_w: 1e6 * ca.sum1(slack_w))
 
     _x = opt._state["x"]
     dogA, dogb = boxObstacleAb(_x[0],_x[1],_x[2], dog_l, dog_w)
@@ -116,14 +116,15 @@ for i in range(STEPS):
         for j,(ref, w) in enumerate(zip(ca.horzsplit(refTraj), ca.vertsplit(indWeights))):
             wf = ca.Function("wf",[ind0],[w])
             opt.addCost(lambda x, ind0: Wreference * factor * wf(ind0) # * ca.exp(-(j-i-ind0)**2)
-                * (normQuad(x[:2]-ref[:2]) + Wrot * (x[2]-refTraj[2])**2 )   )
+                * (normQuad(x[:2]-ref[:2]) + Wrot * ((ca.cos(x[2])-ca.cos(refTraj[2]))**2 + (ca.sin(x[2])-ca.sin(refTraj[2]))**2) )   )
     
     opt.addCost(lambda u: Wacc[0] * u[0]**2 + Wacc[1] * u[1]**2 + Wacc[2] * u[2]**2 )
     factor *= gamma
 
 if(refLength==1): # this is the final target
     opt.addCost(lambda x: Wreference * (normQuad(x[:2]-refTraj[:2]) 
-                        + Wrot * (x[2]-refTraj[2])**2 ) )
+                        + Wrot * ((ca.cos(x[2])-ca.cos(refTraj[2]))**2 
+                                 +(ca.sin(x[2])-ca.sin(refTraj[2]))**2) ) )
 
 if __name__ == "__main__":
 
@@ -134,14 +135,15 @@ if __name__ == "__main__":
         cmakeOpt={'libName': 'localPlan', 'cxxflag':'"-O3 -fPIC"'})
 
     # refTraj = np.linspace([2,-5], [2, 2], refLength).T
-    refTraj = ca.DM([2,3, 0.3])
-    obstacleList = [(2,0,0,1,1),
-                    (3,-1,0.2,1,5),
-                    (-1,-5,0.2,4,0)]
+    x0 = ca.DM([0.740372, -0.002397, 0, 0., 0, 0])
+    refTraj = ca.DM([ 0.988501, 0.033318, 0.])
+    obstacleList = [(0.000003, -0.000000, 0.000002, 1.000000, 1.000000),
+                    (0,0,0,0,0),
+                    (0,0,0,0,0)]
     for a in obstacleList:
         print(boxObstacleAb(*a))
-    dog_l = 2.5
-    dog_w = 1
+    dog_l = 0.8
+    dog_w = 0.3
     opt.setHyperParamValue({
         "refTraj": refTraj,
         "gamma": 1,
@@ -150,7 +152,7 @@ if __name__ == "__main__":
         "Wrot" : 1e-1,
         "Cvel_forw": 0.15,
         "Cvel_side": 0.05,
-        "x0": [0,0,0, 0,0,0],
+        "x0": x0,
         "obstacles":[i for a in obstacleList for i in a],
         "dog_l" : dog_l,
         "dog_w" : dog_w
