@@ -97,27 +97,16 @@ for i in range(STEPS):
     # add forward and side speed constraint
     forw_speed_f = lambda x: x[3] * ca.cos(x[5]) + x[4] * ca.sin(x[5])
     side_speed_f = lambda x: - x[3] * ca.sin(x[5]) + x[4] * ca.cos(x[5])
-    w0 = ca.DM.ones(4)
+    w0 = ca.DM.ones(1)
     w = opt.addNewVariable("slack%d"%i, 0*w0, ca.inf*w0, 0*w0)
     opt._state.update({"slack_w":w})
-    opt.addConstraint(lambda x, slack_w: forw_speed_f(x)+Cvel_forw + slack_w[0], ca.DM([0]), ca.DM([ca.inf])) 
-    opt.addConstraint(lambda x, slack_w: -forw_speed_f(x)+Cvel_forw + slack_w[1], ca.DM([0]), ca.DM([ca.inf]))
-    opt.addConstraint(lambda x, slack_w: side_speed_f(x)+Cvel_side + slack_w[2], ca.DM([0]), ca.DM([ca.inf]))
-    opt.addConstraint(lambda x, slack_w: -side_speed_f(x)+Cvel_side + slack_w[3], ca.DM([0]), ca.DM([ca.inf]))
-    opt.addCost(lambda slack_w: 1e6 * ca.sum1(slack_w))
+    opt.addConstraint(lambda x, slack_w: 1 - (forw_speed_f(x)/Cvel_forw)**2 - (side_speed_f(x)/Cvel_side)**2  + slack_w, ca.DM([0]), ca.DM([ca.inf])) 
+    opt.addCost(lambda slack_w: 1e6 * slack_w)
 
     _x = opt._state["x"]
     dogA, dogb = boxObstacleAb(_x[0],_x[1],_x[2], dog_l, dog_w)
     for A,b in obstacABs:
         addLinearClearanceConstraint(opt, ca.vertcat(dogA, A), ca.vertcat(dogb, b))
-
-    if(refLength>1):
-        indWeights = ca.vertcat(*[ca.exp(-(j-i-ind0)**2) for j in range(refLength)])
-        indWeights = indWeights/ca.sum1(indWeights) #NOTE: normalization may be ignored for saving computation
-        for j,(ref, w) in enumerate(zip(ca.horzsplit(refTraj), ca.vertsplit(indWeights))):
-            wf = ca.Function("wf",[ind0],[w])
-            opt.addCost(lambda x, ind0: Wreference * factor * wf(ind0) # * ca.exp(-(j-i-ind0)**2)
-                * (normQuad(x[:2]-ref[:2]) + Wrot * ((ca.cos(x[2])-ca.cos(refTraj[2]))**2 + (ca.sin(x[2])-ca.sin(refTraj[2]))**2) )   )
     
     opt.addCost(lambda u: Wacc[0] * u[0]**2 + Wacc[1] * u[1]**2 + Wacc[2] * u[2]**2 )
     factor *= gamma
@@ -131,12 +120,14 @@ if(refLength==1): # this is the final target
 def run_a_loop(x0, reftraj, obslist):
     dog_l = 0.65
     dog_w = 0.35
+    print("x0      ", x0)
+    print("reftraj ", reftraj)
     opt.setHyperParamValue({
         "refTraj": refTraj,
         "gamma": 1,
         "Wreference" : 1e3,
         "Wvelref": 1e1,
-        "Wacc" : [1e3,1e6,2],
+        "Wacc" : [1e3,1e6,10],
         "Wrot" : 3e-2,
         "Cvel_forw": 0.35,
         "Cvel_side": 0.1,
@@ -154,8 +145,9 @@ def run_a_loop(x0, reftraj, obslist):
             "verbose_init":True,
             # "jac_g": gjacFunc
         "ipopt":{
-            "max_iter" : 50000, # unkown option
-            "check_derivatives_for_naninf": "yes"
+            "max_iter" : 3000, # unkown option
+            "check_derivatives_for_naninf": "yes",
+            "print_level": 0 #5
             }
         })
     
@@ -177,9 +169,9 @@ if __name__ == "__main__":
     dog_l = 0.65
     dog_w = 0.35
     x0 = ca.DM([0, 0, 0, 0., 0, 0])
-    refTraj = ca.DM([ 1, 0, 0., 0, 0])
-    # obstacleList = [(1.5, -0.000000, .5, 1.5, 0.2),
-    obstacleList = [(5, -0.000000, .5, 1.5, 0.2),
+    refTraj = ca.DM([ 2, 0, 0., 0.1, 0])
+    obstacleList = [(1.5, -0.000000, .5, 1.5, 0.2),
+    # obstacleList = [(0,0,0,0,0),
                     (0,0,0,0,0),
                     (0,0,0,0,0)]
     for a in obstacleList:
@@ -188,10 +180,12 @@ if __name__ == "__main__":
     sol_x,sol_u = run_a_loop(x0,refTraj,obstacleList)
     x_list = [np.array(sol_x)]
     u_list = [np.array(sol_u)]
-    for i in range(30):
+    for i in range(50):
         sol_x,sol_u = run_a_loop(x_list[-1][1], refTraj, obstacleList)
         x_list.append(sol_x)
         u_list.append(sol_u)
+    sol_x = [x[0] for x in x_list]
+    sol_u = [u[0] for u in u_list]
     # dumpname = os.path.abspath(os.path.join("./codogs/nlpSol", "dogmpc%d.pkl"%time.time()))
 
     # with open(dumpname, "wb") as f:
@@ -209,8 +203,6 @@ if __name__ == "__main__":
     # sol_x= res['Xgen']['x_plot'].full().T
     # sol_u= res['Ugen']['u_plot'].full().T
     # print(sol_x)
-    sol_x = [x[0] for x in x_list]
-    sol_u = [u[0] for u in u_list]
     print(sol_x)
     def animate(i):
         ind = i%len(sol_x)
@@ -245,5 +237,12 @@ if __name__ == "__main__":
         fig, animate, interval=100, blit=True, save_count=50)
 
     
+    try:
+        plt.figure()
+        for i, x in enumerate(x_list):
+            r_arr = [a[2] for a in x]
+            plt.plot(np.arange(i,i+len(r_arr)), r_arr)
+    except Exception as E:
+        print("MPC rotation array failed to plot!!")
+        print(E)
     plt.show()
-    
