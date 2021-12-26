@@ -58,7 +58,7 @@ def dynF(Xk, Uk, Fk):
     s,c = ca.sin(pr), ca.cos(pr)
     return ca.vertcat(
         Xk[3:], # vel
-        c*ux - s*uy,
+        c*ux - s*uy, # TODO: Change to global
         s*ux + c*uy,
         ur
     )
@@ -100,7 +100,7 @@ for i in range(STEPS):
     w0 = ca.DM.ones(4)
     w = opt.addNewVariable("slack%d"%i, 0*w0, ca.inf*w0, 0*w0)
     opt._state.update({"slack_w":w})
-    opt.addConstraint(lambda x, slack_w: forw_speed_f(x)+Cvel_forw + slack_w[0], ca.DM([0]), ca.DM([ca.inf]))
+    opt.addConstraint(lambda x, slack_w: forw_speed_f(x)+Cvel_forw + slack_w[0], ca.DM([0]), ca.DM([ca.inf])) 
     opt.addConstraint(lambda x, slack_w: -forw_speed_f(x)+Cvel_forw + slack_w[1], ca.DM([0]), ca.DM([ca.inf]))
     opt.addConstraint(lambda x, slack_w: side_speed_f(x)+Cvel_side + slack_w[2], ca.DM([0]), ca.DM([ca.inf]))
     opt.addConstraint(lambda x, slack_w: -side_speed_f(x)+Cvel_side + slack_w[3], ca.DM([0]), ca.DM([ca.inf]))
@@ -128,39 +128,23 @@ if(refLength==1): # this is the final target
                                     +(ca.sin(x[2])-ca.sin(refTraj[2]))**2))
                         + Wvelref * (normQuad(x[3:5]-refTraj[3:5]) ))
 
-if __name__ == "__main__":
-
-
-    opt.cppGen("codogs/dogMPC/generated", expand=True, parseFuncs=[
-        ("x_plot", lambda sol: sol["Xgen"]["x_plot"].T),
-        ("u_plot", lambda sol: sol["Ugen"]["u_plot"].T)],
-        cmakeOpt={'libName': 'localPlan', 'cxxflag':'"-O3 -fPIC"'})
-
-    # refTraj = np.linspace([2,-5], [2, 2], refLength).T
-    x0 = ca.DM([0.740372, -0.002397, 0, 0., 0, 0])
-    refTraj = ca.DM([ 0.988501, 0.033318, 0., 0, 0])
-    obstacleList = [(0.000003, -0.000000, 0.000002, 1.000000, 1.000000),
-                    (0,0,0,0,0),
-                    (0,0,0,0,0)]
-    for a in obstacleList:
-        print(boxObstacleAb(*a))
-    dog_l = 0.8
-    dog_w = 0.3
+def run_a_loop(x0, reftraj, obslist):
+    dog_l = 0.65
+    dog_w = 0.35
     opt.setHyperParamValue({
         "refTraj": refTraj,
         "gamma": 1,
         "Wreference" : 1e3,
-        "Wvelref": 1e2,
-        "Wacc" : [1,5,2],
-        "Wrot" : 1e-1,
-        "Cvel_forw": 0.15,
-        "Cvel_side": 0.05,
+        "Wvelref": 1e1,
+        "Wacc" : [1e3,1e6,2],
+        "Wrot" : 3e-2,
+        "Cvel_forw": 0.35,
+        "Cvel_side": 0.1,
         "x0": x0,
         "obstacles":[i for a in obstacleList for i in a],
         "dog_l" : dog_l,
         "dog_w" : dog_w
     })
-
     res = opt.solve(options=
         {"calc_f" : True,
         "calc_g" : True,
@@ -176,7 +160,38 @@ if __name__ == "__main__":
         })
     
     print("EXECTIME:", res['exec_sec'])
+    sol_x= res['Xgen']['x_plot'].full().T
+    sol_u= res['Ugen']['u_plot'].full().T
+    return sol_x,sol_u
 
+
+
+if __name__ == "__main__":
+
+    # opt.cppGen("codogs/dogMPC/generated", expand=True, parseFuncs=[
+    #     ("x_plot", lambda sol: sol["Xgen"]["x_plot"].T),
+    #     ("u_plot", lambda sol: sol["Ugen"]["u_plot"].T)],
+    #     cmakeOpt={'libName': 'localPlan', 'cxxflag':'"-O3 -fPIC"'})
+
+    # refTraj = np.linspace([2,-5], [2, 2], refLength).T
+    dog_l = 0.65
+    dog_w = 0.35
+    x0 = ca.DM([0, 0, 0, 0., 0, 0])
+    refTraj = ca.DM([ 1, 0, 0., 0, 0])
+    # obstacleList = [(1.5, -0.000000, .5, 1.5, 0.2),
+    obstacleList = [(5, -0.000000, .5, 1.5, 0.2),
+                    (0,0,0,0,0),
+                    (0,0,0,0,0)]
+    for a in obstacleList:
+        print(boxObstacleAb(*a))
+
+    sol_x,sol_u = run_a_loop(x0,refTraj,obstacleList)
+    x_list = [np.array(sol_x)]
+    u_list = [np.array(sol_u)]
+    for i in range(30):
+        sol_x,sol_u = run_a_loop(x_list[-1][1], refTraj, obstacleList)
+        x_list.append(sol_x)
+        u_list.append(sol_u)
     # dumpname = os.path.abspath(os.path.join("./codogs/nlpSol", "dogmpc%d.pkl"%time.time()))
 
     # with open(dumpname, "wb") as f:
@@ -191,10 +206,12 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import matplotlib.animation as animation
     fig, ax = plt.subplots()
-    sol_x= res['Xgen']['x_plot'].full().T
-    sol_u= res['Ugen']['u_plot'].full().T
+    # sol_x= res['Xgen']['x_plot'].full().T
+    # sol_u= res['Ugen']['u_plot'].full().T
+    # print(sol_x)
+    sol_x = [x[0] for x in x_list]
+    sol_u = [u[0] for u in u_list]
     print(sol_x)
-
     def animate(i):
         ind = i%len(sol_x)
         xsol = sol_x[ind]

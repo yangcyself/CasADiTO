@@ -16,14 +16,14 @@ using namespace Ipopt;
 class dogCtrlApp{
 private:
     const double _gamma = 1;
-    const double _Wreference = 1e2;
-    const double _Wvelref = 1e2;
+    const double _Wreference = 1e3;
+    const double _Wvelref = 1e1;
     const hyperParameters::Wacc _Wacc = {1e3,1e6,2};
-    const double _Wrot = 0.3;
+    const double _Wrot = 0.03;
     const double _dog_l = 0.65;
     const double _dog_w = 0.35;
-    const double _Cvel_forw = 0.15;
-    const double _Cvel_side = 0.05;
+    const double _Cvel_forw = 0.35;
+    const double _Cvel_side = 0.1;
     SmartPtr<IpoptApplication> _app;
     SmartPtr<TNLP> _mynlp;
 public:
