@@ -14,15 +14,25 @@ import pickle as pkl
 
 optGen.VARTYPE = ca.SX
 
+CVEL_FOWR = 0.35
+CVEL_SIDE = 0.1
+
+def getAccBound(V_M,N,T):
+    # assume at time T the agent moving at full speed just cannot see the obstacle
+    # Then calculate the accleration needed to ensure safety for the next loop
+    aMin = V_M / (2*N*T)
+    return [-aMin, aMin]
+
 Nobstacle_box = 3
 DT = 0.1
 xDim = 6 # pos and vel
 xLim = ca.DM([[-ca.inf, ca.inf]]*xDim) 
 uDim = 3 # acc x, acc y, acc turning. (in dog frame)
-uLim = ca.DM([[-0.6, 0.6], [-0.2, 0.2], [-1,1]]) 
+
 refLength = 1
 STEPS = 5
 NObstacles = 3
+uLim = ca.DM([getAccBound(CVEL_FOWR, STEPS, DT), getAccBound(CVEL_SIDE, STEPS, DT), [-1,1]]) 
 
 opt =  EularCollocation(
     Xgen = xGenDefault(xDim, xLim),
@@ -106,7 +116,7 @@ for i in range(STEPS):
     _x = opt._state["x"]
     dogA, dogb = boxObstacleAb(_x[0],_x[1],_x[2], dog_l, dog_w)
     for A,b in obstacABs:
-        addLinearClearanceConstraint(opt, ca.vertcat(dogA, A), ca.vertcat(dogb, b))
+        addLinearClearanceConstraint(opt, ca.vertcat(dogA, A), ca.vertcat(dogb, b), slackWeight=1e6)
     
     opt.addCost(lambda u: Wacc[0] * u[0]**2 + Wacc[1] * u[1]**2 + Wacc[2] * u[2]**2 )
     factor *= gamma
@@ -129,8 +139,8 @@ def run_a_loop(x0, reftraj, obslist):
         "Wvelref": 1e1,
         "Wacc" : [1e3,1e6,10],
         "Wrot" : 3e-2,
-        "Cvel_forw": 0.35,
-        "Cvel_side": 0.1,
+        "Cvel_forw": CVEL_FOWR,
+        "Cvel_side": CVEL_SIDE,
         "x0": x0,
         "obstacles":[i for a in obstacleList for i in a],
         "dog_l" : dog_l,
@@ -160,10 +170,10 @@ def run_a_loop(x0, reftraj, obslist):
 
 if __name__ == "__main__":
 
-    # opt.cppGen("codogs/dogMPC/generated", expand=True, parseFuncs=[
-    #     ("x_plot", lambda sol: sol["Xgen"]["x_plot"].T),
-    #     ("u_plot", lambda sol: sol["Ugen"]["u_plot"].T)],
-    #     cmakeOpt={'libName': 'localPlan', 'cxxflag':'"-O3 -fPIC"'})
+    opt.cppGen("codogs/dogMPC/generated", expand=True, parseFuncs=[
+        ("x_plot", lambda sol: sol["Xgen"]["x_plot"].T),
+        ("u_plot", lambda sol: sol["Ugen"]["u_plot"].T)],
+        cmakeOpt={'libName': 'localPlan', 'cxxflag':'"-O3 -fPIC"'})
 
     # refTraj = np.linspace([2,-5], [2, 2], refLength).T
     dog_l = 0.65

@@ -45,7 +45,7 @@ def addDisjunctivePositiveConstraint(opt, x, epsName="eps", consName="disj"):
         })
 
 
-def addLinearClearanceConstraint(opt, A,b, wName="w", consName="linearClearance"):
+def addLinearClearanceConstraint(opt, A,b, wName="w", consName="linearClearance", slackWeight=None):
     """Add the constraint that Ax<b for all x in Rn has no solution
         for the set {Ax - b < 0} be empty, there exists a w>0 s.t. ATw=0, wTb <= 0
 
@@ -69,7 +69,12 @@ def addLinearClearanceConstraint(opt, A,b, wName="w", consName="linearClearance"
     opt._lbg.append(ca.DM.zeros(g0.size()))
     opt._ubg.append(ca.DM.zeros(g0.size()))
 
-    g1 = ca.dot(w, b) # wTb<=0
+    if(slackWeight is None):
+        g1 = ca.dot(w, b) # wTb<=0
+    else:
+        c = opt.addNewVariable("c", ca.DM([0]), ca.DM([ca.inf]), ca.DM([0]))
+        g1 = ca.dot(w,b)-c
+        opt._J+=slackWeight*c*c
     opt._g.append(g1)
     opt._lbg.append(ca.DM([-ca.inf]))
     opt._ubg.append(ca.DM([0]))
