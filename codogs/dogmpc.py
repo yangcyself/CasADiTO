@@ -21,7 +21,7 @@ def getAccBound(V_M,N,T):
     # assume at time T the agent moving at full speed just cannot see the obstacle
     # Then calculate the accleration needed to ensure safety for the next loop
     aMin = V_M / (2*N*T)
-    return [-aMin, aMin]
+    return aMin
 
 Nobstacle_box = 3
 DT = 0.1
@@ -30,9 +30,11 @@ xLim = ca.DM([[-ca.inf, ca.inf]]*xDim)
 uDim = 3 # acc x, acc y, acc turning. (in dog frame)
 
 refLength = 1
-STEPS = 5
+STEPS = 8
 NObstacles = 3
-uLim = ca.DM([getAccBound(CVEL_FOWR, STEPS, DT), getAccBound(CVEL_SIDE, STEPS, DT), [-1,1]]) 
+# uLim = ca.DM([getAccBound(CVEL_FOWR, STEPS, DT), getAccBound(CVEL_SIDE, STEPS, DT), [-1,1]]) 
+uBound = [getAccBound(CVEL_FOWR, STEPS, DT), getAccBound(CVEL_SIDE, STEPS, DT)]
+uLim = ca.DM([[-ca.inf, ca.inf], [-ca.inf, ca.inf], [-1,1]]) 
 
 opt =  EularCollocation(
     Xgen = xGenDefault(xDim, xLim),
@@ -113,6 +115,13 @@ for i in range(STEPS):
     opt.addConstraint(lambda x, slack_w: 1 - (forw_speed_f(x)/Cvel_forw)**2 - (side_speed_f(x)/Cvel_side)**2  + slack_w, ca.DM([0]), ca.DM([ca.inf])) 
     opt.addCost(lambda slack_w: 1e6 * slack_w)
 
+    # add forward and side acc constraint
+    opt.addConstraint( lambda u: (u[0]/uBound[0])**2+(u[1]/uBound[1])**2, ca.DM([-ca.inf]), ca.DM([1]))
+    ## constraint on the yaw angle of the dog
+    opt.addCost(lambda x: Wreference*Wrot*((ca.cos(x[2])-ca.cos(refTraj[2]))**2 
+                            +(ca.sin(x[2])-ca.sin(refTraj[2]))**2))
+    opt.addConstraint(lambda x:  ca.sin((x[2]-refTraj[2])/2), 
+                                    ca.DM([-0.5]), ca.DM([0.5])) 
     _x = opt._state["x"]
     dogA, dogb = boxObstacleAb(_x[0],_x[1],_x[2], dog_l, dog_w)
     for A,b in obstacABs:
@@ -122,9 +131,7 @@ for i in range(STEPS):
     factor *= gamma
 
 if(refLength==1): # this is the final target
-    opt.addCost(lambda x: Wreference * (normQuad(x[:2]-refTraj[:2]) 
-                            + Wrot * ((ca.cos(x[2])-ca.cos(refTraj[2]))**2 
-                                    +(ca.sin(x[2])-ca.sin(refTraj[2]))**2))
+    opt.addCost(lambda x: Wreference * (normQuad(x[:2]-refTraj[:2]))
                         + Wvelref * (normQuad(x[3:5]-refTraj[3:5]) ))
 
 def run_a_loop(x0, reftraj, obslist):
@@ -138,7 +145,7 @@ def run_a_loop(x0, reftraj, obslist):
         "Wreference" : 1e3,
         "Wvelref": 1e1,
         "Wacc" : [1e3,1e6,10],
-        "Wrot" : 3e-2,
+        "Wrot" : 3e-1,
         "Cvel_forw": CVEL_FOWR,
         "Cvel_side": CVEL_SIDE,
         "x0": x0,
@@ -179,9 +186,9 @@ if __name__ == "__main__":
     dog_l = 0.65
     dog_w = 0.35
     x0 = ca.DM([0, 0, 0, 0., 0, 0])
-    refTraj = ca.DM([ 2, 0, 0., 0.1, 0])
-    obstacleList = [(1.5, -0.000000, .5, 1.5, 0.2),
-    # obstacleList = [(0,0,0,0,0),
+    refTraj = ca.DM([ 0, 2, 0., 0, 0])
+    # obstacleList = [(1.5, -0.000000, .5, 1.5, 0.2),
+    obstacleList = [(0,0,0,0,0),
                     (0,0,0,0,0),
                     (0,0,0,0,0)]
     for a in obstacleList:
@@ -252,6 +259,16 @@ if __name__ == "__main__":
         for i, x in enumerate(x_list):
             r_arr = [a[2] for a in x]
             plt.plot(np.arange(i,i+len(r_arr)), r_arr)
+        plt.title("r")
+    except Exception as E:
+        print("MPC rotation array failed to plot!!")
+        print(E)
+    try:
+        plt.figure()
+        for i, x in enumerate(x_list):
+            r_arr = [a[4] for a in x]
+            plt.plot(np.arange(i,i+len(r_arr)), r_arr)
+        plt.title("vy")
     except Exception as E:
         print("MPC rotation array failed to plot!!")
         print(E)
