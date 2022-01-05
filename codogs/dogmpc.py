@@ -56,6 +56,8 @@ obstacles = opt.newhyperParam("obstacles", (NObstacles * 5,))
 gamma = opt.newhyperParam("gamma")
 Cvel_forw = opt.newhyperParam("Cvel_forw") # forwarding velocity constraint
 Cvel_side = opt.newhyperParam("Cvel_side") # side velocity constraint
+Cacc_forw = opt.newhyperParam("Cacc_forw") # forwarding accleration constraint
+Cacc_side = opt.newhyperParam("Cacc_side") # side accleration constraint
 Wreference = opt.newhyperParam("Wreference")
 Wvelref = opt.newhyperParam("Wvelref")
 Wacc = opt.newhyperParam("Wacc", (uDim,))
@@ -116,7 +118,7 @@ for i in range(STEPS):
     opt.addCost(lambda slack_w: 1e6 * slack_w)
 
     # add forward and side acc constraint
-    opt.addConstraint( lambda u: (u[0]/uBound[0])**2+(u[1]/uBound[1])**2, ca.DM([-ca.inf]), ca.DM([1]))
+    opt.addConstraint( lambda u: (u[0]/Cacc_forw)**2+(u[1]/Cacc_side)**2, ca.DM([-ca.inf]), ca.DM([1]))
     ## constraint on the yaw angle of the dog
     opt.addCost(lambda x: Wreference*Wrot*((ca.cos(x[2])-ca.cos(refTraj[2]))**2 
                             +(ca.sin(x[2])-ca.sin(refTraj[2]))**2))
@@ -148,6 +150,8 @@ def run_a_loop(x0, reftraj, obslist):
         "Wrot" : 3e-1,
         "Cvel_forw": CVEL_FOWR,
         "Cvel_side": CVEL_SIDE,
+        "Cacc_forw": uBound[0],
+        "Cacc_side": uBound[1],
         "x0": x0,
         "obstacles":[i for a in obstacleList for i in a],
         "dog_l" : dog_l,
@@ -185,8 +189,8 @@ if __name__ == "__main__":
     # refTraj = np.linspace([2,-5], [2, 2], refLength).T
     dog_l = 0.65
     dog_w = 0.35
-    x0 = ca.DM([0, 0, 0, 0., 0, 0])
-    refTraj = ca.DM([ 0, 2, 0., 0, 0])
+    x0 = ca.DM([0, 0, ca.pi, 0., 0, 0])
+    refTraj = ca.DM([ -2, 0.1, -ca.pi/6*7, 0, 0])
     # obstacleList = [(1.5, -0.000000, .5, 1.5, 0.2),
     obstacleList = [(0,0,0,0,0),
                     (0,0,0,0,0),
@@ -266,10 +270,19 @@ if __name__ == "__main__":
     try:
         plt.figure()
         for i, x in enumerate(x_list):
+            r_arr = [a[3] for a in x]
+            plt.plot(np.arange(i,i+len(r_arr)), r_arr)
+        plt.title("vx")
+    except Exception as E:
+        print("MPC VX failed to plot!!")
+        print(E)
+    try:
+        plt.figure()
+        for i, x in enumerate(x_list):
             r_arr = [a[4] for a in x]
             plt.plot(np.arange(i,i+len(r_arr)), r_arr)
         plt.title("vy")
     except Exception as E:
-        print("MPC rotation array failed to plot!!")
+        print("MPC VY failed to plot!!")
         print(E)
     plt.show()

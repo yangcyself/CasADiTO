@@ -18,12 +18,14 @@ private:
     const double _gamma = 1;
     const double _Wreference = 1e3;
     const double _Wvelref = 1e1;
-    const hyperParameters::Wacc _Wacc = {1e3,1e6,1e2};
+    hyperParameters::Wacc _Wacc = {1e3,1e6,1e2};
     const double _Wrot = 0.03;
     const double _dog_l = 0.65;
     const double _dog_w = 0.35;
-    const double _Cvel_forw = 0.35;
-    const double _Cvel_side = 0.1;
+    double _Cvel_forw = 0.35;
+    double _Cvel_side = 0.1;
+    double _Cacc_forw = 0.35/(8 * 0.1 * 2);
+    double _Cacc_side = 0.1/(8 * 0.1 * 2);
     SmartPtr<IpoptApplication> _app;
     SmartPtr<TNLP> _mynlp;
 public:
@@ -32,6 +34,18 @@ public:
     hyperParameters::obstacles obstacles;
     parseOutput::x_plot x_out;
     parseOutput::u_plot p_out;
+
+    void setWacc(hyperParameters::Wacc wacc){
+        std::memcpy(wacc, _Wacc,   sizeof(hyperParameters::Wacc));
+    }
+    void setCvel(double forw, double side){
+        _Cvel_forw = forw;
+        _Cvel_side = side;
+    }
+    void setCacc(double forw, double side){
+        _Cacc_forw = forw;
+        _Cacc_side = side;
+    }
 
     dogCtrlApp(): 
         _app(IpoptApplicationFactory()), 
@@ -44,6 +58,8 @@ public:
                 std::make_pair("gamma", &_gamma),
                 std::make_pair("Cvel_forw", &_Cvel_forw),
                 std::make_pair("Cvel_side", &_Cvel_side),
+                std::make_pair("Cacc_forw", &_Cacc_forw),
+                std::make_pair("Cacc_side", &_Cacc_side),
                 std::make_pair("Wreference", &_Wreference),
                 std::make_pair("Wvelref", &_Wvelref),
                 std::make_pair("Wacc", _Wacc),
@@ -63,6 +79,7 @@ public:
     SmartPtr<TNLP> mynlp(){return _mynlp;}
 };
 
+dogCtrlApp a; 
 
 int dogController(	
         const hyperParameters::x0 x0,
@@ -72,7 +89,6 @@ int dogController(
         parseOutput::u_plot& p_out
 )
 {
-    static dogCtrlApp a; 
     const auto app = a.app();
     ApplicationReturnStatus status;
     
@@ -130,3 +146,17 @@ int dogController(
 
     return (int) status;
 }
+
+void configDogController(
+        hyperParameters::Wacc wacc,
+        double Cvelforw,
+        double Cvelside,
+        double Caccforw,
+        double Caccside
+)
+{
+    a.setWacc(wacc);
+    a.setCvel(Cvelforw, Cvelside);
+    a.setCacc(Caccforw, Caccside);
+}
+

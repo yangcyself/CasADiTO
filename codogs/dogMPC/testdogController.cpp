@@ -13,7 +13,9 @@ int main(
    //  (use a SmartPtr, not raw)
    // Eigen::MatrixXd newx;
 
-   std::vector<double> x0 = {0,0,0, 0.1, 0, 0};
+   std::vector<double> x0 = {0,0,1e-2, 0.3, 0, 0};
+   std::vector<double> wacc = {1e3, 1e6, 10};
+   configDogController(wacc.data(), 0.4, 0.1, 1e-3, 1);
    std::vector<double> refTraj = {1,2, 0.2, 0, 0};
    std::vector<double> obstacles = {0,0,0,0,0,
                                     0,0,0,0,0,

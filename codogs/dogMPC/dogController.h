@@ -9,4 +9,11 @@ int dogController(
         parseOutput::x_plot& x_out, 
         parseOutput::u_plot& p_out);
 
+void configDogController(
+        hyperParameters::Wacc wacc,
+        double Cvelforw,
+        double Cvelside,
+        double Caccforw,
+        double Caccside
+        );
 #endif
