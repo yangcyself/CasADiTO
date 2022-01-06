@@ -106,30 +106,29 @@ obstacABs = [boxObstacleAb(a[0], a[1], a[2], a[3], a[4]) for a in ca.vertsplit(o
 for i in range(STEPS):
 
     # add forward and side speed constraint
-    forw_speed_f = lambda x: x[3] * ca.cos(x[5]) + x[4] * ca.sin(x[5])
-    side_speed_f = lambda x: - x[3] * ca.sin(x[5]) + x[4] * ca.cos(x[5])
+    forw_speed_f = lambda x: x[3] * ca.cos(x[2]) + x[4] * ca.sin(x[2])
+    side_speed_f = lambda x: - x[3] * ca.sin(x[2]) + x[4] * ca.cos(x[2])
     w0 = ca.DM.ones(1)
     w = opt.addNewVariable("slack%d"%i, 0*w0, ca.inf*w0, 0*w0)
     opt._state.update({"slack_w":w})
     opt.addConstraint(lambda x, slack_w: 1 - (forw_speed_f(x)/Cvel_forw)**2 - (side_speed_f(x)/Cvel_side)**2  + slack_w, ca.DM([0]), ca.DM([ca.inf])) 
-    opt.addCost(lambda slack_w: 1e6 * slack_w)
+    opt.addCost(lambda slack_w: 1e4 * slack_w)
 
     # add forward and side acc constraint
     opt.addConstraint( lambda u: (u[0]/Cacc_forw)**2+(u[1]/Cacc_side)**2, ca.DM([-ca.inf]), ca.DM([1]))
     ## constraint on the yaw angle of the dog
     opt.addCost(lambda x: Wreference*Wrot*((ca.cos(x[2])-ca.cos(refTraj[2]))**2 
                             +(ca.sin(x[2])-ca.sin(refTraj[2]))**2))
-    opt.addConstraint(lambda x:  ca.sin((x[2]-refTraj[2])/2), 
-                                    ca.DM([-0.5]), ca.DM([0.5])) 
     _x = opt._state["x"]
     dogA, dogb = boxObstacleAb(_x[0],_x[1],_x[2], dog_l, dog_w)
     for A,b in obstacABs:
         addLinearClearanceConstraint(opt, ca.vertcat(dogA, A), ca.vertcat(dogb, b), slackWeight=1e6)
     
     opt.addCost(lambda u: Wacc[0] * u[0]**2 + Wacc[1] * u[1]**2 + Wacc[2] * u[2]**2 )
-
-    opt.step(dynF, 
-            x0 = x0, u0 = ca.DM.zeros(uDim), F0=ca.DM([]))
+    opt.addCost(lambda x: Wvelref*Wrot*x[5]**2) # penalty on rotation speed
+    if i<STEPS-1: # Does not call `step` in the end
+        opt.step(dynF, 
+                x0 = x0, u0 = ca.DM.zeros(uDim), F0=ca.DM([]))
 
 if(refLength==1): # this is the final target
     opt.addCost(lambda x: Wreference * (normQuad(x[:2]-refTraj[:2]))
@@ -143,13 +142,13 @@ def run_a_loop(x0, reftraj, obslist):
     opt.setHyperParamValue({
         "refTraj": refTraj,
         "Wreference" : 1e3,
-        "Wvelref": 1e1,
+        "Wvelref": 10,
         "Wacc" : [50,100,100],
-        "Wrot" : 3e-1,
+        "Wrot" : 1e-1,
         "Cvel_forw": CVEL_FOWR,
         "Cvel_side": CVEL_SIDE,
-        "Cacc_forw": CVEL_FOWR,
-        "Cacc_side": CVEL_SIDE,
+        "Cacc_forw": CVEL_FOWR*5,
+        "Cacc_side": CVEL_SIDE*5,
         "x0": x0,
         "obstacles":[i for a in obstacleList for i in a],
         "dog_l" : dog_l,
@@ -187,11 +186,16 @@ if __name__ == "__main__":
     # refTraj = np.linspace([2,-5], [2, 2], refLength).T
     dog_l = 0.65
     dog_w = 0.35
-    x0 = ca.DM([0, 0, 0, 0., 0, 0])
-    refTraj = ca.DM([0, 0.15, ca.pi/6, 0, 0])
+    x0 = ca.DM([6.053870, -0.156643, 1.321408, 0.032596, 0.094757, -0.195427])
+    refTraj = ca.DM([6.151964, 0.667922, 1.272634, 0.081201, 0.058364])
+    # x0 = ca.DM([0,0,ca.pi/2, 0,0,0])
+    # refTraj = ca.DM([0,0.6,ca.pi/2, 0,0])
     # obstacleList = [(1.5, -0.000000, .5, 1.5, 0.2),
-    obstacleList = [(0,0,0,0,0),
-                    (0,0,0,0,0),
+    obstacleList = [
+            (6.743920,-0.368712,0.033235,0.500000,0.500000),
+            (5.273501,0.639503,1.428899,0.921249,0.829325),
+            # (0,0,0,0,0),
+            # (0,0,0,0,0),
                     (0,0,0,0,0)]
     for a in obstacleList:
         print(boxObstacleAb(*a))
@@ -201,7 +205,7 @@ if __name__ == "__main__":
     print(sol_u)
     x_list = [np.array(sol_x)]
     u_list = [np.array(sol_u)]
-    for i in range(10):
+    for i in range(50):
         sol_x,sol_u,success = run_a_loop(x_list[-1][1], refTraj, obstacleList)
         if(not success):
             print("UNSUCCESS:", x_list[-1][1], refTraj, obstacleList )
@@ -260,6 +264,15 @@ if __name__ == "__main__":
         fig, animate, interval=100, blit=True, save_count=50)
 
     
+    try:
+        plt.figure()
+        for i, x in enumerate(x_list):
+            r_arr = [a[1] for a in x]
+            plt.plot(np.arange(i,i+len(r_arr)), r_arr)
+        plt.title("y")
+    except Exception as E:
+        print("MPC ypos array failed to plot!!")
+        print(E)
     try:
         plt.figure()
         for i, x in enumerate(x_list):
