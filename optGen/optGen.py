@@ -289,6 +289,7 @@ class optGen:
         exec_seconds = time.time() - start_time
         self._sol.update(self.parseSol(self._sol))
         self._sol["exec_sec"]= exec_seconds
+        self._sol["success"] = solver.stats()["success"]
         return self._sol
 
     # Add constriant of the state of last step
