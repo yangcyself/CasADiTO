@@ -53,7 +53,6 @@ refTraj = opt.newhyperParam("refTraj", (5,refLength))
 dog_l = opt.newhyperParam("dog_l")
 dog_w = opt.newhyperParam("dog_w")
 obstacles = opt.newhyperParam("obstacles", (NObstacles * 5,))
-gamma = opt.newhyperParam("gamma")
 Cvel_forw = opt.newhyperParam("Cvel_forw") # forwarding velocity constraint
 Cvel_side = opt.newhyperParam("Cvel_side") # side velocity constraint
 Cacc_forw = opt.newhyperParam("Cacc_forw") # forwarding accleration constraint
@@ -105,8 +104,6 @@ def boxObstacleAb(x,y,r,l,w):
 obstacABs = [boxObstacleAb(a[0], a[1], a[2], a[3], a[4]) for a in ca.vertsplit(obstacles,5)]
 
 for i in range(STEPS):
-    opt.step(dynF, 
-        x0 = x0, u0 = ca.DM.zeros(uDim), F0=ca.DM([]))
 
     # add forward and side speed constraint
     forw_speed_f = lambda x: x[3] * ca.cos(x[5]) + x[4] * ca.sin(x[5])
@@ -130,7 +127,9 @@ for i in range(STEPS):
         addLinearClearanceConstraint(opt, ca.vertcat(dogA, A), ca.vertcat(dogb, b), slackWeight=1e6)
     
     opt.addCost(lambda u: Wacc[0] * u[0]**2 + Wacc[1] * u[1]**2 + Wacc[2] * u[2]**2 )
-    factor *= gamma
+
+    opt.step(dynF, 
+            x0 = x0, u0 = ca.DM.zeros(uDim), F0=ca.DM([]))
 
 if(refLength==1): # this is the final target
     opt.addCost(lambda x: Wreference * (normQuad(x[:2]-refTraj[:2]))
@@ -143,15 +142,14 @@ def run_a_loop(x0, reftraj, obslist):
     print("reftraj ", reftraj)
     opt.setHyperParamValue({
         "refTraj": refTraj,
-        "gamma": 1,
         "Wreference" : 1e3,
         "Wvelref": 1e1,
-        "Wacc" : [1e3,1e6,10],
+        "Wacc" : [50,100,100],
         "Wrot" : 3e-1,
         "Cvel_forw": CVEL_FOWR,
         "Cvel_side": CVEL_SIDE,
-        "Cacc_forw": uBound[0],
-        "Cacc_side": uBound[1],
+        "Cacc_forw": CVEL_FOWR,
+        "Cacc_side": CVEL_SIDE,
         "x0": x0,
         "obstacles":[i for a in obstacleList for i in a],
         "dog_l" : dog_l,
@@ -175,7 +173,7 @@ def run_a_loop(x0, reftraj, obslist):
     print("EXECTIME:", res['exec_sec'])
     sol_x= res['Xgen']['x_plot'].full().T
     sol_u= res['Ugen']['u_plot'].full().T
-    return sol_x,sol_u
+    return sol_x,sol_u, res['success']
 
 
 
@@ -189,8 +187,8 @@ if __name__ == "__main__":
     # refTraj = np.linspace([2,-5], [2, 2], refLength).T
     dog_l = 0.65
     dog_w = 0.35
-    x0 = ca.DM([0, 0, ca.pi, 0., 0, 0])
-    refTraj = ca.DM([ -2, 0.1, -ca.pi/6*7, 0, 0])
+    x0 = ca.DM([0, 0, 0, 0., 0, 0])
+    refTraj = ca.DM([0, 0.15, ca.pi/6, 0, 0])
     # obstacleList = [(1.5, -0.000000, .5, 1.5, 0.2),
     obstacleList = [(0,0,0,0,0),
                     (0,0,0,0,0),
@@ -198,11 +196,16 @@ if __name__ == "__main__":
     for a in obstacleList:
         print(boxObstacleAb(*a))
 
-    sol_x,sol_u = run_a_loop(x0,refTraj,obstacleList)
+    sol_x,sol_u,success = run_a_loop(x0,refTraj,obstacleList)
+    print(sol_x)
+    print(sol_u)
     x_list = [np.array(sol_x)]
     u_list = [np.array(sol_u)]
-    for i in range(50):
-        sol_x,sol_u = run_a_loop(x_list[-1][1], refTraj, obstacleList)
+    for i in range(10):
+        sol_x,sol_u,success = run_a_loop(x_list[-1][1], refTraj, obstacleList)
+        if(not success):
+            print("UNSUCCESS:", x_list[-1][1], refTraj, obstacleList )
+            break
         x_list.append(sol_x)
         u_list.append(sol_u)
     sol_x = [x[0] for x in x_list]
@@ -224,7 +227,6 @@ if __name__ == "__main__":
     # sol_x= res['Xgen']['x_plot'].full().T
     # sol_u= res['Ugen']['u_plot'].full().T
     # print(sol_x)
-    print(sol_x)
     def animate(i):
         ind = i%len(sol_x)
         xsol = sol_x[ind]
@@ -249,8 +251,8 @@ if __name__ == "__main__":
                     y+ np.array([s*bl+c*bw, -s*bl+c*bw, -s*bl-c*bw, s*bl-c*bw, s*bl+c*bw]), label = "obstacle%d"%ii)
 
         ax.legend()
-        ax.set_xlim(-8,8)
-        ax.set_ylim(-8,8)
+        ax.set_xlim(sol_x[0][0]-8,sol_x[0][0]+8)
+        ax.set_ylim(sol_x[0][1]-8,sol_x[0][1]+8)
 
         return box,
 

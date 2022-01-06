@@ -15,17 +15,16 @@
 using namespace Ipopt;
 class dogCtrlApp{
 private:
-    const double _gamma = 1;
     const double _Wreference = 1e3;
     const double _Wvelref = 1e1;
-    hyperParameters::Wacc _Wacc = {1e3,1e6,1e2};
-    const double _Wrot = 0.03;
+    hyperParameters::Wacc _Wacc = {50,100,100};
+    const double _Wrot = 0.3;
     const double _dog_l = 0.65;
     const double _dog_w = 0.35;
     double _Cvel_forw = 0.35;
     double _Cvel_side = 0.1;
-    double _Cacc_forw = 0.35/(8 * 0.1 * 2);
-    double _Cacc_side = 0.1/(8 * 0.1 * 2);
+    double _Cacc_forw = 0.35;
+    double _Cacc_side = 0.1;
     SmartPtr<IpoptApplication> _app;
     SmartPtr<TNLP> _mynlp;
 public:
@@ -55,7 +54,6 @@ public:
                 std::make_pair("dog_l", &_dog_l),
                 std::make_pair("dog_w", &_dog_w),
                 std::make_pair("obstacles", obstacles),
-                std::make_pair("gamma", &_gamma),
                 std::make_pair("Cvel_forw", &_Cvel_forw),
                 std::make_pair("Cvel_side", &_Cvel_side),
                 std::make_pair("Cacc_forw", &_Cacc_forw),
