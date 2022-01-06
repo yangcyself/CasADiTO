@@ -17,8 +17,8 @@ class dogCtrlApp{
 private:
     const double _Wreference = 1e3;
     const double _Wvelref = 10;
-    hyperParameters::Wacc _Wacc = {50,100,100};
-    const double _Wrot = 0.1;
+    hyperParameters::Wacc _Wacc = {5,10,10};
+    double _Wrot = 0.1;
     const double _dog_l = 0.65;
     const double _dog_w = 0.35;
     double _Cvel_forw = 0.35;
@@ -35,7 +35,10 @@ public:
     parseOutput::u_plot p_out;
 
     void setWacc(hyperParameters::Wacc wacc){
-        std::memcpy(wacc, _Wacc,   sizeof(hyperParameters::Wacc));
+        std::memcpy(_Wacc, wacc, sizeof(hyperParameters::Wacc));
+    }
+    void setWrot(double wrot){
+        _Wrot = wrot;
     }
     void setCvel(double forw, double side){
         _Cvel_forw = forw;
@@ -147,6 +150,7 @@ int dogController(
 
 void configDogController(
         hyperParameters::Wacc wacc,
+        double wrot,
         double Cvelforw,
         double Cvelside,
         double Caccforw,
@@ -154,6 +158,7 @@ void configDogController(
 )
 {
     a.setWacc(wacc);
+    a.setWrot(wrot);
     a.setCvel(Cvelforw, Cvelside);
     a.setCacc(Caccforw, Caccside);
 }
