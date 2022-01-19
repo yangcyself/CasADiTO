@@ -14,8 +14,8 @@ int main(
    // Eigen::MatrixXd newx;
 
    std::vector<double> x0 = {0,0,1e-2, 0.3, 0, 0};
-   // std::vector<double> wacc = {10, 100, 100};
-   // configDogController(wacc.data(), 0.4, 0.1, 1e-3, 1);
+   std::vector<double> wacc = {5, 10, 10};
+   configDogController(1e3, 10, 0.1, wacc.data(), 0.4, 0.1, 1e-3, 1);
    std::vector<double> refTraj = {1,2, 0.2, 0, 0};
    std::vector<double> obstacles = {0,0,0,0,0,
                                     0,0,0,0,0,

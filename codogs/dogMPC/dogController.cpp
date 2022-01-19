@@ -15,8 +15,8 @@
 using namespace Ipopt;
 class dogCtrlApp{
 private:
-    const double _Wreference = 1e3;
-    const double _Wvelref = 10;
+    double _Wreference = 1e3;
+    double _Wvelref = 10;
     hyperParameters::Wacc _Wacc = {5,10,10};
     double _Wrot = 0.1;
     const double _dog_l = 0.65;
@@ -37,7 +37,9 @@ public:
     void setWacc(hyperParameters::Wacc wacc){
         std::memcpy(_Wacc, wacc, sizeof(hyperParameters::Wacc));
     }
-    void setWrot(double wrot){
+    void setWeights(double wreference, double wvelref, double wrot){
+        _Wreference = wreference;
+        _Wvelref = wvelref;
         _Wrot = wrot;
     }
     void setCvel(double forw, double side){
@@ -149,8 +151,10 @@ int dogController(
 }
 
 void configDogController(
-        hyperParameters::Wacc wacc,
+        double wreference, 
+        double wvelref,
         double wrot,
+        hyperParameters::Wacc wacc,
         double Cvelforw,
         double Cvelside,
         double Caccforw,
@@ -158,7 +162,7 @@ void configDogController(
 )
 {
     a.setWacc(wacc);
-    a.setWrot(wrot);
+    a.setWeights(wreference, wvelref,wrot);
     a.setCvel(Cvelforw, Cvelside);
     a.setCacc(Caccforw, Caccside);
 }
