@@ -30,7 +30,7 @@ xLim = ca.DM([[-ca.inf, ca.inf]]*xDim)
 uDim = 3 # acc x, acc y, acc turning. (in dog frame)
 
 refLength = 1
-STEPS = 8
+STEPS = 5
 NObstacles = 3
 # uLim = ca.DM([getAccBound(CVEL_FOWR, STEPS, DT), getAccBound(CVEL_SIDE, STEPS, DT), [-1,1]]) 
 uBound = [getAccBound(CVEL_FOWR, STEPS, DT), getAccBound(CVEL_SIDE, STEPS, DT)]
@@ -85,6 +85,25 @@ def boxShapeAB(bl, bw):
     )
     return ca.horzcat(box_shape_A, ca.vertcat(bl/2, bl/2, bw/2, bw/2)) # box body
 
+def bulletShapeAB(bl,bw):
+    # The half angle of the bullet head, pi/2 for total square
+    # ang = ca.pi/4
+    # ang = ca.pi/3 
+    box_shape_A = ca.vertcat(
+            # ca.horzcat(np.sin(ang),np.cos(ang)),
+            # ca.horzcat(np.sin(ang), -np.cos(ang)),
+            ca.horzcat(ca.sqrt(3), 1)/2,
+            ca.horzcat(ca.sqrt(3), -1)/2,
+            # ca.horzcat(ca.sqrt(2), ca.sqrt(2))/2,
+            # ca.horzcat(ca.sqrt(2), -ca.sqrt(2))/2,
+            ca.horzcat(-1,0),
+            ca.horzcat(0,1),
+            ca.horzcat(0,-1)
+    )
+    b = ca.mtimes(box_shape_A[0,:], ca.vertcat(bl/2,bw/2))
+    return ca.horzcat(box_shape_A, ca.vertcat(b, b, bl/2, bw/2, bw/2)) # box body
+
+
 def rotation(r):
     s,c = ca.sin(r), ca.cos(r)
     return ca.vertcat(ca.horzcat(c, -s),
@@ -100,6 +119,15 @@ def boxObstacleAb(x,y,r,l,w):
     b = b+o
     return A,b
 
+def bulletObstacleAb(x,y,r,l,w):
+    p = ca.vertcat(x,y)
+    Ab = bulletShapeAB(l, w)
+    A,b = Ab[:,:2], Ab[:,2]
+    T = rotation(r)
+    A = ca.mtimes(A,T.T)
+    o = ca.mtimes(A, p)
+    b = b+o
+    return A,b
 
 obstacABs = [boxObstacleAb(a[0], a[1], a[2], a[3], a[4]) for a in ca.vertsplit(obstacles,5)]
 
@@ -120,7 +148,7 @@ for i in range(STEPS):
     opt.addCost(lambda x: Wreference*Wrot*((ca.cos(x[2])-ca.cos(refTraj[2]))**2 
                             +(ca.sin(x[2])-ca.sin(refTraj[2]))**2))
     _x = opt._state["x"]
-    dogA, dogb = boxObstacleAb(_x[0],_x[1],_x[2], dog_l, dog_w)
+    dogA, dogb = bulletObstacleAb(_x[0],_x[1],_x[2], dog_l, dog_w)
     for A,b in obstacABs:
         addLinearClearanceConstraint(opt, ca.vertcat(dogA, A), ca.vertcat(dogb, b), slackWeight=1e6)
     
@@ -186,15 +214,14 @@ if __name__ == "__main__":
     # refTraj = np.linspace([2,-5], [2, 2], refLength).T
     dog_l = 0.65
     dog_w = 0.35
-    x0 = ca.DM([6.053870, -0.156643, 1.321408, 0.032596, 0.094757, -0.195427])
-    refTraj = ca.DM([6.151964, 0.667922, 1.272634, 0.081201, 0.058364])
+    x0 = ca.DM([0,-0.1,0, 0,0,0])
+    refTraj = ca.DM([3, 0, 0, 0, 0])
     # x0 = ca.DM([0,0,ca.pi/2, 0,0,0])
     # refTraj = ca.DM([0,0.6,ca.pi/2, 0,0])
     # obstacleList = [(1.5, -0.000000, .5, 1.5, 0.2),
     obstacleList = [
-            (6.743920,-0.368712,0.033235,0.500000,0.500000),
-            (5.273501,0.639503,1.428899,0.921249,0.829325),
-            # (0,0,0,0,0),
+            (2,1,0,1,2),
+            (0,0,0,0,0),
             # (0,0,0,0,0),
                     (0,0,0,0,0)]
     for a in obstacleList:
