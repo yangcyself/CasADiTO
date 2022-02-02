@@ -25,6 +25,9 @@ private:
     double _Cvel_side = 0.1;
     double _Cacc_forw = 1.75;
     double _Cacc_side = 0.5;
+    double _Cvel_yaw = 1;
+    double _Cacc_yaw = 0.5;
+    double _Wvel_yaw = 1e2;
     SmartPtr<IpoptApplication> _app;
     SmartPtr<TNLP> _mynlp;
 public:
@@ -37,18 +40,21 @@ public:
     void setWacc(hyperParameters::Wacc wacc){
         std::memcpy(_Wacc, wacc, sizeof(hyperParameters::Wacc));
     }
-    void setWeights(double wreference, double wvelref, double wrot){
+    void setWeights(double wreference, double wvelref, double wrot, double wvel_yaw){
         _Wreference = wreference;
         _Wvelref = wvelref;
         _Wrot = wrot;
+        _Wvel_yaw = wvel_yaw;
     }
-    void setCvel(double forw, double side){
+    void setCvel(double forw, double side, double yaw){
         _Cvel_forw = forw;
         _Cvel_side = side;
+        _Cvel_yaw = yaw;
     }
-    void setCacc(double forw, double side){
+    void setCacc(double forw, double side, double yaw){
         _Cacc_forw = forw;
         _Cacc_side = side;
+        _Cacc_yaw = yaw;
     }
 
     dogCtrlApp(): 
@@ -63,6 +69,9 @@ public:
                 std::make_pair("Cvel_side", &_Cvel_side),
                 std::make_pair("Cacc_forw", &_Cacc_forw),
                 std::make_pair("Cacc_side", &_Cacc_side),
+                std::make_pair("Cvel_yaw", &_Cvel_yaw),
+                std::make_pair("Cacc_yaw", &_Cacc_yaw),
+                std::make_pair("Wvel_yaw", &_Wvel_yaw),
                 std::make_pair("Wreference", &_Wreference),
                 std::make_pair("Wvelref", &_Wvelref),
                 std::make_pair("Wacc", _Wacc),
@@ -158,12 +167,15 @@ void configDogController(
         double Cvelforw,
         double Cvelside,
         double Caccforw,
-        double Caccside
+        double Caccside,
+        double Cvel_yaw,
+        double Cacc_yaw,
+        double Wvel_yaw
 )
 {
     a.setWacc(wacc);
-    a.setWeights(wreference, wvelref,wrot);
-    a.setCvel(Cvelforw, Cvelside);
-    a.setCacc(Caccforw, Caccside);
+    a.setWeights(wreference, wvelref,wrot, Wvel_yaw);
+    a.setCvel(Cvelforw, Cvelside, Cvel_yaw);
+    a.setCacc(Caccforw, Caccside, Cacc_yaw);
 }
 

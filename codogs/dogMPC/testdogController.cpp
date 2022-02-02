@@ -15,7 +15,20 @@ int main(
 
    std::vector<double> x0 = {0,0,1e-2, 0.3, 0, 0};
    std::vector<double> wacc = {5, 10, 10};
-   configDogController(1e3, 10, 0.1, wacc.data(), 0.4, 0.1, 1e-3, 1);
+   
+   configDogController(
+      1e3,        //   double wreference,  
+      10,      //   double wvelref, 
+      0.1,     //   double wrot, 
+      wacc.data(),         //   hyperParameters::Wacc wacc, 
+      0.35,     //   double Cvelforw, 
+      0.1,     //   double Cvelside, 
+      1.4,          //   double Caccforw, 
+      0.5,     //   double Caccside, 
+      1,      // double Cvel_yaw, 
+      0.5,      // double Cacc_yaw, 
+      100      // double Wvel_yaw
+      );
    std::vector<double> refTraj = {1,2, 0.2, 0, 0};
    std::vector<double> obstacles = {0,0,0,0,0,
                                     0,0,0,0,0,

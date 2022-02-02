@@ -10,10 +10,16 @@ int dogController(
         parseOutput::u_plot& p_out);
 
 void configDogController(
+        double wreference, 
+        double wvelref,
+        double wrot,
         hyperParameters::Wacc wacc,
         double Cvelforw,
         double Cvelside,
         double Caccforw,
-        double Caccside
+        double Caccside,
+        double Cvel_yaw,
+        double Cacc_yaw,
+        double Wvel_yaw
         );
 #endif
